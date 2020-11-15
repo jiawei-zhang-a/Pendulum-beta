@@ -1,0 +1,27 @@
+{
+  "name": "pendulum-beta",
+  "version": "0.0.1",
+  "description": "A research and visualization platform",
+  "main": "runnable/main.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YuelongLi/Pendulum-beta.git"
+  },
+  "keywords": [
+    "visualization",
+    "numerical_computation",
+    "coorperative_research"
+  ],
+  "author": "Yuelong Li, Derek Li, Daniel Li",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/YuelongLi/Pendulum-beta/issues"
+  },
+  "homepage": "https://github.com/YuelongLi/Pendulum-beta#readme"
+}
