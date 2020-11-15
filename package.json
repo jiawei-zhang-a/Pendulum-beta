@@ -23,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/YuelongLi/Pendulum-beta/issues"
   },
-  "homepage": "https://github.com/YuelongLi/Pendulum-beta#readme"
+  "homepage": "https://github.com/YuelongLi/Pendulum-beta#readme",
+  "dependencies": {
+    "three": "^0.122.0"
+  }
 }
