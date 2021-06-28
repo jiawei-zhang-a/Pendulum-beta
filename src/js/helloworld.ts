@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import {WebGLRenderer} from "three";
 
 let camera: THREE.Camera, scene: THREE.Scene, renderer: WebGLRenderer;
-let geometry, material, mesh: THREE.Mesh;
+let geometry: THREE.BoxGeometry, material, mesh: THREE.Mesh;
 
 init();
 
@@ -14,7 +14,7 @@ function init() {
 
     scene = new THREE.Scene();
 
-    geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
+    geometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
     material = new THREE.MeshNormalMaterial();
 
     mesh = new THREE.Mesh( geometry, material );
@@ -29,9 +29,9 @@ function init() {
 
 function animation( time: number ) {
 
-    mesh.rotation.x = time / 2000;
-    mesh.rotation.y = time / 1000;
-
+    mesh.rotation.x = time /100;
+    mesh.rotation.y = time / 100;
+    mesh.scale.set(Math.cos(time/3000),Math.cos(time/4000), Math.cos(time/1000));
     renderer.render( scene, camera );
 
 }

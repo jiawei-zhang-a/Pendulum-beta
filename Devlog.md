@@ -14,5 +14,9 @@ All the aforementioned modules such as Gulp and babelify that weren't creating a
 were rage-deleted. After some digging, I realized that the imported code from "three/src/Three.js" file were in the 
 es2015 standard instead of commonjs. However, in the other directory "three/build/three.js", the code was either
 UMD or commonjs compatible, and can be directly imported as part of the `'three'` module
-in the typescript files. With this fix, running `tsc` followed with `browserify` yields correctly functioning
+in the typescript files. With this fix, running `tsc` followed by `browserify` yields correctly functioning
 es2015 codes. With the simple solution established, Gulp has been re-added to streamline and automate the build process.
+
+#### 06/25
+Setup source mapping for gulp build automation, and setup watch process with watchify, adopting from working solutions for the 
+build process offered on typescript official site.

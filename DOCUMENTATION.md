@@ -48,7 +48,7 @@ The pipeline is based on gulpfile, which in my opinion is better than nothing.
 #### Gulp
 Again, in order to resolve the module building issue with typescript, this time gulpfile is used for the building task. Installation for Gulp is to be found
 at https://gulpjs.com/docs/en/getting-started/quick-start. One also need to install all the modules required by https://gist.github.com/michalochman/d64360541a484e16817c
-for the gulpfile.js in the directory to run correctly.
+for the gulpbuild.js in the directory to run correctly.
 - Multiple error persisted with the use of Gulp, it turned out that 'three/src/three.js' is using import and export statements that aren't in the 
   common js standard, but 'three/build/three.js' is. Gulp was not the key to the solution. After changing the import directory in helloworld.ts from
   'three/src/three.js' to just 'three', the issue was resolved without the help of Gulp.
@@ -59,16 +59,33 @@ for the gulpfile.js in the directory to run correctly.
   
 - Next I would like to try automate this process with something like grunt, and find out how to build source maps
 
-#### Gulp again
+### Gulp again
 - Now that a working solution has been established, I would like to add in the function of automation, which after some research, advocates for the use 
   of Gulp over Grunt: https://www.keycdn.com/blog/gulp-vs-grunt. So Gulp again, but this time not to resolve an ongoing issue, but to help
   improve the development flow with its power in automating processes. This article comes handy in getting us started with Gulp https://www.typescriptlang.org/docs/handbook/gulp.html.
-- To understand how files get passed around and processed in gulpfile.js, one shall read https://gulpjs.com/docs/en/getting-started/working-with-files/.
+- To understand how files get passed around and processed in gulpbuild.js, one shall read https://gulpjs.com/docs/en/getting-started/working-with-files/.
   Gulp makes extensive use of Node streams. To understand how Node streams work on an interface level, which can be helpful in future developments in user
   collaboration functionalities, check https://nodesource.com/blog/understanding-streams-in-nodejs/ (super clear & interesting by the way).
-- A gulpfile.js needs to be added, which should contain all the streamlined methods provided by gulp modules for the file processing facilitated by Node streams. The current
+- A gulpbuild.js needs to be added, which should contain all the streamlined methods provided by gulp modules for the file processing facilitated by Node streams. The current
   stream is tsc and then browserify the generated .js files.
   
+### Browserify
+The browserify module on itself can also perform typescript transpilation with the help of a plugin called tsify (https://www.npmjs.com/package/tsify). This is the method for integration with Gulp that was
+officially adopted by typescript. tsify reads from the tsconfig.json with a few exceptions, the behaviors of which are described in the link above. One 
+important exception is that when the debug option for browserify() is set to true the source map for the entire process, including transpiling into javascript and bundling the modules, gets generated regardless
+of what has been specified in the tsconfig.json. The generated file content can then converted into vinyl format using source, a gulp module placed in the pipeline.
+  
+### Source mapping with Gulp and Browserify
+Gulp provides build in functionality for source mapping with the module gulp-sourcemaps. Aside from supporting source map generations for official plugins,
+it also supports loading existing source maps from vinyl up streams. The specifications are here: https://www.npmjs.com/package/gulp-sourcemaps. On the page
+https://www.typescriptlang.org/docs/handbook/gulp.html, the complete use case of typescript->javascript->browserify using gulp with sourcemap is also provided.
+
+### Watching
+Monitoring the changes made to the typescript programs in src directory and updating the corresponding transpiled programs in the dist directory can be extremely
+helpful in the process of debugging. Since only the transpiled javascript program organized in the dist folder can be run and tested in a browser, building them in real
+time streamlines the workflow. One gets to test changes made to the program without having to actively recompile by simply refreshing the browser, while the building
+process becomes largely invisible to programmers.
+
 ## Licensing
 
 A helpful reference resides here: https://www.synopsys.com/blogs/software-security/5-types-of-software-licenses-you-need-to-understand/. 
