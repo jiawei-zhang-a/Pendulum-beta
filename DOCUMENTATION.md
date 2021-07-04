@@ -90,3 +90,79 @@ process becomes largely invisible to programmers.
 
 A helpful reference resides here: https://www.synopsys.com/blogs/software-security/5-types-of-software-licenses-you-need-to-understand/. 
 The goal of our ultimate licensing is to permit the use of external libraries such as three while maintaining proprietorship to our own designs.
+
+## Graphics
+- A module plugged into core
+- Takes care of the rendering of functionals/functions given by core. Keeps track of the graphical objects called Graph
+- Generates materials / visualization styles specified by users.
+- Updates the function when it is changed, with the help of a listener
+- Gives feedbacks to core based on the rendering process
+
+### Three
+The core API to be used for various visualizations is threejs, a library which makes stunning visualizations using WebGL. For 2D visualizations using
+three, an example can be found here: https://observablehq.com/@grantcuster/using-three-js-for-2d-data-visualization. 
+
+### Graph
+The basic wrapper around each graphable object. It contains necessary information about the object that is being rendered, such as its material,
+its vertices and geometry, and it also holds plotting algorithms that transform equations into its corresponding visual representations.
+
+## Core (`Core`)
+Core is the computation center that gives life to the Pendulum system. It
+- Receives and compiles commands from the UI
+- Demands updates on various modules
+- Routes the behavior of the interactive components
+- Hosts and manipulates the virtual environment (`Core.Environment`) of variables, functions, and commands.
+
+Asynchronous updates with listening form the basis of interactions between modules.
+### Environment (`Core.Environment`)
+- A "virtual machine" that maintains all the variables and their relations,
+- Also takes care of processes, a Pendulum analog of threads in regular programming languages.
+  
+### Information flow
+- Core monitors the environment module, and issues commands that display the inner states of the environment module.
+  
+- Each statement tree is passed from UI module into the core, which keeps a mapping of the statement back to the UI component. The Core
+  then parses the statement tree into an instruction type, a script, along with a list of scripts for the leaf nodes of the tree, and passes 
+  them as parameters into Core.Environment.
+  
+- The Core.Environment generates a variable/process based on the statement, and returns it.
+
+- The core then responds to the newly created (Core.Environment.)Variable with follow-up actions, in particular making attempts to its algebraic local variables,
+  calling Graphics.makeGraph(function, style) to generate a graph, and assigning it back to the Variable.
+#### TeX statement
+
+#### Statement trees
+- A tree structure representation of the original statement, where each operator is assigned with two or three
+children, each capable of providing a number out of recursion.
+- Since programmed recursion on tree structures is not fast enough, they will be compiled into js scripts.
+
+#### Pi Script
+The statement tree is compiled by the Core, or the Environment into scripts, which is a javascript concatenated recursively together to be executed
+inside contexts.
+- Due to performance reasons, it's very cumbersome to write the ultimate code for computation
+that gets executed millions of times per-second in switch statements and hashmap virtual memories. The
+best solution is to avoid creating a higher level language, and simply supply a context for regular
+javascript to operate. Javascript will get generated recursively based on the original statement trees to reflect 
+the mathematical expressions they represent.
+
+### Variable (`Core.Environment.Variable`)
+This is a class that passively contains its reference to interactive-interfaces such as fields and graphs. It also contains references to its dependencies and 
+dependents, these provide crucial information for the Core.Environment module to run the procedures that maintain the variables.
+- The environment module helps recognize dependencies, and initiates dependency pulses each time a variable is defined/redefined.
+- A variable may further contain algebraic local variables, the values of these local fields and must be synchronously locked when accessed by
+  different threads, or their accessors must provide a context which uniquely stores their values.
+  ```javascript
+  //local algebraic var = [graphics1, graphics2]
+  x=[12.5, 67.2]
+  // x is a algebraic local variable, it doesn't and shouldn't have a clearly defined value. Instead, its value varies based on contexts.
+  ```
+  
+#### Local Algebraic Variable
+Local algebraic variables are non-constant leaf nodes of a statement tree that remain nondeterministic after a dependency walk. 
+- Their values are not clearly defined
+by the statement trees, and thus the name algebraic --- what matters is its algebraic relations to the rest of the expression. 
+- The specific contexts such as vertex generation (graphing) or integration will supply them with numerical values.
+
+## UI
+- User interactive panel for components like buttons, sliders, latex fields
+- Place for user inputs and feedbacks

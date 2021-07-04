@@ -26,6 +26,7 @@
   "homepage": "https://github.com/YuelongLi/Pendulum-beta#readme",
   "dependencies": {
     "mathquill": "^0.10.1-a",
+    "mathquill-typescript": "^2.0.9",
     "three": "^0.129.0",
     "tsify": "^5.0.4",
     "vinyl-source-stream": "^2.0.0"

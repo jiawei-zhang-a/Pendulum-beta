@@ -1,0 +1,274 @@
+@import "mathquill.css";
+
+*,
+*:before,
+*:after {
+    box-sizing: border-box;
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    height: 100%;
+    margin: 0;
+}
+
+.btn:focus {
+    outline: none;
+}
+
+
+#root {
+    --blue: #3abdff;
+    --blueShadow: #007fbe;
+    --mainHighlight: #0a4e9c;
+    --yellow: #fbff00;
+    --gray: #f3f3f3;
+    --grayShadow: #afafaf;
+    --active: rgba(255, 115, 0, 0.99);
+    --active-faded: rgb(255, 140, 0);
+    height: 100%;
+    display: grid;
+    grid-template-columns: fit-content(25%) 1fr;
+    grid-template-rows: 36pt 1fr;
+}
+
+#navbar {
+    grid-column: 1 / span 1;
+    justify-self: stretch;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    background: var(--mainHighlight);
+    color: white;
+    font: 500 22px/50px "Kodchasan",
+    "Courier",
+    "Open Sans",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+#logo {
+    margin: 0;
+    padding: 8px;
+    width: 50px;
+    float: left;
+}
+
+#logo:focus {
+    outline: none;
+}
+
+#graphpanel {
+    grid-column: 2 / span 1;
+    grid-row: 1/span 2;
+    align-self: stretch;
+    justify-self: stretch;
+    overflow: hidden;
+    background: aliceblue;
+    grid-template-columns: fit-content(300px) 1fr;
+}
+
+#defpanel {
+    grid-column: 1 / span 1;
+    grid-row: 2/span 1;
+    overflow-y: auto;
+    align-items: flex-start;
+    min-width: 360px;
+    width: fit-content;
+    width: -moz-fit-content;
+    padding: 0px;
+    margin: 0px;
+    border-right: 2px solid var(--grayShadow);
+    /* background: #5199eb86; */
+    background: white;
+    display: grid;
+    grid-template-columns: fit-content(36pt) 1fr;
+}
+
+#sidebar {
+    grid-column: 1 / span 1;
+    align-self: stretch;
+    width: fit-content;
+    width: -moz-fit-content;
+    min-width: 50px;
+    background: var(--mainHighlight);
+    padding: 0px;
+    transition: 0.5s;
+    display: grid;
+    grid-template-rows: 1fr 80px;
+}
+
+#settingsWrapper {
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
+    padding: 5px;
+    transition: 0.3s;
+    width: 50px;
+    height: 75px;
+    align-content: center;
+    justify-content: center;
+    display: flex;
+}
+
+#defSettings {
+    transition: 200ms;
+    height: fit-content;
+    height: -moz-fit-content;
+    width: 100%;
+    color: white;
+    background: var(--mainHighlight);
+}
+
+#defSettings:hover {
+    color: var(--mainHighlight);
+    background: white;
+}
+
+
+#utilityPanel {
+    position: fixed;
+    top: 20px;
+    right: 25px;
+    z-index: 1;
+    user-select: none;
+}
+
+#homepage,
+#zoomInBtn,
+#zoomOutBtn,
+#homeBtn {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 5pt;
+    user-select: none;
+}
+
+#graphicsSettings {
+    display: block;
+    margin:auto;
+    margin-top: 8pt;
+    user-select: none;
+}
+
+#basic {
+    padding: 20px;
+    border: none;
+    box-shadow: none;
+}
+
+::selection {
+    background: var(--active);
+    opacity: 0;
+    color: white;
+}
+
+.math {
+    display: block;
+    margin-top: 20px;
+    width: 100%;
+}
+
+
+.object-property-container {
+    grid-column: 1 / span 1;
+}
+
+.name-container {
+    text-align: center;
+    height: stretch;
+    height: -moz-fit-content;
+    min-height: 50px;
+    background: white;
+    line-height: 50px;
+    vertical-align: middle;
+    font-size: 9pt;
+    font-family: DejaVu Sans Mono, monospace;
+    font-weight: 200;
+    position: relative;
+}
+
+
+.name-container .name {
+    width: 100%;
+    padding-left: 15px;
+    padding-right: 15px;
+    border: 0px;
+    box-shadow: none;
+}
+
+.type {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    width: 15px;
+    height: 100%;
+}
+
+#object-bar>* {
+    background: var(--mainHighlight);
+    color: white;
+    transition: 0.3s;
+}
+
+#object-bar .mq-cursor {
+    border-left: 1px solid white;
+}
+
+#object-bar>*:hover {
+    background: white;
+    color: black;
+}
+
+#object-bar>* :hover .mq-cursor {
+    border-left: 1px solid black;
+}
+
+#object-bar>.active {
+    background: var(--active);
+}
+
+#object-bar>.active:hover {
+    background: var(--active-faded);
+    color: white;
+}
+
+#object-bar>.active:hover .mq-cursor {
+    border-left: 1px solid white;
+}
+
+.expression-container {
+    grid-column: 2 / span 1;
+    margin: 0px;
+    width: 100%;
+    height: stretch;
+    min-height: 50px;
+    border-width: 1px 0px 0px 0px;
+    border-style: solid;
+    border-color: var(--grayShadow);
+    display: flex;
+}
+
+.expression-container:focus-within {
+    border-width: 2px 2px 2px 0px;
+    border-color: lightskyblue;
+}
+
+.expression-container:focus-within+.expression-container {
+    border-width: 0px 0px 0px 0px;
+}
+
+.expression-container .expression {
+    width: 100%;
+    height: fit-content;
+    padding: 3pt;
+    border: none;
+    box-shadow: none;
+    align-self: center;
+}

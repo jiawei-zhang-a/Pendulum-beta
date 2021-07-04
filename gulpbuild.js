@@ -5,14 +5,14 @@ var tsify = require("tsify");
 var sourcemaps = require("gulp-sourcemaps");
 var buffer = require("vinyl-buffer");
 var paths = {
-    pages: ["src/*.html"],
+    pages: ["src/*.html", "src/css/*.css"],
 };
-gulp.task("copy-html", function () {
+gulp.task("copy-files", function () {
     return gulp.src(paths.pages).pipe(gulp.dest("dist"));
 });
 gulp.task(
     "default",
-    gulp.series(gulp.parallel("copy-html"), function () {
+    gulp.series(gulp.parallel("copy-files"), function () {
         return browserify({
             basedir: ".",
             debug: true,

@@ -5,16 +5,85 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Cloudnest - Pendulum</title>
+    <script src="./js/pendulum.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <!-- <link rel="stylesheet" href="./mathquill.css"> -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Kodchasan">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Muli">
+    <style>
+        .btn:focus{
+            outline: none;
+        }
+    </style>
 </head>
 
 <body>
-<style>
-    body {
-        margin: 0;
-        overflow: hidden;
-    }
-</style>
-<script src="js/index.js"></script>
+<div id="root">
+    <div id="navbar" align="center">
+        Pendulum
+    </div>
+    <div id="defpanel">
+        <div id="sidebar">
+            <div id="object-bar" class="object-list object-property-container">
+                <div class="name-container" varname="a">
+                    <div class="name">
+                        a
+                    </div>
+                    <div class="type">
+                        :
+                    </div>
+                </div>
+                <div class="name-container" varname="b">
+                    <div class="name">
+                        b
+                    </div>
+                    <div class="type">
+                        :
+                    </div>
+                </div>
+                <div class="name-container" varname="c">
+                    <div class="name">
+                        c
+                    </div>
+                    <div class="type">
+                        :
+                    </div>
+                </div>
+            </div>
+            <div id="settingsWrapper">
+                <button id="defSettings" class="btn glyphicon  glyphicon-th-list"></button>
+            </div>
+        </div>
+        <div id="mathpanel">
+            <div class="expression-container" varname="a">
+                    <span class="expression">
+                        z=x+y
+                    </span>
+            </div>
+            <div class="expression-container" varname="b">
+                    <span class="expression">
+                        z=xy
+                    </span>
+            </div>
+            <div class="expression-container" varname="c">
+                    <span class="expression">
+                        z=-\frac{x^2+y^2}{2}
+                    </span>
+            </div>
+        </div>
+    </div>
+    <div id="graphpanel">
+        <div id="utilityPanel">
+            <input type="image" id="logo" src="../assets/Cloudnest-small.png" alt="logo" style="margin-bottom: 10pt;" onclick="window.location.href='http://cloudnest.org'">
+            <br>
+            <button id="zoomInBtn" class="btn glyphicon glyphicon-plus" onclick="zoomIn()"></button>
+            <button id="zoomOutBtn" class="btn glyphicon glyphicon-minus" onclick="zoomOut()"></button>
+            <button id="homeBtn" class="btn glyphicon glyphicon-home" onclick="resetScene()"></button>
+            <button id="graphicsSettings" class="btn glyphicon glyphicon-cog" onclick="switchCanvas()"></button>
+        </div>
+    </div>
+</div>
 </body>
 
 </html>

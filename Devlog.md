@@ -20,3 +20,10 @@ es2015 codes. With the simple solution established, Gulp has been re-added to st
 #### 06/25
 Setup source mapping for gulp build automation, and setup watch process with watchify, adopting from working solutions for the 
 build process offered on typescript official site.
+
+#### 07/03, 07/04
+Conceptualized the "brain" of Pendulum, the Core module. It interacts with other parts of the software such as UI and Graphics by 
+directly issuing them commands and queuing updates that will get executed asynchronously. It also hosts and closely monitors a 
+virtual environment of mathematical variables and processes called the Environment module, the inner states of which can get extracted 
+Core to be reflected via user interfaces. Environment runs on its own clock cycles which Core have access to for intervention or adjustments.
+This is an important step toward a clearly defined architecture of Pendulum.

@@ -6,10 +6,6 @@ var tsify = require("tsify");
 var fancy_log = require("fancy-log");
 var sourcemaps = require("gulp-sourcemaps");
 var buffer = require("vinyl-buffer");
-var gp_notify = require('gulp-notify');
-var paths = {
-    pages: ["src/*.html"],
-};
 var watchedBrowserify = watchify(
     browserify({
         basedir: ".",
@@ -19,7 +15,10 @@ var watchedBrowserify = watchify(
         packageCache: {},
     }).plugin(tsify)
 );
-gulp.task("copy-html", function () {
+var paths = {
+    pages: ["src/*.html", "src/css/*.css"],
+};
+gulp.task("copy-files", function () {
     return gulp.src(paths.pages).pipe(gulp.dest("dist"));
 });
 function bundle() {
@@ -33,6 +32,6 @@ function bundle() {
         .pipe(gulp.dest("dist/js"))
         // .pipe(gp_notify({ message: "All tasks complete.", onLast: true }));
 }
-gulp.task("default", gulp.series(gulp.parallel("copy-html"), bundle));
+gulp.task("default", gulp.series(gulp.parallel("copy-files"), bundle));
 watchedBrowserify.on("update", bundle);
 watchedBrowserify.on("log", fancy_log);
