@@ -1,3 +1,5 @@
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 # Documentation
 A brief log of the important design decisions and implementations made along the way.
 ## Project setup
@@ -130,12 +132,27 @@ Asynchronous updates with listening form the basis of interactions between modul
 - The core then responds to the newly created (Core.Environment.)Variable with follow-up actions, in particular making attempts to its algebraic local variables,
   calling Graphics.makeGraph(function, style) to generate a graph, and assigning it back to the Variable.
 #### TeX statement
+TeX statements are directly taken from user inputs. They are intuitive mathematical expressions that specify the structural relationships between variables. 
+Mathquill offers the great functionality that enables responsive rendering of laTeX, making it possible to hide the complicated TeX statements in the back 
+scene for users unfamiliar with it. Advanced users will be able to type directly in laTeX to make things efficient. Further, the texts backing the rendered 
+mathematical statements can be easily retrieved by Core and parsed into statement trees. Each TeX statement in the user inputs is parsed into a separated 
+statement tree.
+
+TeX:`f(x) = \int_a^b t\sin(t-x) dt`  
+Rendered:  
+![img.png](img.png)
 
 #### Statement trees
-- A tree structure representation of the original statement, where each operator is assigned with two or three
+A tree structure representation of the original statement, where each operator is assigned with two or three
 children, each capable of providing a number out of recursion.
+```javascript
+// structure = [operator, structure1,... structure#]
+let statementTree = [operator,[operator, argument1, argument2], [operator, argument1, argument2, argument3]];
+```
 - Since programmed recursion on tree structures is not fast enough, they will be compiled into js scripts.
-
+- The leaf nodes of the statement trees are important because they have to supply specific numbers for the recursion of the
+  trees to work. In the cases where they don't supply numbers directly, they must be single variables that either have a public or 
+  local scope.
 #### Pi Script
 The statement tree is compiled by the Core, or the Environment into scripts, which is a javascript concatenated recursively together to be executed
 inside contexts.
@@ -144,6 +161,9 @@ that gets executed millions of times per-second in switch statements and hashmap
 best solution is to avoid creating a higher level language, and simply supply a context for regular
 javascript to operate. Javascript will get generated recursively based on the original statement trees to reflect 
 the mathematical expressions they represent.
+It will also be possible to write pi script directly into the user interface. The core will then weakly compile the pi script
+to check for security threats and supply it with necessary details such as contexts, scopes, and variable references. Once resolving
+the variable references, dependency trees will be built and traversed.
 
 ### Variable (`Core.Environment.Variable`)
 This is a class that passively contains its reference to interactive-interfaces such as fields and graphs. It also contains references to its dependencies and 
@@ -156,12 +176,61 @@ dependents, these provide crucial information for the Core.Environment module to
   x=[12.5, 67.2]
   // x is a algebraic local variable, it doesn't and shouldn't have a clearly defined value. Instead, its value varies based on contexts.
   ```
-  
+### Local variable
+The entire idea of the name "local" is that they are variables located inside variable definitions. They are the variables of variables. It is easy
+to locate local variables inside statement trees --- they are the non-constant leaf nodes of a statement tree. There are currently two types of local variables,
+the local function variables, and the local algebraic variables.
+
 #### Local Algebraic Variable
-Local algebraic variables are non-constant leaf nodes of a statement tree that remain nondeterministic after a dependency walk. 
+Local algebraic variables are non-constant leaf nodes of a statement tree that don't reference to any public variable definitions
 - Their values are not clearly defined
-by the statement trees, and thus the name algebraic --- what matters is its algebraic relations to the rest of the expression. 
+  by the statement trees, and thus the name algebraic --- what matters is its algebraic relations to the rest of the expression.
 - The specific contexts such as vertex generation (graphing) or integration will supply them with numerical values.
+
+#### Local function variable
+Local function variables are local variables that reference to other publicly defined variables. This idea might sound a little confusing since these "local" variables are actually
+representing public variables. However, the publicly defined variables actually do not always have their values immediately available. For example a public variable `a=x+6` is dependent
+upon `x`, a value that needs to be supplied at run time. That is why these public variables are more like <b>functions</b> when they get referenced, i.e., their evaluation requires the supplication
+of more independent variables. There are two ways that independent variables of functions are supplied --- either through contexts and parameter lists.
+
+  - Non-parameterized function variable:  
+  If a (local) function variable doesn't have its independent variables explicitly stated, like `b=\sin(15x)-c`, referred by a variable definition `d = b-x`, 
+  its evaluation only relies on `context` to give the value of `x` and perhaps `c`. In this case it's non-parameterized. 
+  
+  - Parameterized function variable:  
+  If a function variable have explicit statements about its independent variables, such as `f(x) = x^2+b`, it relies on both `context` 
+  and `parameterList` to supply its evaluations. The `parameterList` contains the explicitly stated local variables, in this case `x`, and 
+  the `context` contains values for other algebraic variables. In this case it is parameterized.
+
+### Reference list (for local variables)
+To avoid repeated reading from hashmaps, a reference list accessed by indices will be created at the time of compilation. The code snippets 
+generated for leaf nodes in the statement tree will contain references to the indices instead of the original variable names. Mapping between
+the specific var ames and the indices will be kept in `Variable` instances. In the reference list, tuples/or small lists of numbers/functions will be kept. 
+The first entry of the tuple always specifies the type of the local variable. Currently, there are three types:
+1. Constant --- a number acquired from a deterministic variable reference.  
+  Ex:  
+  ![img_1.png](img_1.png)  
+   Inside variable:
+   ```javascript
+   let referenceList = [[1, 625]]
+    ```
+2. Function --- the value of the local var is non-deterministic after initialization, either because the reference requires input parameters that are non-deterministic,
+   or because the referenced variable implicitly depends on non-deterministic variables like algebraic vars or other non-deterministic functions. The evaluate function of
+   the corresponding `Variable` is stored in the second entry of the tuple.
+   Ex:  
+   ![img_2.png](img_2.png)  
+   Inside variable:
+   ```javascript
+   let referenceList = [[2, pi.getChild('f').evaluate]]
+   ```
+   
+3. Algebraic --- Algebraic local variabels are the local variables that don't have any statements to define them. Their values need to be supplied by a `context` in
+   the run-time. A `context` is a 2D array structure supplied different callers that wish to evaluate the variable.  
+   Again, one avoids the map structure because it is really slow in javascript. For efficiency reason, the first dimension of the array needs to be small, and its second 
+   entry will be dynamically allocated during run time. This naturally gives to the syntax that algebraic local variables can only be <b> alphabetical letters</b>, with or
+   without positive sub-indices. 
+   - Its sub-indices will specify its location along the second axis of the context mapping.
+   
 
 ## UI
 - User interactive panel for components like buttons, sliders, latex fields

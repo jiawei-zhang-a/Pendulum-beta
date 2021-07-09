@@ -27,3 +27,7 @@ directly issuing them commands and queuing updates that will get executed asynch
 virtual environment of mathematical variables and processes called the Environment module, the inner states of which can get extracted 
 Core to be reflected via user interfaces. Environment runs on its own clock cycles which Core have access to for intervention or adjustments.
 This is an important step toward a clearly defined architecture of Pendulum.
+
+#### 07/09
+Further designed the architecture of the Core module. Specified important mechanisms that Core.Env will use to construct the variable
+dependencies and evaluate statement trees such as reference lists, contexts, and local variables.
