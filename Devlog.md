@@ -31,3 +31,6 @@ This is an important step toward a clearly defined architecture of Pendulum.
 #### 07/09
 Further designed the architecture of the Core module. Specified important mechanisms that Core.Env will use to construct the variable
 dependencies and evaluate statement trees such as reference lists, contexts, and local variables.
+
+#### 07/10
+Finished specifications of key parts of Core, including reference list, context, function context, and statement resolutions.

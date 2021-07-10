@@ -1,5 +1,4 @@
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
 # Documentation
 A brief log of the important design decisions and implementations made along the way.
 ## Project setup
@@ -203,35 +202,128 @@ of more independent variables. There are two ways that independent variables of 
   the `context` contains values for other algebraic variables. In this case it is parameterized.
 
 ### Reference list (for local variables)
-To avoid repeated reading from hashmaps, a reference list accessed by indices will be created at the time of compilation. The code snippets 
-generated for leaf nodes in the statement tree will contain references to the indices instead of the original variable names. Mapping between
-the specific var ames and the indices will be kept in `Variable` instances. In the reference list, tuples/or small lists of numbers/functions will be kept. 
-The first entry of the tuple always specifies the type of the local variable. Currently, there are three types:
+To avoid repeated reading from hashmaps, a reference list accessed by indices will be created when compiling statement trees into pi scripts. The scripts 
+generated for leaf nodes in the statement tree will contain references to indices instead of the original variable names. Mapping between
+the specific var names and the indices will be kept in `Variable` instances. The reference list has a nested array structure. Each top-level item
+contained in the reference list is called a "reference". Each reference is a list (tuple).
+```javascript
+variable.referenceList = [reference1, reference2, //...
+                         ];
+```
+
+
+The first entry of a reference always specifies the type of the local variable. Currently, there are three types (subject to expansion):
 1. Constant --- a number acquired from a deterministic variable reference.  
-  Ex:  
+    * Example input:  
   ![img_1.png](img_1.png)  
-   Inside variable:
+    * Inside variable:
    ```javascript
-   let referenceList = [[1, 625]]
+   variable.referenceList = [[1, 625]];
     ```
 2. Function --- the value of the local var is non-deterministic after initialization, either because the reference requires input parameters that are non-deterministic,
    or because the referenced variable implicitly depends on non-deterministic variables like algebraic vars or other non-deterministic functions. The evaluate function of
-   the corresponding `Variable` is stored in the second entry of the tuple.
-   Ex:  
+   the corresponding `Variable` is stored in the second entry of the tuple.  
+   * Example input:  
    ![img_2.png](img_2.png)  
-   Inside variable:
+   * Inside variable:
    ```javascript
-   let referenceList = [[2, pi.getChild('f').evaluate]]
+   variable.referenceList = [[2, π.getChild('f').evaluate]];
    ```
    
-3. Algebraic --- Algebraic local variabels are the local variables that don't have any statements to define them. Their values need to be supplied by a `context` in
-   the run-time. A `context` is a 2D array structure supplied different callers that wish to evaluate the variable.  
-   Again, one avoids the map structure because it is really slow in javascript. For efficiency reason, the first dimension of the array needs to be small, and its second 
-   entry will be dynamically allocated during run time. This naturally gives to the syntax that algebraic local variables can only be <b> alphabetical letters</b>, with or
-   without positive sub-indices. 
-   - Its sub-indices will specify its location along the second axis of the context mapping.
+3. Algebraic --- Algebraic local variables are the local variables that don't have any statements to define them. Their values need to be supplied by a `context` in
+   the run-time. The exact location of a algebraic variable inside the context matrix is specified by the second and third entries of its reference.
+   * Input:  
+   ![img_5.png](img_5.png),  
+   where c0 a constant term supplied by the program to populate a solution set, and x the graph variable that is to be supplied by the Graphics module. 
    
+    * Inside variable:
+   ```javascript
+   //For algebraic typed references, the second entry specifies the letter,
+   //the third entry specifies the subindex, with -1 corresponding to no index,
+   variable.referenceList = [[3, 24, -1], 
+                             [3,  3,  0]];
+   variable.context = [[],//a
+                       [],//b
+                       [NaN,11.34], //c0, some number supplied by the caller
+                       //...
+                       [0.79], //x, some number supplied by the caller (graphics module)
+                       [],//y
+                       []];//z
+   ```
+    * Valid algebraics: $a_1$, $a_3$, $\{z_i\}_{[10]}$,  
+    Non-valid algebraics: μ, $P _{ressure}$, $\text{System}$.
+   
+### Context
+A `context` is a 2D array structure supplied by the different callers that wish to evaluate the variable.
+Again, one avoids the map structure because it is really slow in javascript. For efficiency reason, the first dimension of the array needs to be small, and its second
+entry will be dynamically allocated during run time. This naturally gives rise to the syntax that algebraic local variables can only be <b>single alphabetical letters</b>, with or
+without positive sub-indices. Its sub-indices, which have to be non-negative, will specify its location along the second axis of the context mapping.
 
+Each variable has a `evaluate(inputs,context)` function that wraps around the pi script. When calling the variable, a context with certain variables specified will be passed in, and the 
+same context will be passed down recursively to all subsequent $.evaluation$ calls dispatched by the current instance:
+
+```javascript
+variable.context = [[],//a
+[],//b
+[], //c
+//...
+[1.21], //x, some number supplied by the caller (graphics module)
+[],//y
+[]];//z
+```
+
+![img_6.png](img_6.png)  
+
+#### Function context
+Sometimes a function takes a long time to compute, and its returned value for the same set of algebraic values may get reused. 
+When this is the case, the core will attempt to employ dynamic programming to speed up computations. Using a function context
+dynamic programming for non-parameterized functions can be achieved.
+- funcContext has a slightly different structure:
+    array: `[[],...,[[27, *, 2]],...]`
+  The first entry of the third axis is the value that the variable has. THe second is its assigned clock cycle number.
+  There is also an additional parameter passed as the public clock cycle supplied by the root caller of the evaluate function.
+  Each time when an update occurs the clock number gets increased by 1. When the clock number of a function does not match the 
+  supplied value, it means the function needs to be re-evaluated. Its pi-script will be conditionally executed, and its value
+  will be in the first entry of the third axis of the function context, and its clock # will be updated. If the clock # of
+  a function matches the cycle, its value will be directly retrieved from the first entry.
+  
+- Local variables of multiple statements may share the same definition. However, their values can be completely different
+  in the same of context if the evaluation of the function relies on independent variables. That's why only non-parameterized
+  functions are available for dynamic programming.
+  
+- Function namings that don't follow the algebraic variable naming will not be available for dynamic programming.
+
+### Statement resolution
+Statement resolution is the process that Core goes through to identify which variable a TeX statement is meaning to define. 
+There are two types of statements resulting in different statement trees:
+1. `a: 12 + b`. Here the variable label is specified by the user, and there are no equal signs.
+2. `(b): b = 12.5^2 - x^2`. Here an equal sign is present in the statement. If the variable label is not specified by users, the machine
+    should find a way to deduce that the statement is defining b.
+   
+The first case is trivial, generating a single expression in the root of the statement tree corresponding to the label that the user specified. 
+The second is trickier. Its statement tree will look something like this: `[expression1, expression2]`. This gives Core the possibility to figure 
+out on itself what the expression is trying to define, and assign the label automatically.
+The interpretation currently follows these procedures:
+* Check whether the left expression consists of a single variable. 
+        If yes: Check if it shows up in the right expression.
+            If yes: pass.
+            If not: check if it shows up in the right-side expression.
+                If yes: pass.
+                If not: check if the single variable is x or y.
+                    If yes: reserve this as a graphics statement. Label it with something like ($Graph)1.
+                    If not: the expression on the right makes a definition for the variable.
+    
+* Do the same thing in the opposite direction.
+
+* Now the definition we are seeing must be implicit. Check if either side of the equation contains undefined variables that doesn't show up 
+    on the other and that there is only one such variable.
+    * If yes, check if that variable shows up at only one spot in the side where it exists.
+        * If yes: this is a separable variable, and the whole equation is a implicit definition of this variable. Isolate it on the left side of the expression.
+        * If not: This is a non-separable implicit function.
+    * If not, pass.
+    
+* Now the function is fully implicit and unspecific. User must specify the variable label unless both x and y show up in the expression. In this case the statement
+    defaults to a graphing only variable, and the right side of the expression will be subtracted to the left side for implicit vertex mappings.
 ## UI
-- User interactive panel for components like buttons, sliders, latex fields
-- Place for user inputs and feedbacks
+- User input panel for components like buttons, sliders, latex fields
+- Place for user inputs and feedbacks 
