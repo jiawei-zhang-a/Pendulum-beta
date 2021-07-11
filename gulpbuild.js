@@ -6,17 +6,25 @@ var sourcemaps = require("gulp-sourcemaps");
 var buffer = require("vinyl-buffer");
 var paths = {
     pages: ["src/*.html", "src/css/*.css"],
+    stylesheets: ["src/css/*.css"],
+    assets: ["assets/*.png"]
 };
-gulp.task("copy-files", function () {
+gulp.task("copy-html", function () {
     return gulp.src(paths.pages).pipe(gulp.dest("dist"));
+});
+gulp.task("copy-css", function () {
+    return gulp.src(paths.stylesheets).pipe(gulp.dest("dist/css"));
+});
+gulp.task("copy-assets", function () {
+    return gulp.src(paths.assets).pipe(gulp.dest("dist/assets"));
 });
 gulp.task(
     "default",
-    gulp.series(gulp.parallel("copy-files"), function () {
+    gulp.series(gulp.parallel("copy-html", "copy-css", "copy-assets"), function () {
         return browserify({
             basedir: ".",
             debug: true,
-            entries: ["src/js/helloworld.ts"],
+            entries: ["src/js/pendulum.ts"],
             cache: {},
             packageCache: {},
         })

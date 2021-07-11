@@ -5,12 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Cloudnest - Pendulum</title>
-    <script src="./js/pendulum.js"></script>
+    <link rel="stylesheet" href="./css/mathquill.css"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <!-- <link rel="stylesheet" href="./mathquill.css"> -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Kodchasan">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Muli">
+    <link rel="stylesheet" href="./css/pendulum.css">
+    <script src="./js/index.js"></script>
     <style>
         .btn:focus{
             outline: none;
@@ -75,7 +78,7 @@
     </div>
     <div id="graphpanel">
         <div id="utilityPanel">
-            <input type="image" id="logo" src="../assets/Cloudnest-small.png" alt="logo" style="margin-bottom: 10pt;" onclick="window.location.href='http://cloudnest.org'">
+            <input type="image" id="logo" src="./assets/Cloudnest-pro.png" alt="logo" style="margin-bottom: 10pt;" onclick="window.location.href='http://cloudnest.org'">
             <br>
             <button id="zoomInBtn" class="btn glyphicon glyphicon-plus" onclick="zoomIn()"></button>
             <button id="zoomOutBtn" class="btn glyphicon glyphicon-minus" onclick="zoomOut()"></button>

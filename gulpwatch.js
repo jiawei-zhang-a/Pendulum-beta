@@ -10,16 +10,24 @@ var watchedBrowserify = watchify(
     browserify({
         basedir: ".",
         debug: true,
-        entries: ["src/js/helloworld.ts"],
+        entries: ["src/js/pendulum.ts"],
         cache: {},
         packageCache: {},
     }).plugin(tsify)
 );
 var paths = {
-    pages: ["src/*.html", "src/css/*.css"],
+    pages: ["src/*.html"],
+    stylesheets: ["src/css/*.css"],
+    assets: ["assets/*.png"]
 };
-gulp.task("copy-files", function () {
+gulp.task("copy-html", function () {
     return gulp.src(paths.pages).pipe(gulp.dest("dist"));
+});
+gulp.task("copy-css", function () {
+    return gulp.src(paths.stylesheets).pipe(gulp.dest("dist/css"));
+});
+gulp.task("copy-assets", function () {
+    return gulp.src(paths.assets).pipe(gulp.dest("dist/assets"));
 });
 function bundle() {
     return watchedBrowserify
@@ -32,6 +40,6 @@ function bundle() {
         .pipe(gulp.dest("dist/js"))
         // .pipe(gp_notify({ message: "All tasks complete.", onLast: true }));
 }
-gulp.task("default", gulp.series(gulp.parallel("copy-files"), bundle));
+gulp.task("default", gulp.series(gulp.parallel("copy-html","copy-css", "copy-assets"), bundle));
 watchedBrowserify.on("update", bundle);
 watchedBrowserify.on("log", fancy_log);

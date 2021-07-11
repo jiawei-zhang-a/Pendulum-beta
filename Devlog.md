@@ -34,3 +34,8 @@ dependencies and evaluate statement trees such as reference lists, contexts, and
 
 #### 07/10
 Finished specifications of key parts of Core, including reference list, context, function context, and statement resolutions.
+
+#### 07/11
+Put the previously designed html index page into work. Lined up imports of mathquill with the current project configuration. 
+Changed ui.js into ui.ts and resolved all issues arising from the change. Currently mathquill visualization and typing is 
+fully functioning on the UI panel, along with the rest of the pendulum user interface.
