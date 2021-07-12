@@ -25,7 +25,7 @@ build process offered on typescript official site.
 Conceptualized the "brain" of Pendulum, the Core module. It interacts with other parts of the software such as UI and Graphics by 
 directly issuing them commands and queuing updates that will get executed asynchronously. It also hosts and closely monitors a 
 virtual environment of mathematical variables and processes called the Environment module, the inner states of which can get extracted 
-Core to be reflected via user interfaces. Environment runs on its own clock cycles which Core have access to for intervention or adjustments.
+Core to be reflected via user interfaces. Environment runs on its own clock cycles which Core has access to for intervention or adjustments.
 This is an important step toward a clearly defined architecture of Pendulum.
 
 #### 07/09
@@ -39,3 +39,8 @@ Finished specifications of key parts of Core, including reference list, context,
 Put the previously designed html index page into work. Lined up imports of mathquill with the current project configuration. 
 Changed ui.js into ui.ts and resolved all issues arising from the change. Currently mathquill visualization and typing is 
 fully functioning on the UI panel, along with the rest of the pendulum user interface.
+
+#### 07/12
+Determined the conditions upon which a system of equations arises in place of the singled-out definitions for variables, namely
+when cycles occur on the dependency graph of the variables. Designed algorithms for solving implicit definitions and systems of equations 
+for Core. The algorithm's central idea is based on gradient descent.

@@ -324,6 +324,38 @@ The interpretation currently follows these procedures:
     
 * Now the function is fully implicit and unspecific. User must specify the variable label unless both x and y show up in the expression. In this case the statement
     defaults to a graphing only variable, and the right side of the expression will be subtracted to the left side for implicit vertex mappings.
+  
+### Implicit evaluation
+Sometimes it occurs that the evaluation of fully specified variables are not immediate. This can either be due to them defined by an implicit expression, or the expression
+that define them are embedded within a larger system of equations. This requires additional techniques, especially gradient descent, to be employed for their solving.
+
+* Sometimes definition of a variable/function needs more than one statement. This can either occur for an ODE statement, a PDE statement, or a system of equation.
+* When a system of equation shows up, they manifest in the statement resolution stage as circular dependencies. If several variables show mutual dependence in the dependency walk,
+  the evaluation of these variables will end up requiring that their values be "given". See diagram:  
+  ![img_7.png](img_7.png)
+  Here cycles are formed between _a_ and _c_, and _b_ and _c_. Now, regular evaluation techniques are no longer effective. The determination of the value of _a_ implies that of both
+  _b_ and _c_. Upon this, the variables _a_, _b_, and _c_ will be placed into a single evaluation group in side the Environment. Here, the technique to be deployed is gradient descent.
+  The first thing to do when resolving the statement tree is to subtract the right expression by the left one. Then for the entire evaluation group, we have:  
+  ![img_8.png](img_8.png)  
+  The same technique can be applied when the statements are all implicit, including stand-alone definitions.
+
+  
 ## UI
-- User input panel for components like buttons, sliders, latex fields
-- Place for user inputs and feedbacks 
+Short for user interface, the section on the left of the software window for user inputs and providing feedbacks. 
+### Definition
+
+### Statement Field
+
+### Label Field
+
+### Progress bar
+
+### Slider
+
+### Hint
+The text underneath fields that reveal the variable's state in core.
+### Pi-script fields
+Fields for editing of pi-scripts.
+
+### Group structure
+
