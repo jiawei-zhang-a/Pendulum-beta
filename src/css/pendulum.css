@@ -21,7 +21,9 @@ body {
 #root {
     --blue: #3abdff;
     --blueShadow: #007fbe;
-    --mainHighlight: #0a4e9c;
+    --mainHighlight: #2b579a;
+    /*0a4e9c*/
+    /*285280*/
     --yellow: #fbff00;
     --gray: #f3f3f3;
     --grayShadow: #afafaf;
@@ -218,8 +220,8 @@ body {
 }
 
 #object-bar>*:hover {
-    background: white;
-    color: black;
+    background: var(--blue);
+    color: white;
 }
 
 #object-bar>* :hover .mq-cursor {
@@ -243,7 +245,7 @@ body {
     grid-column: 2 / span 1;
     margin: 0px;
     width: 100%;
-    height: stretch;
+    /*height: stretch;*/
     min-height: 50px;
     border-width: 1px 0px 0px 0px;
     border-style: solid;

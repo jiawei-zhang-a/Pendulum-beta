@@ -71,10 +71,12 @@ for the gulpbuild.js in the directory to run correctly.
   stream is tsc and then browserify the generated .js files.
   
 ### Browserify
-The browserify module on itself can also perform typescript transpilation with the help of a plugin called tsify (https://www.npmjs.com/package/tsify). This is the method for integration with Gulp that was
+The browserify module on itself can also perform typescript transpilation with the help of a plugin called tsify (https://www.npmjs.com/package/tsify). 
+This is the method for integration with Gulp that was
 officially adopted by typescript. tsify reads from the tsconfig.json with a few exceptions, the behaviors of which are described in the link above. One 
-important exception is that when the debug option for browserify() is set to true the source map for the entire process, including transpiling into javascript and bundling the modules, gets generated regardless
-of what has been specified in the tsconfig.json. The generated file content can then converted into vinyl format using source, a gulp module placed in the pipeline.
+important exception is that when the debug option for browserify() is set to true the source map for the entire process, including 
+transpiling into javascript and bundling the modules, gets generated regardless of what has been specified in the tsconfig.json. The generated 
+file content can then converted into vinyl format using source, a gulp module placed in the pipeline.
   
 ### Source mapping with Gulp and Browserify
 Gulp provides build in functionality for source mapping with the module gulp-sourcemaps. Aside from supporting source map generations for official plugins,
@@ -301,7 +303,7 @@ There are two types of statements resulting in different statement trees:
     should find a way to deduce that the statement is defining b.
    
 The first case is trivial, generating a single expression in the root of the statement tree corresponding to the label that the user specified. 
-The second is trickier. Its statement tree will look something like this: `[expression1, expression2]`. This gives Core the possibility to figure 
+The second is trickier. Its statement tree will look something like this: `[expression1, expression2]`. This gives Core the responsibility to figure 
 out on itself what the expression is trying to define, and assign the label automatically.
 The interpretation currently follows these procedures:
 * Check whether the left expression consists of a single variable. 
@@ -332,25 +334,57 @@ that define them are embedded within a larger system of equations. This requires
 * Sometimes definition of a variable/function needs more than one statement. This can either occur for an ODE statement, a PDE statement, or a system of equation.
 * When a system of equation shows up, they manifest in the statement resolution stage as circular dependencies. If several variables show mutual dependence in the dependency walk,
   the evaluation of these variables will end up requiring that their values be "given". See diagram:  
-  ![img_7.png](img_7.png)
+  ![img_7.png](img_7.png)  
   Here cycles are formed between _a_ and _c_, and _b_ and _c_. Now, regular evaluation techniques are no longer effective. The determination of the value of _a_ implies that of both
-  _b_ and _c_. Upon this, the variables _a_, _b_, and _c_ will be placed into a single evaluation group in side the Environment. Here, the technique to be deployed is gradient descent.
+  _b_ and _c_. Upon this, the variables _a_, _b_, and _c_ will be placed into a single evaluation group inside the Environment. The technique to be deployed is gradient descent.
   The first thing to do when resolving the statement tree is to subtract the right expression by the left one. Then for the entire evaluation group, we have:  
   ![img_8.png](img_8.png)  
   The same technique can be applied when the statements are all implicit, including stand-alone definitions.
 
+### Differential equation solver
+![img_9.png](img_9.png)  
+In case of differential equations, the identifier that the Core looks for is dy/dx, which gets translated into \diff{y,x} inside the statement tree. This grammar identifies
+a differential term, which in this example consists of y varying in terms of x. The accepted notations are dy/dx when the variable y is non-parameterized, or \dot{y}, y' if
+y is a parameterized function. When y is defined else where, then dy/dx denotes the differentiation of y, and is treated as a function, parameterized or non-parameterized. 
+If y is never defined else where, or the variable in concern is explicitly labeled to be a definition, then \diff{y,x}, cues the Core to numerically solve the differential equation.
+
+* When solving the diff eqns, the core relies on a cache structure built into variables. Default values for the initial values of the equation to the n-1th degree will be supplied, which
+  the users can access or make adjustments to. The module then goes on to span the "entire" solution space using methods such as RK2 or RK4 along the positive and the negative directions.
+  During this process, the stepped values at various points of the differential equation are stored into a sorted Cache, which is expected to have a log(n) access and storage time.
   
+* The time complexity of such a computation is O(_mn_) for a *n*th order differential equation that has a total time step of _m_.
+
+* Pendulum has implemented three types of solvers, using Euler’s method, RK2, and RK4 (Runge Kutta method) respectively. Euler’s method uses a single step during each time increment and
+  its error increases by O(δ^2). RK2 uses 2 recursive steps in each time increment, performing a second order Taylor Approximation from each starting point, while RK4 uses 4 recursive 
+  steps per time increment, and performs a 4th order Taylor Approximation. The error of the methods are O(δ^3) and O(δ^5) respectively.
+  ![img_11.png](img_11.png)
+  
+* High order differentiated terms shall be written as for example \diff{y, [x,2]}, which states that y is differentiated in terms of x twice. When resolving the statement trees, differentiated
+  terms of the highest order of **undefined variables** are prioritized as candidates for evaluation targets. In normal cases of ODE, it is recommended that the differentiated term of the hightest
+  order gets placed at one side of the expression, and all the rest gets subtracted or moved to the other side. This is because during actual computation processes, only the highest term gets 
+  evaluated based on the rest of the expression, while all the lower-order differentiation terms iterate their value out of the initial conditions.
+
+* In an ODE or PDE, if the highest order differential term is mixed up with the rest of the equations, it is still identified as the evaluation target. Core will use iterated gradient descent to try
+  to find the value of the differential term by solving unknowns. This will slow down the computation of the ODE/PDE, which is why unless the differential equation is 
+  necessarily implicit, it is recommended that the highest order differential term gets specified explicitly.
+  ![img_10.png](img_10.png)
 ## UI
 Short for user interface, the section on the left of the software window for user inputs and providing feedbacks. 
 ### Definition
-
+The collection of statement field and its corresponding label field that allows users to define variables.
 ### Statement Field
-
+The LaTeX field dedicated to user inputs of long mathematical expressions.
 ### Label Field
-
+The label field to the left of the statement field accepts a single LaTeX letter (with subscripts). The letter is the label for the statement,
+denoting the very variable that the user is trying to define using the entire math statement, which the Core will then try to extract. If the label
+is not specified by the user, the Core will read the statement and try to read the user's intent. A suggestive label will be posted on the same field
+with a light gray color.
 ### Progress bar
 
 ### Slider
+
+### Multi-var slider
+High dimensional slider for grouped operations on variables. Potentially going to be implemented inside canvas in some future time.
 
 ### Hint
 The text underneath fields that reveal the variable's state in core.

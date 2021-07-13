@@ -44,3 +44,7 @@ fully functioning on the UI panel, along with the rest of the pendulum user inte
 Determined the conditions upon which a system of equations arises in place of the singled-out definitions for variables, namely
 when cycles occur on the dependency graph of the variables. Designed algorithms for solving implicit definitions and systems of equations 
 for Core. The algorithm's central idea is based on gradient descent.
+
+#### 07/13
+Created specifications for differential equation syntax and designed Core numerical solvers based on iterated Runge-Kutta and dynamic caching. Made minor
+style adjustments to the index page.
