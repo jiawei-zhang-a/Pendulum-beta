@@ -356,8 +356,8 @@ If y is never defined else where, or the variable in concern is explicitly label
 
 * Pendulum has implemented three types of solvers, using Euler’s method, RK2, and RK4 (Runge Kutta method) respectively. Euler’s method uses a single step during each time increment and
   its error increases by O(δ^2). RK2 uses 2 recursive steps in each time increment, performing a second order Taylor Approximation from each starting point, while RK4 uses 4 recursive 
-  steps per time increment, and performs a 4th order Taylor Approximation. The error of the methods are O(δ^3) and O(δ^5) respectively.
-  ![img_11.png](img_11.png)
+  steps per time increment, and performs a 4th order Taylor Approximation. The error of the methods are O(δ^3) and O(δ^5) respectively.  
+  ![img_11.png](img_11.png)  
   
 * High order differentiated terms shall be written as for example \diff{y, [x,2]}, which states that y is differentiated in terms of x twice. When resolving the statement trees, differentiated
   terms of the highest order of **undefined variables** are prioritized as candidates for evaluation targets. In normal cases of ODE, it is recommended that the differentiated term of the hightest
@@ -369,16 +369,26 @@ If y is never defined else where, or the variable in concern is explicitly label
   necessarily implicit, it is recommended that the highest order differential term gets specified explicitly.
   ![img_10.png](img_10.png)
 ## UI
-Short for user interface, the section on the left of the software window for user inputs and providing feedbacks. 
+Short for user interface, the section on the left of the software window for user inputs and providing feedbacks. The updates made by users on the user interface will be sent to the Core
+through asynchronous hooks.
 ### Definition
-The collection of statement field and its corresponding label field that allows users to define variables.
+The collection of statement field and its corresponding label field that allows users to define variables.  
+![img_12.png](img_12.png)
 ### Statement Field
-The LaTeX field dedicated to user inputs of long mathematical expressions.
+The LaTeX field on the right is dedicated to user inputs of long mathematical expressions. Expressions entered here will be parsed into
+statement trees to reflect the hierarchical structure inside computation, and then interpreted by Core into pi-scripts.
 ### Label Field
 The label field to the left of the statement field accepts a single LaTeX letter (with subscripts). The letter is the label for the statement,
 denoting the very variable that the user is trying to define using the entire math statement, which the Core will then try to extract. If the label
 is not specified by the user, the Core will read the statement and try to read the user's intent. A suggestive label will be posted on the same field
 with a light gray color.
+
+### Parser
+A very important sub-module of UI that will serve the function of converting user inputs into statement trees. The reading of individual TeX commands relies
+on a finite state machine combined with a macro dictionary. The conversion of the linear command list into the statement tree is then to be performed recursively.
+This is the first and essential step for Pendulum to break down and fully comprehend the mathematical expressions typed in by users. For a more detailed break down
+of the mechanisms behind parser, see the section on parsing.
+
 ### Progress bar
 
 ### Slider
@@ -393,3 +403,126 @@ Fields for editing of pi-scripts.
 
 ### Group structure
 
+## Parsing
+Parsing of information rich mathematical expressions written in LaTeX into structured, machine-readable statement trees involves so much technicalities and details 
+that the principles of parsing deserves a section on its own. In this section, we will introduce the steps through which the original TeX gets broken down and
+converted, as well as the algorithms that run in them. We will also explain the various class structures utilized during the construction of statements.
+
+### Linear Parsing
+Linear parsing is the first step in making sense of the user-typed TeX. The raw TeX expressions looks something like this: `\frac{dy}{dx}-x^2e^{ix}=y-x`.
+The linear parsing is expected to take a raw string of TeX, read it in character by character, and come up with a linear regrouping where each element in the list
+corresponds to either a parsed symbol, a parsed operator, or a number, that honestly reflect the original expression in the order in which it came in. In accordance
+to the example above, we would expect something like: `[frac, d{x}, d{y}, -, $x, ^, 2, invisTimes, e, ^, {, i, invisTimes, $x, }, =, $y, -, $x]` as the output.
+This is called a **TeX List** that the program keeps track of, which will contain the final output of linear parsing upon its compeltion.
+Sometimes the parsed results that gets output may look a bit more complicated than the original expression, despite roughly maintaining the original orders.
+In fact, to achieve this, a certain level of knowledge of what each operator represents is required, this is where the power of finite state machines come in.
+
+#### Finite state machine
+The scheme of a finite state machine, although often used as a paradigm representation of universal computations, actually turns out to be extremely useful when 
+we try to comprehend code strings by reading them character by character. The key concept is that the program will keep track of, besides the current character 
+being read, an additional variable called the **state**. This state helps the program "remember" what it has just read in,
+and enables it to develop comprehensions of complex syntax. Each time a new character gets inputted, the program responds to the combination of the state and the 
+character by taking actions such as adding an operator to the list or modifying the internal state.  
+![img_13.png](img_13.png)
+In practice, the state that the program manipulates is held in a macro dictionary. The macro dictionary has a tree structure consisting of maps, 
+where the top level map contains entry points to various TeX symbols, especially `'\'`, which serves as the entry
+point to a lot of TeX commands such as '\cos' or '\frac'. Initially, the state holds the entire macro dictionary. On recognition of a match with one of the top
+entries of the macro dictionary, the state immediately changes to hold the subtree led by that symbol. By traversing down the tree, the program will eventually 
+reach a leaf that contains the corresponding keyword for the command and returns it. Note that multiple commands can map to the same operator. For example, if 
+`'\div'` was one of the commands encountered, it will end up returning the operator keyword `'divide'`. If the program encounters `'\frac'`, it will also return 
+the operator keyword `divide`. 
+#### The TeXObject class
+The parsed keywords will be enclosed in TeX objects. The class contains fields:
+```javascript
+class TeXObject{
+    type: string;
+    name: string;
+    subClauses: string[][];
+}
+```
+The type can either be a variable `$`, operator `operator`, or constant `#`. Sub-clauses will contain lists of symbols that are parsed subclauses of a large operator. 
+One can imagine encountering something like `\sum_{n=1}^{20^5}`, for which `[[$n, =, 1],[20, ^, 5]]` will become the value of its field.  
+In this documentation, we refer to the TeXObject classes based on their types, for
+- number, we just write the number itself, e.g. `20`,
+- variable, we write the name of the variable with a `$` in front, e.g. `$y`,
+- operator, we simply write the name the operator corresponds to, e.g. `sin`,
+- large operator, these are operators that contains sub-clauses, we refer to them along with their sub-clause contents:
+  `sum[[$n, =, 1],[20, ^, 5]]`.
+  
+The **TeX lists** are lists of TeX objects.
+
+#### Format stack for large operators
+With the case of certain large operators, such as `'\int'` and `'\sum'`, their parsing do not simply terminate after their keywords. The `'\int'` operator
+asks for the lower bound and the upper bound of the integration in the form of `'_{expression1}^{expression2}'`, both of which can be full expressions in TeX 
+requiring additional parsing. In these circumstances the parser will enter into the clauses of an operator, and additional TeX objects
+are to be read into the parent operator, instead of the root level list.  
+
+To achieve this, an additional variable, the **format stack** is kept in the parser. Once a large operator requiring a particular format is encountered, such as `\sum` expecting `_{...}^{...}`, the formats are pushed into the stack as
+`[_,{,},^,{,}]`, with the left open brackets `{` associated with the corresponding subclause as the output location, and the right bracket `}` with the 
+previous output location that the program shall revert to once exiting the sub-clause. The format characters are popped from the stack when encountered in the TeX string,
+when the stack becomes empty, the parse location defaults to the root list. To avoid mismatches, all encountering of the left bracket symbol inside TeX will push a right 
+bracket into the stack.
+
+#### The invisible multiplication
+A special rule needs to be take note of, that is whenever two variables, or a variable and a named operator are placed back-to-back, an invisible
+multiplication operator `invisDot` is inserted into the TeX list. The only difference between`invisDot` and `dot` is that it assumes a slightly higher 
+associativity in certain situations.
+
+### Recursive parsing
+Recursive parsing is the process through which the output of the previous step, a TeX object list, gets interpreted and collapsed into a statement tree.
+The container of the output here is a **SymNode**:
+```javascript
+class SymNode{
+    children: SymNode[];
+    symbol: string|number;
+    type: ['$', '#', 'operator'];
+}
+```
+which is capable of recursively nesting expressions. We abbreviate the SymNodes with their symbol in front and their children contained in brackets.
+The statement tree holds the root SymNode. The statement tree is expected to 
+contain the expression in the order that it is to be computed, that is, expressions with highest associativity get computed first, and 
+those with the lowest associativity gets computed last. So, it would not be surprising to see expressions with plus signs end up with `plus` as the
+root node of its statement tree.
+
+For example, a convoluted expression like `\sin y \int_{10}^{12} e^x dx = 15^{2\cos x}` will get parsed into
+`[sin, $y, int[[10],[12]], (, e, ^, x, invisDot, d[[$x]], ), =, 15, ^, {, 2, invisDot, cos, $x}]`. After the recursive parsing, the expected output 
+would be:
+```
+={
+     *{
+         sin{$y},
+         int{
+             10, 
+             12, 
+             ^{e, $x}, 
+             d{$x}
+         }
+     }, 
+     ^{
+         15, 
+         *{
+            2, 
+            cos{$x}
+         }
+     }
+}
+```
+
+The way to achieve this kind of parsing is by resolving the associativity of each of the symbols, and reording the variables, constants
+and operators.
+#### Shunting yard algorithm
+An enhanced version of the shunting yard algorithm will be utilized for the task of recursive parsing. The key idea behind it is that
+all operators would yield a number, so would all the numbers and variables. But depending on the associativity, an operator may act on 
+variables to its vicinity, or wait until other operators within its vicinity to compute first, and, depending on whether that operator is to its 
+left or to its right, if the operator is to its left, it shall be popped from the stack into the list, allowing it to be computed, or if
+that operator is to its right, this operator shall be placed into the stack, awaiting the operator to its left to be executed first, which by itself
+may need to wait for the operator further to its right to act on its vicinities. 
+
+This forms the stack structure of the shunting yard, which 
+implies that if the last operator have precedence over the one that is on top of the stack, then it must have precedence over all the operations in the
+stack, and shall be executed first. If at any point the present operator no longer have precedence over the top operators in the stack, then
+operators on the stack shall be popped until its top has a lower precedence than the present operator, and because it having a lower precedence, it
+would have to be executed later (consider `+`, `^` and `*` in the same expression).
+
+Once an operator is popped from the stack, it is to be met with the previous terms at its immediate vicinity in the parse list. The operator is then 
+to collapse with the number of operands that it expects and instantiate a new SymNode object in its place. 

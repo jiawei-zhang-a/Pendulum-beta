@@ -229,7 +229,7 @@ body {
 }
 
 #object-bar>.active {
-    background: var(--active);
+    background: var(--blue);
 }
 
 #object-bar>.active:hover {

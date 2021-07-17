@@ -22699,7 +22699,7 @@
 	 * Text = 3D Text
 	 *
 	 * parameters = {
-	 *	font: <THREE.Font>, // font
+	 *	fonts: <THREE.Font>, // fonts
 	 *
 	 *	size: <float>, // size of the text
 	 *	height: <float>, // thickness to extrude text
@@ -22717,7 +22717,7 @@
 			const font = parameters.font;
 
 			if (!(font && font.isFont)) {
-				console.error('THREE.TextGeometry: font parameter is not an instance of THREE.Font.');
+				console.error('THREE.TextGeometry: fonts parameter is not an instance of THREE.Font.');
 				return new BufferGeometry();
 			}
 
@@ -29449,7 +29449,7 @@
 		const glyph = data.glyphs[char] || data.glyphs['?'];
 
 		if (!glyph) {
-			console.error('THREE.Font: character "' + char + '" does not exists in font family ' + data.familyName + '.');
+			console.error('THREE.Font: character "' + char + '" does not exists in fonts family ' + data.familyName + '.');
 			return;
 		}
 

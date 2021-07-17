@@ -2,7 +2,7 @@
 import "mathquill/build/mathquill";
 
 // @ts-ignore
-var MQ = MathQuill.getInterface(2);
+var MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
 
 var objectBar = $('#object-bar')[0];
 
@@ -120,8 +120,8 @@ function loadReference() {
     }
 }
 
-function addNameField(name:string|number, autoIndex = 0) {
-    if (name == undefined) name = 1 + autoIndex;
+function addNameField(name:string, autoIndex = 0) {
+    if (name == undefined) name = "$"+(1 + autoIndex);
     var html = $.parseHTML(`<div class="name-container" varname="${name}"><div class="name">${name}</div><div class="type">:</div></div>`);
     $('#object-bar').append(html);
     // @ts-ignore
@@ -129,8 +129,8 @@ function addNameField(name:string|number, autoIndex = 0) {
     nameControls[nc.varName] = nc;
 }
 
-function addExpField(name:string|number, autoIndex = 0) {
-    if (name == undefined) name = 1 + autoIndex;
+function addExpField(name:string, autoIndex = 0) {
+    if (name == undefined) name = "$"+(1 + autoIndex);
     var html = $.parseHTML(`<div class=\"expression-container\" varname=\"${name} \"> <span class = \"expression\"></span> </div>`);
     $('#mathpanel').append(html);
     // @ts-ignore
@@ -183,7 +183,7 @@ function removeDefinition(name = "") {
 }
 
 function insertNameField(previous = "", name:string, autoIndex = 0) {
-    if (name == undefined) name = "$"+1 + autoIndex;
+    if (name == undefined) name = "$"+ (1+autoIndex);
     var html = $.parseHTML(`<div class="name-container" varname="${name}"><div class="name">${name}</div><div class="type">:</div></div>`);
     var previousContainer = nameControls[previous].nameContainer;
     previousContainer.parentNode.insertBefore(html[0], previousContainer.nextSibling);
@@ -192,7 +192,7 @@ function insertNameField(previous = "", name:string, autoIndex = 0) {
 }
 
 function insertExpField(previous = "", name:string, autoIndex = 0) {
-    if (name == undefined) name = "$"+1 + autoIndex;
+    if (name == undefined) name = "$"+ (1 + autoIndex);
     var html = $.parseHTML(`<div class=\"expression-container\" varname=\"${name} \"> <span class = \"expression\"></span> </div>`);
     var previousContainer = defControls[previous].defContainer;
     previousContainer.parentNode.insertBefore(html[0], previousContainer.nextSibling);

@@ -48,3 +48,11 @@ for Core. The algorithm's central idea is based on gradient descent.
 #### 07/13
 Created specifications for differential equation syntax and designed Core numerical solvers based on iterated Runge-Kutta and dynamic caching. Made minor
 style adjustments to the index page.
+
+#### 07/14
+Encountered some strange problems with LaTeX rendering. The \sum and the \sqrt commands looked disproportional compared to previously achieved effects. Turned
+out that the fonts folder in src/css/ was not properly copied into dist/css. The issue was resolved after fixing the build script.
+
+#### 07/17
+Devised and documented the working principles behind the parser module that turns TeX statements into statement trees. Made further specifications
+of parts of the UI module such as definitions and label fields.

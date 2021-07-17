@@ -6,7 +6,7 @@ var sourcemaps = require("gulp-sourcemaps");
 var buffer = require("vinyl-buffer");
 var paths = {
     pages: ["src/*.html"],
-    stylesheets: ["src/css/*.css"],
+    stylesheets: ["src/css/**/*.*"],
     assets: ["assets/*.png"]
 };
 gulp.task("copy-html", function () {
