@@ -4,6 +4,8 @@ var source = require("vinyl-source-stream");
 var tsify = require("tsify");
 var sourcemaps = require("gulp-sourcemaps");
 var buffer = require("vinyl-buffer");
+var babelify = require("babelify");
+
 var paths = {
     pages: ["src/*.html"],
     stylesheets: ["src/css/**/*.*"],
@@ -28,7 +30,7 @@ gulp.task(
             cache: {},
             packageCache: {},
         })
-            .plugin(tsify)
+            .plugin(tsify, {extensions:['js','ts']})
             .bundle()
             .pipe(source("index.js"))
             .pipe(buffer())

@@ -56,3 +56,35 @@ out that the fonts folder in src/css/ was not properly copied into dist/css. The
 #### 07/17
 Devised and documented the working principles behind the parser module that turns TeX statements into statement trees. Made further specifications
 of parts of the UI module such as definitions and label fields.
+
+#### 07/18
+Built a test runner for function construction out of statement trees in experiment.ts. It turns out that functions constructed using eval or hardcoded consistently 
+performed about four times faster than that constructed using functional programming (avoiding if and switch statements). Evaluation functions constructed using
+Function outperformed eval consistently by around 6%, and sometimes even beats the hard coded function, despite requiring an additional argument specifying context.
+These testing results furthered my confidence in creating a pi-script based Core.
+
+#### 07/19
+When trying to import the orbitControl.js file written in es5, parse error was thrown stating that "ParseError: 'import' and 'export' may appear only with 'sourceType: module'." After
+some search the solution should be adding a babel es2015 transformation to the browserify function in gulp-build. 
+
+The problem with the error still persisted after adding the babelify transformation. A solution is provided here:
+https://stackoverflow.com/questions/19444592/using-threejs-orbitcontols-in-typescript, where nicolaspanel wrote a ts-compatible orbit control
+https://github.com/nicolaspanel/three-orbitcontrols-ts. 
+
+With the previous solution, a different three module was imported and created upon build, resulting in the inability fo zooming function to identify the camera type. 
+The final working solution was established by importing an older version of orbital controls stored in local director, 
+and making THREE globally available in graphics.ts.
+
+#### 07/20
+Started implementing functionalities inside the graphics module. Created class structures for Canvas, Graph (abstract), and Cartesian Graph (extends graph). 
+
+Graph takes care of all actions related to visualization of a particular THREE object, including vertex generation, face generation, material creation, geometry and 
+mesh creation, and so on. The cartesian graph
+relies on two layers of mapping to create the vertices, first the M(u,v)=>(x,y) map that takes care of the x,y locations of the vertices, with u,v ranging from 0 to 1 with 
+specified densities determining the fineness of the mesh, and then the f(x,y)=>z map defining z coordinate of vertices. Mapping M(u,v) can be utilized to create conformal 
+and constant local area meshes in the future. The important method populate is expected to be called by Core in the future to generate mesh based on the statements of a variable.
+
+Canvas wraps around all canvas related objects, including THREE.scene, THREE.camera, the htmlDiv, and so on. It also holds the animation method for continuous rendering. 
+With the combination of Canvas and Graph, one can quickly add a graph to the canvas by calling Canvas.addGraph(graph). This gives one the ability to manipulate the canvas 
+imperatively, by calling methods that wrap around multiple function calls that achieve certain actions on the canvas. The Three objects inside Canvas are still publicly 
+exposed, so one still have the option to operate on them directly. Canvas also listens for window resize events, so that it can adjust the renderer size accordingly.

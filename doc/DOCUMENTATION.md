@@ -101,6 +101,8 @@ The goal of our ultimate licensing is to permit the use of external libraries su
 - Updates the function when it is changed, with the help of a listener
 - Gives feedbacks to core based on the rendering process
 
+![img_16.png](img_16.png)
+
 ### Three
 The core API to be used for various visualizations is threejs, a library which makes stunning visualizations using WebGL. For 2D visualizations using
 three, an example can be found here: https://observablehq.com/@grantcuster/using-three-js-for-2d-data-visualization. 
