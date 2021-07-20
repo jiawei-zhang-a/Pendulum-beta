@@ -2,28 +2,14 @@ import * as UI from './ui';
 import './experiment';
 import {init, Canvas, Graph, CartesianGraph} from './graphics';
 import * as THREE from 'three';
+import {Vector3} from "three";
 // import {init} from "./helloworld";
 
 $(()=>{
-   let canvas:Canvas = init();
+    let canvas:Canvas = init();
     UI.loadTags();
     UI.loadShelves();
     UI.loadReference();
-
-    let graph = new CartesianGraph("sinusoidal");
-    graph.constructGeometry({'material':'normal'});
-    graph.generateIndices();
-    graph.populate((x,y)=>Math.sin(x)+Math.sin(y));
-    canvas.addGraph(graph);
-
-    let graph2 = new CartesianGraph("cosinusoidal");
-    graph2.constructGeometry({'material':'standard', 'color':'orange'});
-    graph2.generateIndices();
-    graph2.populate((x,y)=>x*x+Math.cos(y));
-    canvas.addGraph(graph2);
-
-    let axesHelper = new THREE.AxesHelper(6);
-    canvas.scene.add(axesHelper);
 
     let gridHelper = new THREE.GridHelper(12, 12);
     gridHelper.rotateX(Math.PI/2);
@@ -35,4 +21,25 @@ $(()=>{
 
     let gridHelper3 = new THREE.GridHelper(12, 12);
     canvas.scene.add(gridHelper3);
+
+    let axesHelper = new THREE.AxesHelper(7);
+    canvas.scene.add(axesHelper);
+
+    let graph = new CartesianGraph("sinusoidal",(x,y)=>Math.sin(x)+Math.sin(y));
+    graph.constructGeometry({'material':'standard', 'color':'orange'});
+    graph.generateIndices();
+    graph.populate();
+    canvas.addGraph(graph);
+
+    let graph2 = new CartesianGraph("cosinusoidal",(x,y)=>x*x+Math.cos(y));
+    graph2.constructGeometry({'material':'standard'});
+    graph2.generateIndices();
+    graph2.populate();
+    canvas.addGraph(graph2);
+
+    let graph3 = new CartesianGraph("xy",(x,y)=>x*y/6);
+    graph3.constructGeometry({'material':'normal', 'color':'green'});
+    graph3.generateIndices();
+    graph3.populate();
+    canvas.addGraph(graph3);
 })

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 // @ts-ignore
 window.THREE = THREE;
 import {WebGLRenderer} from "three";
-// @ts-ignore
+
 import "three/examples/js/controls/OrbitControls";
 import {Variable} from './core';
 import './graph';
@@ -43,7 +43,8 @@ class Canvas{
 
     addGraph(graph: Graph){
         graph.update();
-        this.graphs[Graph.name] = graph;
+        graph.cameraOrientation = this.camera.position;
+        this.graphs[graph.name] = graph;
         this.scene.add(graph.mesh);
     }
 
@@ -53,6 +54,15 @@ class Canvas{
         let graph = this.graphs[name];
         delete this.graphs[name];
         return graph
+    }
+
+    /**
+     * Called when orbit control changes the camera orientation;
+     */
+    updateCameraOrientation(){
+        for(let key in this.graphs){
+            this.graphs[key].updateOrientation();
+        }
     }
 
     onResize() {
@@ -91,6 +101,8 @@ function init() {
 
     // @ts-ignore
     let control = new THREE.OrbitControls(camera, renderer.domElement);
+    control.addEventListener('change', ()=>canvas.updateCameraOrientation());
+
     // new OrbitalControlUpdater(tr, canvas);
     let light1 = new THREE.DirectionalLight(0xffffff, 0.5);
     light1.position.set(0, 0, 5);

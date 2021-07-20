@@ -88,3 +88,8 @@ Canvas wraps around all canvas related objects, including THREE.scene, THREE.cam
 With the combination of Canvas and Graph, one can quickly add a graph to the canvas by calling Canvas.addGraph(graph). This gives one the ability to manipulate the canvas 
 imperatively, by calling methods that wrap around multiple function calls that achieve certain actions on the canvas. The Three objects inside Canvas are still publicly 
 exposed, so one still have the option to operate on them directly. Canvas also listens for window resize events, so that it can adjust the renderer size accordingly.
+
+By utilizing the conformal mapping M(u,v), successfully resolved the transparency issue that arises out of unsorted vertex z-buffers for self-overlapping geometries. By updating
+the orientation of the conformal mapping to keep in sync with the camera orientation, I was able to get consistent transparency rendering without any flickering or sawtooth shaped
+pixel overlays, without having to sort the depth-buffer explicitly. The time-complexity of each re-orientation, which requires re-population of the vertex buffer, is exactly
+O(1), namely one update per 90 degree region, and the process of which remains invisible to the users.
