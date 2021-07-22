@@ -43,7 +43,7 @@ class Canvas{
 
     addGraph(graph: Graph){
         graph.update();
-        graph.cameraOrientation = this.camera.position;
+        graph.cameraPosition = this.camera.position;
         this.graphs[graph.name] = graph;
         this.scene.add(graph.mesh);
     }

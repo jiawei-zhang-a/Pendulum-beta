@@ -32,14 +32,8 @@ $(()=>{
     canvas.addGraph(graph);
 
     let graph2 = new CartesianGraph("cosinusoidal",(x,y)=>x*x+Math.cos(y));
-    graph2.constructGeometry({'material':'standard'});
+    graph2.constructGeometry({'material':'standard', 'color':'purple'});
     graph2.generateIndices();
     graph2.populate();
     canvas.addGraph(graph2);
-
-    let graph3 = new CartesianGraph("xy",(x,y)=>x*y/6);
-    graph3.constructGeometry({'material':'normal', 'color':'green'});
-    graph3.generateIndices();
-    graph3.populate();
-    canvas.addGraph(graph3);
 })

@@ -9,6 +9,8 @@ const colors: {[key:string]:number}= {
     red: 0xd82c5d,
     lightgray: 0xf3f3f3,
     air: 0xf0f8ff,
+    purple: 0x8300de,
+    mint: 0x83ffde
 };
 
 function createMaterial(type:string, color:string, clipOverflow = true, clipDistance = 6){
@@ -40,7 +42,7 @@ function createMaterial(type:string, color:string, clipOverflow = true, clipDist
         case "opaque":
             material = new THREE.MeshPhongMaterial({
                 side: THREE.DoubleSide,
-                color: 0x7890ab
+                color: colors[color]
             });
             break;
 
@@ -72,7 +74,7 @@ abstract class Graph {
     material:THREE.Material;
     mesh: THREE.Mesh;
     //Vector providing camera orientation for rendering optimization
-    cameraOrientation: THREE.Vector3;
+    cameraPosition: THREE.Vector3;
     protected constructor (name: string) {
         this.name = name;
     }
@@ -119,6 +121,8 @@ class CartesianGraph extends Graph{
     //Create index overheads >3721*6
     indices:number[] = [];
     dataInterface: (x: number, y: number) => number;
+    uCount = 60;
+    vCount = 60;
 
     /**
      * @param name name of the graph, needs to be unique
@@ -144,7 +148,7 @@ class CartesianGraph extends Graph{
      * @param uCount # of vertices + 1 in the u direction
      * @param vCount # of vertices + 1 in the v direction
      */
-    generateIndices(uCount = 100, vCount = 100){
+    generateIndices(uCount = this.uCount, vCount = this.vCount){
         this.indices.length=0;
         /*
          * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
@@ -173,7 +177,7 @@ class CartesianGraph extends Graph{
      * @param uCount # of vertices + 1 in the u direction
      * @param vCount # of vertices + 1 in the v direction
      */
-    populate(mapping = (u:number, v:number)=>[-5+v*10, 5-u*10], uCount = 100, vCount = 100): void {
+    populate(mapping = (u:number, v:number)=>[-5+v*10, 5-u*10], uCount = this.uCount, vCount = this.vCount): void {
 
         for(let i = 0; i <= uCount; i++){
             for(let j = 0; j <= vCount; j++){
@@ -197,8 +201,8 @@ class CartesianGraph extends Graph{
     private yAxis = new Vector3(0,1,0);
     private holder = new Vector3(0,0,0);
     updateOrientation(): void {
-        this.holder.x = this.cameraOrientation.x;
-        this.holder.y = this.cameraOrientation.y;
+        this.holder.x = this.cameraPosition.x;
+        this.holder.y = this.cameraPosition.y;
         let xAngle = this.holder.angleTo(this.xAxis);
         let yAngle = this.holder.angleTo(this.yAxis);
         let orientation;

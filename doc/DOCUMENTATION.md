@@ -107,9 +107,127 @@ The goal of our ultimate licensing is to permit the use of external libraries su
 The core API to be used for various visualizations is threejs, a library which makes stunning visualizations using WebGL. For 2D visualizations using
 three, an example can be found here: https://observablehq.com/@grantcuster/using-three-js-for-2d-data-visualization. 
 
+### Canvas
+
+
+Canvas wraps around all canvas related objects, including THREE.scene, THREE.camera, the htmlDiv, and so on. It also holds the animation method for continuous rendering.
+With the combination of Canvas and Graph, one can quickly add a graph to the canvas by calling Canvas.addGraph(graph). This gives one the ability to manipulate the canvas
+imperatively, by calling methods that wrap around multiple function calls that achieve certain actions on the canvas. The Three objects inside Canvas are still publicly
+exposed, so one still have the option to operate on them directly. Canvas also listens for window resize events, so that it can adjust the renderer size accordingly.
+
 ### Graph
 The basic wrapper around each graphable object. It contains necessary information about the object that is being rendered, such as its material,
 its vertices and geometry, and it also holds plotting algorithms that transform equations into its corresponding visual representations.
+As an abstract class, we have its structure defined:
+```typescript
+/**
+ * The abstract interface for a visualized graph
+ */
+abstract class Graph {
+    name: string;
+    material:THREE.Material;
+    mesh: THREE.Mesh;
+    //Vector providing camera position for rendering optimization
+    cameraPosition: THREE.Vector3;
+    protected constructor (name: string) {
+        this.name = name;
+    }
+    /**
+     * Returns the effective bounds of visualization for this graph
+     */
+    getBounds(): number[][] {
+        return [[-5, 5], [-5, 5], [-5, 5]];
+    }
+
+    /**
+     * Constructs geometries without populating them
+     * @param param parameters specifying the geometry
+     */
+    abstract constructGeometry(param:{[key:string]:string}):void;
+
+    /**
+     * Populates the geometry of this graph
+     */
+    abstract populate(): void;
+
+    setMaterial(material:THREE.Material){
+        this.material = material;
+    }
+
+    /**
+     * Called by canvas to update rendering orientations
+     */
+    abstract updateOrientation():void;
+
+    abstract update():void;
+
+    /**
+     * Disposes the THREE mesh and geometries of this, releasing their memory
+     */
+    abstract dispose():void;
+}
+```
+Among the methods, .constructGeometry is to be called to instantiate all Three visualization objects, and .populate is to be called for the mapping of the 
+function/field/other mathematical object that the graph is intended to represent onto the visualization objects.
+
+### Cartesian graph
+Subclass extending Graph. This is a class specializing in the visualization and subsequent updating of cartesian functions f:(x, y) => z. The primary THREE object that it keeps is a 
+`THREE.BufferedGeometry` object. With `THREE.BufferedGeometry`, one is able to, by specifying its buffered attributes, positions of the vertices, the 
+composition order of vertices to make the facelets, and so on. 
+
+The .populate method of this class utilizes a mapping (x, y) = M(u, v), M: (0, 1)^2 => R^2, to determine the x, y locations of the vertices to be generated. Then 
+the generated x, y coordinates are placed into the function f, yielding z = f(x,y) = f(M(u,v)) for the z coordinates of the vertices. M should be a conformal mapping,
+and its main purpose is to dynamic adjustment the positions of the vertices for rendering optimization, while maintaining an unvaried general appearance of the generated mesh that depends
+primarily on f.
+#### Transparency problem
+- The facelets are rendered in the order they appear inside the vertices array.
+- The earlier they appear, the earlier they get rendered into pixels.
+- For facelets that are semi-transparent, they have less than 1 alpha values. For facelets with α<1, their rasterized pixels should blend with the colors of the facelets behind them, and if 
+there were multiple facelets cascaded together, then each should pass on the colors of previous layer according to a formula like:
+  C1 = αA + (1-α)C0, where C0 is the previous color, C1 the new color, and A is the color of this facelet.
+  
+    This makes the distance of the facelets rendered to the camera very important. If two
+  facelets occupy the same pixel, the facelets that is further away from the camera should get rendered first, and the one closer should get 
+  rendered on top of the previous pixel to have the rendered color properly blended. This distance is called the z-buffer.
+  
+- However, for optimization reasons, the renderer of webGL will not explicitly sort the z-buffer of each pixel before rendering them, so that there 
+  is no guarantee of the order of rendering except for the order in which they come in the vertices array one specifies. If the facelets with a 
+  smaller z-buffer happened to get rendered before the ones with a higher z-buffer, then its pixel color is computed without knowing the need what's behind. 
+  Even when the facelets behind get rendered later, because the current pixel is showing the color of a facelet with a lower z-buffer, the renderer will have no choice but ignoring them.
+  
+- This creates the transparency issue, making certain facelets that were supposed to show through the transparent facelets in front of them not rendered, such that 
+  when looking from the users' perspective, it appears as if the transparent faces have become opaque.
+  
+    ![img_18.png](img_18.png)  
+    As can be seen from the screenshot above, parts of the surfaces in front no longer appear transparent.
+
+
+- For CartesianGraph, the rendering order (the order in which the vertices appear in the vertices list), is determined by the vertex enumeration 
+  following:  
+  ![img_19.png](img_19.png)
+  where ui and vj are equally spaced between [0, 1] following ui = i/|U|, vj = j/|V|, and M by default is
+  ![img_21.png](img_21.png),   
+  in which _l_ is the side length of the region of visualization.
+  
+
+-  Note that all vertices along the v direction gets generated first,
+   before moving on to a new u index. When Camera is looking at the mesh from the ![img_23.png](img_23.png) position, this generation order makes sure that all elements behind
+   are rendered before the elements in front, so there are no transparency issues. 
+    ![img_22.png](img_22.png)
+   
+- However, if we look from the position of ![img_25.png](img_25.png), the rendering order is not gauranteed with the previous mapping. In this case,
+we simply need to rotate the mapping 90 degrees. 
+  ![img_26.png](img_26.png)
+- In general, divide the space into four orientations:
+![img_27.png](img_27.png),  
+  and apply rotation matrix to the original map:
+  ![img_28.png](img_28.png).
+  
+If we update this mapping M:(u,v)->(x,y) each time the camera enters into  new orientation and repopulate
+the vertices, there will be no self-transparency issues with cartesian graphs, creating the illusion that the renderer
+is explicitly sorting the facelets behind the hood, while enjoying maximal rendering responsiveness.
+
+![img_29.png](img_29.png)
 
 ## Core (`Core`)
 Core is the computation center that gives life to the Pendulum system. It
@@ -443,7 +561,8 @@ class TeXObject{
 }
 ```
 The type can either be a variable `$`, operator `operator`, or constant `#`. Sub-clauses will contain lists of symbols that are parsed subclauses of a large operator. 
-One can imagine encountering something like `\sum_{n=1}^{20^5}`, for which `[[$n, =, 1],[20, ^, 5]]` will become the value of its field.  
+One can imagine encountering something like `\sum_{n=1}^{20^5}`, for which `[[$n, =, 1],[20, ^, 5]]` will become the value of its field.
+
 In this documentation, we refer to the TeXObject classes based on their types, for
 - number, we just write the number itself, e.g. `20`,
 - variable, we write the name of the variable with a `$` in front, e.g. `$y`,
