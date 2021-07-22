@@ -223,11 +223,11 @@ we simply need to rotate the mapping 90 degrees.
   and apply rotation matrix to the original map:
   ![img_28.png](img_28.png).
   
-If we update this mapping M:(u,v)->(x,y) each time the camera enters into  new orientation and repopulate
+If we update this mapping M:(u,v)->(x,y) each time the camera enters into a new orientation and repopulate
 the vertices, there will be no self-transparency issues with cartesian graphs, creating the illusion that the renderer
 is explicitly sorting the facelets behind the hood, while enjoying maximal rendering responsiveness.
 
-![img_29.png](img_29.png)
+![img_30.png](img_30.png)
 
 ## Core (`Core`)
 Core is the computation center that gives life to the Pendulum system. It
