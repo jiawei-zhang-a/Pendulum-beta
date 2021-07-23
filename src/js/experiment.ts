@@ -1,11 +1,10 @@
 let operators:{[key:string]:Function} = {
-    "cos": Math.cos,
-    "dot": (a:number,b:number)=>{
+    cos: Math.cos,
+    dot: (a:number,b:number)=>{
         return a*b;
     },
-    "plus": (a:number, b:number)=>a+b
+    plus: (a:number, b:number)=>a+b
 }
-
 let context:number[] = Array(26);
 context[24] = 12.25;
 
@@ -79,7 +78,7 @@ console.log(root.toString());
 
 let routine = construct(root)
 let f = eval('()=>(Math.cos(context[24])+25)*15');
-let g = Function('context','return (Math.cos(context[24])+25)*15');
+let g = Function('context', 'operators','return operators.dot(Math.cos(operators.plus(context[24],25)),15)');
 
 context[24] = 12.25;
 console.time('1000 runs');
@@ -96,7 +95,7 @@ console.timeEnd('10000 runs');
 context[24] = 12.25;
 console.time('360000 runs Function');
 for(let i = 0; i<3600000; i++)
-    context[24]=g(context);
+    context[24]=g(context,operators);
 console.timeEnd('360000 runs Function');
 
 context[24] = 12.25;
