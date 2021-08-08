@@ -572,25 +572,32 @@ In this documentation, we refer to the TeXObject classes based on their types, f
   
 The **TeX lists** are lists of TeX objects.
 
-#### Format stack for large operators
+#### Parse stack for large operators
 With the case of certain large operators, such as `'\int'` and `'\sum'`, their parsing do not simply terminate after their keywords. The `'\int'` operator
 asks for the lower bound and the upper bound of the integration in the form of `'_{expression1}^{expression2}'`, both of which can be full expressions in TeX 
 requiring additional parsing. In these circumstances the parser will enter into the clauses of an operator, and additional TeX objects
 are to be read into the parent operator, instead of the root level list.  
 
-To achieve this, an additional variable, the **format stack** is kept in the parser. Once a large operator requiring a particular format is encountered, such as `\sum` expecting `_{...}^{...}`, the formats are pushed into the stack as
-`[_,{,},^,{,}]`, with the left open brackets `{` associated with the corresponding subclause as the output location, and the right bracket `}` with the 
+To achieve this, an additional variable, the **parse stack** is kept in the parser. Once a large operator requiring a particular format is encountered, such as `\sum` expecting `_{...}^{...}`, the formats are pushed into the stack as
+`[_,{,},^,{,}]`, with the left open brackets `{` associated with the corresponding subclauses as the output location, and the right bracket `}` with the 
 previous output location that the program shall revert to once exiting the sub-clause. The format characters are popped from the stack when encountered in the TeX string,
 when the stack becomes empty, the parse location defaults to the root list. To avoid mismatches, all encountering of the left bracket symbol inside TeX will push a right 
 bracket into the stack.
+
+The additional use of parse stack is for checking syntax errors. Whenever tokens of the type _'openstruct'_ is encountered, that means some left-parenthesis-like operator in the expression have been met, 
+and its corresponding representation is pushed into the parse stack. If the parser encounters tokens of the type _'closestruct'_, it likewise checks for the matching representation from the 
+parse stack, and pops it if found --- if it does not manage to find any matching representation inside the parse stack, that corresponds to an unclosed parenthesis and a parse error is thrown at the location of the 
+opening bracket, indicating an unmatched parenthesis. Likewise, if at the end of the TeX string, there are still items in the parse stack, the same parsing error will also be thrown. The last item left in 
+the parse stack is a termination token, used specially when the linParse function is called recursively to terminate a tex string parsing before it has been exhausted. For the entire tex string, a $ symbol
+is appended at its end that signals the termination of the root level parsing.
 
 #### The invisible multiplication
 A special rule needs to be take note of, that is whenever two variables, or a variable and a named operator are placed back-to-back, an invisible
 multiplication operator `invisDot` is inserted into the TeX list. The only difference between`invisDot` and `dot` is that it assumes a slightly higher 
 associativity in certain situations.
 
-### Recursive parsing
-Recursive parsing is the process through which the output of the previous step, a TeX object list, gets interpreted and collapsed into a statement tree.
+### Node parsing
+Node parsing is the process through which the output of the previous step, a TeX object list, gets interpreted and collapsed into a statement tree.
 The container of the output here is a **SymNode**:
 ```javascript
 class SymNode{
@@ -601,7 +608,7 @@ class SymNode{
 ```
 which is capable of recursively nesting expressions. We abbreviate the SymNodes with their symbol in front and their children contained in brackets.
 The statement tree holds the root SymNode. The statement tree is expected to 
-contain the expression in the order that it is to be computed, that is, expressions with highest associativity get computed first, and 
+contain the expression in the order that it is to be computed, that is, expressions with the highest associativity get computed first, and 
 those with the lowest associativity gets computed last. So, it would not be surprising to see expressions with plus signs end up with `plus` as the
 root node of its statement tree.
 

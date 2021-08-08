@@ -21,6 +21,7 @@ class Canvas{
     public htmlElement: HTMLElement;
     public width:number;
     public height: number;
+    public time: number = 0;
 
     constructor(camera: THREE.Camera, scene: THREE.Scene,
                 renderer: THREE.WebGLRenderer, htmlElement: HTMLElement) {
@@ -38,6 +39,11 @@ class Canvas{
     }
 
     animation( time: number ) {
+        this.time = time/200;
+        for(let key in this.graphs){
+            let graph: Graph = this.graphs[key];
+            graph.updateTime();
+        }
         this.renderer.render( this.scene, this.camera );
     }
 
@@ -84,9 +90,12 @@ function init() {
 
     let camera: THREE.Camera, scene: THREE.Scene, renderer: WebGLRenderer;
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+    // camera = new THREE.OrthographicCamera(-10, 10, 10, -10, -10, 10);
     camera.position.y = -12;
+    // camera.position.z = 10;
     camera.lookAt(0, 0, 0);
     camera.up.set(0, 0, 1);
+
 
     scene = new THREE.Scene();
 

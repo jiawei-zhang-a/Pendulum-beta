@@ -93,3 +93,13 @@ By utilizing the conformal mapping M(u,v), successfully resolved the transparenc
 the orientation of the conformal mapping to keep in sync with the camera orientation, I was able to get consistent transparency rendering without any flickering or sawtooth shaped
 pixel overlays, without having to sort the depth-buffer explicitly. The time-complexity of each re-orientation, which requires re-population of the vertex buffer, is exactly
 O(1), namely one update per 90 degree region, and the process of which remains invisible to the users.
+
+#### 08/01 - 08/08
+Redesigned linear parsing to make it recursive, included the terminator in parameters of linparse, retained the format stack, now named parse stack, to help keep track of the opening and 
+closing of brackets, and the correct termination of the current level of linparsing. Linparse now calls on itself through tokens, the objects created in linparse that hold and 
+autonomously read in its corresponding substring in tex, Implemented parsing for summations, products, and integrations, and factorials. Adjusted macros, devised ways of clearly 
+distinguishing between the differentiation operator d and the variable name b by enclosing the differentiation d with \mathbf{}. The parse now checks on mismatched brackets, sometimes called
+clauses, of any type. Syntax error report is currently still through the console, which will become directly informative through the UI in the future.
+
+Included simple functionalities for animation using a time variable canvas.t. Currently, the interface for graphing are all directed inward, but hard-coding cartesian graphs, even animated ones, 
+are very simple and quick. The Graph module have been slightly adjusted to better adapt dynamic mesh generation for animated visualizations.

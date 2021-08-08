@@ -1,5 +1,6 @@
 /* jshint esversion: 6 */
 import "mathquill/build/mathquill";
+import {SymNode, Parser} from "./parser";
 
 // @ts-ignore
 var MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
@@ -47,7 +48,9 @@ class NameControl {
     public type = ':';
     public defControl:DefControl = null;
     mathquill: any;
+    parser: Parser;
     constructor() {
+        this.parser = new Parser();
     }
     /**
      * Used to synchronize height between definition container and namefield container
@@ -72,6 +75,10 @@ class DefControl {
     public type = ':';
     public nameControl: NameControl = null;
     mathquill: any;
+    parser: Parser;
+    constructor() {
+        this.parser = new Parser();
+    }
     /**
      * Used to synchronize height between definition container and namefield container
      */
@@ -102,9 +109,9 @@ function loadTags() {
 
 function loadShelves() {
     $('.expression').each(function () {
-        var container = this.parentElement;
-        var name = container.getAttribute('varname');
-        var ec = initiateDefControl(name, container, this);
+        let container = this.parentElement;
+        let name = container.getAttribute('varname');
+        let ec = initiateDefControl(name, container, this);
         defControls[name] = ec;
     });
 }
@@ -121,7 +128,7 @@ function loadReference() {
 }
 
 function addNameField(name:string, autoIndex = 0) {
-    if (name == undefined) name = "$"+(1 + autoIndex);
+    if (name == undefined) name = (1 + autoIndex).toString();
     var html = $.parseHTML(`<div class="name-container" varname="${name}"><div class="name">${name}</div><div class="type">:</div></div>`);
     $('#object-bar').append(html);
     // @ts-ignore
@@ -130,7 +137,7 @@ function addNameField(name:string, autoIndex = 0) {
 }
 
 function addExpField(name:string, autoIndex = 0) {
-    if (name == undefined) name = "$"+(1 + autoIndex);
+    if (name == undefined) name = (1 + autoIndex).toString();
     var html = $.parseHTML(`<div class=\"expression-container\" varname=\"${name} \"> <span class = \"expression\"></span> </div>`);
     $('#mathpanel').append(html);
     // @ts-ignore
@@ -183,7 +190,7 @@ function removeDefinition(name = "") {
 }
 
 function insertNameField(previous = "", name:string, autoIndex = 0) {
-    if (name == undefined) name = "$"+ (1+autoIndex);
+    if (name == undefined) name = (1+autoIndex).toString();
     var html = $.parseHTML(`<div class="name-container" varname="${name}"><div class="name">${name}</div><div class="type">:</div></div>`);
     var previousContainer = nameControls[previous].nameContainer;
     previousContainer.parentNode.insertBefore(html[0], previousContainer.nextSibling);
@@ -192,7 +199,7 @@ function insertNameField(previous = "", name:string, autoIndex = 0) {
 }
 
 function insertExpField(previous = "", name:string, autoIndex = 0) {
-    if (name == undefined) name = "$"+ (1 + autoIndex);
+    if (name == undefined) name = (1 + autoIndex).toString();
     var html = $.parseHTML(`<div class=\"expression-container\" varname=\"${name} \"> <span class = \"expression\"></span> </div>`);
     var previousContainer = defControls[previous].defContainer;
     previousContainer.parentNode.insertBefore(html[0], previousContainer.nextSibling);
@@ -219,7 +226,7 @@ function initiateNameControl(name:string, container:HTMLElement, field:HTMLEleme
     nc.nameContainer = container;
     nc.nameField = field;
     nc.varName = name;
-    // nc.parser = new NameParser();
+
     nc.type = (<HTMLElement>nc.nameContainer.lastElementChild).innerText;
     // console.log(MQ.MathField);
     nc.mathquill = MQ.MathField(nc.nameField, {
@@ -227,15 +234,15 @@ function initiateNameControl(name:string, container:HTMLElement, field:HTMLEleme
         handlers: {
             edit: () => {
                 nc.updateSize();
-                // core.resizeGraphics();
                 //@TODO: replace name with identifier
-                // let identifier = getIdentifier(nc.parser.tokenize(nc.mathquill.latex()));
-                // console.log("updating identifier " + nc.mathquill.latex() + ": " + tokensToString(nc.parser.tokenize(nc.mathquill.latex())));
+                let label = nc.parser.toStatementTree(nc.mathquill.latex());
+                console.log("updating identifier " + nc.mathquill.latex() + ": " + label);
             }
         }
     });
-    // let identifier = getIdentifier(nc.parser.tokenize(nc.mathquill.latex()));
-    // console.log("updating identifier " + nc.mathquill.latex() + ": " + tokensToString(nc.parser.tokenize(nc.mathquill.latex())));
+
+    let label = nc.parser.toStatementTree(nc.mathquill.latex());
+    console.log("updating identifier " + nc.mathquill.latex() + ": " + label);
     // core.createDefinition(name);
     return nc;
 }
@@ -248,12 +255,12 @@ function initiateDefControl(name:string, container:HTMLElement, field:HTMLElemen
     // ec.parser = new Parser();
     ec.mathquill = MQ.MathField(ec.defField, {
         autoSubscriptNumerals: true,
+        autoCommands:'mathbf partial',
         handlers: {
             edit: () => {
                 ec.updateSize();
                 // core.resizeGraphics();
-                // let rpns = ec.parser.getRPN(ec.mathquill.latex());
-                // console.log(rpnsToString(rpns));
+                let rpns = ec.parser.toStatementTree(ec.mathquill.latex());
                 // core.updateDefinition(name, rpns);
             },
             enter: () => {
@@ -267,10 +274,11 @@ function initiateDefControl(name:string, container:HTMLElement, field:HTMLElemen
                 }
             },
             upOutOf: () => focusLast(name),
-            downOutOf: () => focusNext(name)
+            downOutOf: () => focusNext(name),
         }
     });
-    // let rpns = ec.parser.getRPN(ec.mathquill.latex());
+    let root = ec.parser.toStatementTree(ec.mathquill.latex());
+    // console.log(root);
     // core.updateDefinition(name, rpns);
     return ec;
 }

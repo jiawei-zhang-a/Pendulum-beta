@@ -72,7 +72,7 @@ function createMaterial(type:string, color:string, clipOverflow = true, clipDist
 abstract class Graph {
     name: string;
     material:THREE.Material;
-    mesh: THREE.Mesh;
+    mesh: THREE.Mesh|THREE.Line;
     //Vector providing camera orientation for rendering optimization
     cameraPosition: THREE.Vector3;
     protected constructor (name: string) {
@@ -105,6 +105,14 @@ abstract class Graph {
      */
     abstract updateOrientation():void;
 
+    timeDependent: boolean = true;
+    updateTime(): void {
+        if(this.timeDependent){
+            this.populate();
+            this.update();
+        }
+    }
+
     abstract update():void;
 
     /**
@@ -121,8 +129,9 @@ class CartesianGraph extends Graph{
     //Create index overheads >3721*6
     indices:number[] = [];
     dataInterface: (x: number, y: number) => number;
-    uCount = 60;
-    vCount = 60;
+    uCount = 100;
+    vCount = 100;
+    private mapping = (u:number, v:number)=>[-5+v*10, 5-u*10];
 
     /**
      * @param name name of the graph, needs to be unique
@@ -177,7 +186,7 @@ class CartesianGraph extends Graph{
      * @param uCount # of vertices + 1 in the u direction
      * @param vCount # of vertices + 1 in the v direction
      */
-    populate(mapping = (u:number, v:number)=>[-5+v*10, 5-u*10], uCount = this.uCount, vCount = this.vCount): void {
+    populate(mapping = this.mapping, uCount = this.uCount, vCount = this.vCount): void {
 
         for(let i = 0; i <= uCount; i++){
             for(let j = 0; j <= vCount; j++){
@@ -232,10 +241,14 @@ class CartesianGraph extends Graph{
                     mapping = (u:number, v: number)=>[-5+u*10, 5-v*10];
                     break;
             }
+            this.mapping = mapping;
             this.populate(mapping);
             this.update();
         }
     }
+
+
+    timeDependent: boolean = true;
 
     dispose(){
         this.geometry.dispose();
@@ -243,4 +256,85 @@ class CartesianGraph extends Graph{
     }
 }
 
-export {Graph, CartesianGraph};
+class CartesianGraph2D extends Graph{
+    geometry:THREE.BufferGeometry;
+    mesh: THREE.Line;
+    //Create vertex overheads >3721*3
+    vertices:THREE.Vector3[] = [];
+    //Create index overheads >3721*6
+    indices:number[] = [];
+    dataInterface: (x: number) => number;
+    uCount = 60;
+    vCount = 60;
+
+    /**
+     * @param name name of the graph, needs to be unique
+     * @param dataInterface the cartesian function being passed
+     */
+    constructor(name: string ,dataInterface: (x: number) => number) {
+        super(name);
+        this.geometry = new THREE.BufferGeometry();
+        this.dataInterface = dataInterface;
+    }
+    constructGeometry(param:{[key:string]:string}=
+                          {'material': "standard", 'color': "blue"}): void {
+        this.geometry = new THREE.BufferGeometry();
+        this.material = createMaterial('line',
+            (param['color'])?param['color']:'blue');
+        this.mesh = new THREE.Line( this.geometry, this.material );
+        this.mesh.name = this.name;
+    }
+
+    /**
+     * Generate indices for mesh creation
+     * @param uCount # of vertices + 1 in the u direction
+     * @param vCount # of vertices + 1 in the v direction
+     */
+    generateIndices(uCount = this.uCount, vCount = this.vCount){
+        // this.indices.length=0;
+        // /*
+        //  * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
+        //  * namely uCount corresponds to the # of edges in the u direction, and vCount
+        //  * # of edges in v, so that there will be exactly 2*uCount*vCount triangular mesh formed.
+        //  */
+        // for(let i = 0; i < uCount; i++){
+        //     this.indices.push(i, i+1);
+        // }
+        // this.geometry.setIndex(this.indices);
+    }
+
+    /**
+     *
+     * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
+     * namely uCount corresponds to the # of edges in the u direction, and vCount
+     * # of edges along v.
+     * @param mapping a mapping for the vertex generation, used to serve refined mesh generation
+     * @param uCount # of vertices + 1 in the u direction
+     * @param vCount # of vertices + 1 in the v direction
+     */
+    populate(mapping = (u:number)=>[-5+u*10], uCount = this.uCount, vCount = this.vCount): void {
+
+        for(let i = 0; i <= uCount; i++){
+            let u = i/uCount;
+            let [x] = mapping(u);
+            let k  = i;
+            this.vertices[k] = new THREE.Vector3(x, this.dataInterface(x), 0);
+        }
+        this.geometry.setFromPoints(this.vertices);
+        this.geometry.attributes.position.needsUpdate = true;
+    }
+
+    update(): void {
+        this.geometry.computeVertexNormals();
+    }
+
+    dispose(){
+        this.geometry.dispose();
+        this.material.dispose();
+    }
+
+    updateOrientation(): void {
+    }
+}
+
+export {Graph, CartesianGraph, CartesianGraph2D};
