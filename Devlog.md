@@ -104,8 +104,12 @@ clauses, of any type. Syntax error report is currently still through the console
 Included simple functionalities for animation using a time variable canvas.t. Currently, the interface for graphing are all directed inward, but hard-coding cartesian graphs,
 even animated ones, are very simple and quick. The Graph module have been slightly adjusted to better adapt dynamic mesh generation for animated visualizations.
 
+![img.png](images/2021-08-08.png)
+
 #### 08/08 - 08/13
 Made minor updates to linear parsing such as adding the factorial function `!` into the macros and implementing the invisible dot rule. Further specified the shunting yard algorithm as 
 a part of node parsing inside documentation: broke down the mechanisms behind the shunting yard algorithm to understand its implications and limitations
 when it comes to reading specific sequences of expressions, conceptualized the compareAssociativity metric for handed associativity checking,
 analyzed the general applicability of the enhanced shunting yard implementation. Minor changes to graph.ts.
+
+![img.png](images/img.png)
