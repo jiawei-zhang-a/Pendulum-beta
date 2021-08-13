@@ -27,8 +27,8 @@ $(()=>{
     canvas.scene.add(axesHelper);
 
     let graph = new CartesianGraph("sinusoidal",
-        (x,y)=>Math.sin(canvas.time+3*x));
-    graph.constructGeometry({'material':'standard', 'color':'red'});
+        (x,y)=>Math.cos(x*3+canvas.time));
+    graph.constructGeometry({'material':'standard', 'color':'purple'});
     graph.generateIndices();
     graph.populate();
     canvas.addGraph(graph);

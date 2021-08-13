@@ -14,7 +14,7 @@ const colors: {[key:string]:number}= {
 };
 
 function createMaterial(type:string, color:string, clipOverflow = true, clipDistance = 6){
-    let material: THREE.Material=new THREE.MeshDepthMaterial();
+    let material: THREE.Material;
     switch(type){
         case "standard":
             material = new THREE.MeshPhongMaterial({
@@ -317,8 +317,7 @@ class CartesianGraph2D extends Graph{
         for(let i = 0; i <= uCount; i++){
             let u = i/uCount;
             let [x] = mapping(u);
-            let k  = i;
-            this.vertices[k] = new THREE.Vector3(x, this.dataInterface(x), 0);
+            this.vertices[i] = new THREE.Vector3(x, this.dataInterface(x), 0);
         }
         this.geometry.setFromPoints(this.vertices);
         this.geometry.attributes.position.needsUpdate = true;

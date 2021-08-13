@@ -533,7 +533,7 @@ Linear parsing is the first step in making sense of the user-typed TeX. The raw 
 The linear parsing is expected to take a raw string of TeX, read it in character by character, and come up with a linear regrouping where each element in the list
 corresponds to either a parsed symbol, a parsed operator, or a number, that honestly reflect the original expression in the order in which it came in. In accordance
 to the example above, we would expect something like: `[frac, d{x}, d{y}, -, $x, ^, 2, invisTimes, e, ^, {, i, invisTimes, $x, }, =, $y, -, $x]` as the output.
-This is called a **TeX List** that the program keeps track of, which will contain the final output of linear parsing upon its compeltion.
+This is called a **Token List** that the program keeps track of, which will contain the final output of linear parsing upon its completion.
 Sometimes the parsed results that gets output may look a bit more complicated than the original expression, despite roughly maintaining the original orders.
 In fact, to achieve this, a certain level of knowledge of what each operator represents is required, this is where the power of finite state machines come in.
 
@@ -551,19 +551,20 @@ entries of the macro dictionary, the state immediately changes to hold the subtr
 reach a leaf that contains the corresponding keyword for the command and returns it. Note that multiple commands can map to the same operator. For example, if 
 `'\div'` was one of the commands encountered, it will end up returning the operator keyword `'divide'`. If the program encounters `'\frac'`, it will also return 
 the operator keyword `divide`. 
-#### The TeXObject class
-The parsed keywords will be enclosed in TeX objects. The class contains fields:
-```javascript
-class TeXObject{
+#### The Token class
+The parsed keywords will be enclosed in Token objects. The class contains fields:
+```typescript
+class Token{
     type: string;
     name: string;
     subClauses: string[][];
 }
 ```
-The type can either be a variable `$`, operator `operator`, or constant `#`. Sub-clauses will contain lists of symbols that are parsed subclauses of a large operator. 
+The type can either be a variable `$`, operator `operator`, constant `#`, or structure `structure`.
+Sub-clauses will contain lists of symbols that are parsed subclauses of a large operator. 
 One can imagine encountering something like `\sum_{n=1}^{20^5}`, for which `[[$n, =, 1],[20, ^, 5]]` will become the value of its field.
 
-In this documentation, we refer to the TeXObject classes based on their types, for
+In this documentation, we refer to the Token objects based on their types, for
 - number, we just write the number itself, e.g. `20`,
 - variable, we write the name of the variable with a `$` in front, e.g. `$y`,
 - operator, we simply write the name the operator corresponds to, e.g. `sin`,
@@ -588,8 +589,8 @@ The additional use of parse stack is for checking syntax errors. Whenever tokens
 and its corresponding representation is pushed into the parse stack. If the parser encounters tokens of the type _'closestruct'_, it likewise checks for the matching representation from the 
 parse stack, and pops it if found --- if it does not manage to find any matching representation inside the parse stack, that corresponds to an unclosed parenthesis and a parse error is thrown at the location of the 
 opening bracket, indicating an unmatched parenthesis. Likewise, if at the end of the TeX string, there are still items in the parse stack, the same parsing error will also be thrown. The last item left in 
-the parse stack is a termination token, used specially when the linParse function is called recursively to terminate a tex string parsing before it has been exhausted. For the entire tex string, a $ symbol
-is appended at its end that signals the termination of the root level parsing.
+the parse stack is a termination token, used specially when the linParse function is called recursively to terminate a tex string parsing before it has been exhausted. For the root level recursion, a $ symbol
+is appended at its end that signals the termination of the entire TeX string.
 
 #### The invisible multiplication
 A special rule needs to be take note of, that is whenever two variables, or a variable and a named operator are placed back-to-back, an invisible
@@ -636,7 +637,7 @@ would be:
 }
 ```
 
-The way to achieve this kind of parsing is by resolving the associativity of each of the symbols, and reording the variables, constants
+The way to achieve this kind of parsing is by resolving the associativity of each of the symbols, and reordering the variables, constants
 and operators.
 #### Shunting yard algorithm
 An enhanced version of the shunting yard algorithm will be utilized for the task of recursive parsing. The key idea behind it is that
@@ -645,12 +646,107 @@ variables to its vicinity, or wait until other operators within its vicinity to 
 left or to its right, if the operator is to its left, it shall be popped from the stack into the list, allowing it to be computed, or if
 that operator is to its right, this operator shall be placed into the stack, awaiting the operator to its left to be executed first, which by itself
 may need to wait for the operator further to its right to act on its vicinities. 
+![img_31.png](img_31.png)
+Because the shunting yard is based on a stack structure, it follows the order of last in, first out. Because in an expression operators with higher associativity takes precedence
+in terms of evaluation, upon comparison between the first element of the remaining token list and the top of the shunting yard, if the top has higher associativity than the first
+it will be popped and added to the RPN, or else first will be pushed into the shunting yard, making it the new top, effectively maintaining the order of the shunting yard
+such that operators with higher associativity are always closer to the top of the stack. By this order, the program can effectively make the 
+operation that comes later with higher associativity in the expression to be the one that gets executed first. Under this reordering mechanism, and on the premise that each operator will
+act on numbers to its direct vicinity, or on operators with the next up associativity to its vicinity (that eventually yields numbers after their operation is done),
+the shunting yard algorithm generates an RPN that has effectively the same evaluation order as that of the mathematical expression dictates. 
 
-This forms the stack structure of the shunting yard, which 
-implies that if the last operator have precedence over the one that is on top of the stack, then it must have precedence over all the operations in the
-stack, and shall be executed first. If at any point the present operator no longer have precedence over the top operators in the stack, then
-operators on the stack shall be popped until its top has a lower precedence than the present operator, and because it having a lower precedence, it
-would have to be executed later (consider `+`, `^` and `*` in the same expression).
+Once an operator is popped from the stack, it is to be met with the previous terms at its immediate vicinity in the RPN list. The operator is then 
+to collapse with the number of operands that it expects and instantiates a new SymNode object in its place. That is to say, after the tokens are pushed into the RPN list,
+they are not kept in their position as in a conventional RPN, but are collapsed in an order that the expression can correctly be executed. After this chained collapsing,
+a properly defined mathematical expression should always yield a single SymNode as the root to all other SymNodes in the RPN list. The resultant statement tree is more 
+posed for the reflection of the structure and evaluation order of the expression than for direct evaluation. One can say that the statement tree captures the algebraic
+"structure" of the expression, which makes it utilizable for the Core.
 
-Once an operator is popped from the stack, it is to be met with the previous terms at its immediate vicinity in the parse list. The operator is then 
-to collapse with the number of operands that it expects and instantiate a new SymNode object in its place. 
+##### Comparing Associativity
+
+The key advantage of the shunting yard algorithm is that it is able to sort out the executing expression of an expression in linear time, despite the
+expression itself taking on complex structures of nested parenthesis and operators with varying associativity. Due to the diverse set of token types, 
+from functions, operators, to numbers and so on, the associativity is no longer a singular value for each of the parenthesis. In the classical shunting
+yard, if an operator, for example +, is compared to the operator `*`, whether the + comes before `*`, as that in `a+b*c`, or if it comes after, as that 
+in `a*b+c`, it is always determined to be so that associativity of + is less than *, ensuring that * is always popped into the RPN before +.
+
+In the program, if we have:
+``` typescript
+let remainingTokenList = [+, number3, ...];
+let shuntingYard = [*, ...];
+let RPN = [number1, number2];
+```
+Then by assigning associativity 1 to + and associativity 2 and *, we have:
+``` typescript
+if(+.associativity<*.associativity){
+    while(first.associativity<shuntingYard.tpo.associativity)
+        RPN.last = shuntingYard.pop();
+    shuntingYard.push(+);
+}else{
+    shuntingYard.push(*);
+}
+```
+and this is expected to yield correct behavior for expressions that involve operators that takes two operands at both of its sides, and operands made
+out of only numbers.
+
+However, as a counter example to this, if in our expression we encounter a token list:
+`[..., 2, *, sin, 5, *, x]`, suppose we have read things in such that 
+
+``` typescript
+let remainingTokenList = [sin, 5, *, x];
+let shuntingYard = [*, ...];
+let RPN = [..., 2];
+```
+Now observe that we would want to evaluate sin, namely sin(5*x) first before multiplying that with 2. By the prevoius
+logic, that means sin has a higher associativity than *, and hence sin will be pushed into the shunting yard, making:
+
+``` typescript
+let remainingTokenList = [ 5, *, x];
+let shuntingYard = [sin, *, ...];
+let RPN = [..., 2];
+```
+. Moving on, we read in the number 5, and pass it directly to the RPN, so that we have:
+``` typescript
+let remainingTokenList = [ *, x];
+let shuntingYard = [sin, *, ...];
+let RPN = [..., 2, 5];
+```
+And here is the problem, if we still went on with the assumption that sin has a higher associativity than *, then 
+we would pop sin into the RPN and add * into the shunting yard, making:
+``` typescript
+let remainingTokenList = [x];
+let shuntingYard = [*, *, ...];
+let RPN = [..., 2, 5, sin];
+```
+as a result, the RPN will end up as `[..., 2, 5, sin, x, *, *, ...]`, effectively creating the execution order
+`(...(2*(sin(5)*x)))`, but this is not what we wanted to specify. We actually wanted the `*` that comes after `sin`
+to compute before `sin`, and we want the `*` that comes before `sin` to compute after everything inside the `sin` has been
+computed. In fact, in general, there may not even be a partial ordering for all the operators and functions. What we have to 
+do then, is to examine the associativity of the operators/functions on a case by case basis, and taking extra care to
+differentiate the left/right order that two operators under comparison comes in with. In the above example, if `*` is to the _left_ of
+`sin`, that is, if `*` is top and `sin` is first, `sin` has precedence over `*`. Otherwise, if `*` is to the _right_ of `sin`,
+`*` has precedence over `sin`, and hence a higher associativity. That is to say, that operators do not only display left or right associativity when
+they are compared to itself, in case of `^` and `^` for example, but also when they are compared to other 
+operators/functions. This asks that we encase all the complexity of comparing different operators in a singular function 
+`compareAssociativity(operator1, operator2):boolean //return "has higher associativity than"`, and changing the central clause of shunting yard
+into:
+``` typescript
+if(+.associativity<*.associativity){
+    while(!compareAssociativity(operator1, operator2))
+        RPN.last = shuntingYard.pop();
+    shuntingYard.push(+);
+}else{
+    shuntingYard.push(*);
+}
+```
+To organize the comparison inside `compareAssociativity` in a reasonable manner, we may not just simply right n*n conditional clauses, where
+n is the number of different types of operators and functions. We may instead create two lists of associativity rankings, called the 
+**left association rank**, and the **right association rank**, so that upon comparison, a corresponding rank for `operator1` is retrieved,
+and a rank for `operator2` is also retrieved, and the function correspondingly returns the comparison between these two ranks; that is to
+say, until exceptions are encountered, and can be easily dealt with conditional checks, this implementation should be generally applicable
+to the purpose of correctly ordering expressions.
+
+_The other difference is that compared to conventional shunting yard parsing, the operators that we deal with might take on more than two operands,
+or they might be of the type "function" that permits only one operand as its parameters. But as long as the operators are dealing with values
+that are to its direct vicinity, and that the associativity between operators are correctly configured, there will be no problems or additional troubles 
+that we need to go through in parsing them._

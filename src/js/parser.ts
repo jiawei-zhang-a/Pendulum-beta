@@ -1,4 +1,156 @@
+const addInvisibleDots = true;
+//Parsing constants
+const zerocode = '0'.charCodeAt(0);
+const ninecode = '9'.charCodeAt(0);
+const slashcode = '\\'.charCodeAt(0);
+const dotcode = '.'.charCodeAt(0);
+const isSymbol = (code = 0) => {
+    return (code <= 63 && code >= 58) || (code <= 47 && code >= 33)
+        || (code <= 126 && code >= 123) || (code <= 96 && code >= 91) || code === ' '.charCodeAt(0);
+};
+const acode = 'a'.charCodeAt(0);
+const zcode = 'z'.charCodeAt(0);
+const Acode = 'A'.charCodeAt(0);
+const Zcode = 'Z'.charCodeAt(0);
+
+/**
+ * Check and returns the type of the given character
+ * @param {string} c The character
+ * @returns {string} type can be one of digit, symbol, letter or '.'
+ */
+function getCharType(c:string) {
+    let code = c.charCodeAt(0);
+    if (code <= ninecode && code >= zerocode)
+        return "digit";
+    else if (c === '.')
+        return ".";
+    else if (c===' ')
+        return "space";
+    else if ((code <= zcode && code >= acode) || (code <= Zcode && code >= Acode))
+        return "letter";
+    else
+        return "symbol";
+}
+
+type MStruct = {[key:string]:MStruct | [string, string, number]};
+// Item structure: [name, type, sub-clause count]
+let macros:MStruct = {
+    '{': ['{', 'openstruct', 0],
+    '}': ['}', 'closestruct', 0],
+    '(': ['(', 'openstruct', 0],
+    ')': ['(', 'closestruct', 0],
+    '$': ['$', 'closestruct', 0],
+    '+': ['add', 'operator', 0],
+    '-': ['sub', 'operator', 0],
+    '*': ['mul', 'operator', 0],
+    '/': ['div', 'operator', 0],
+    '^': ['pow', 'operator', 0],
+    '=': ['equal', 'operator', 0],
+    '!': ['factorial', 'operator', 0],
+    '\\': {
+        ' ': ['space', 'structure', 0],
+        'c': {'d': {'o': {'t': ['dot', 'operator', 0],
+                }
+            },
+            'o': {
+                's': ['cos', 'function', 0],
+                't': ['cot', 'function', 1]
+            },
+        },
+        'd': {
+            'i': {
+                'v': ['div', 'operator', 0]
+            }
+        },
+        'f': {
+            'r': {
+                'a': {
+                    'c': ['div', 'operator', 0]
+                }
+            }
+        },
+        /*
+         *  Integration takes four subclauses, the first and second are the lower and upper bounds, the third is the integrand,
+         *  and the last is the integration variable d$.
+         */
+        'i':{
+            'n':{
+                't': ['integrate', 'operator', 4]
+            }
+        },
+        'l': {
+            'n': ["ln", 'operator', 0],
+            'e': {
+                'f': {
+                    't': {
+                        '(': ['(', 'openstruct', 0],
+                        '|': ['|', 'openstruct', 1],
+                        '{': ['{', 'openstruct', 0],
+                    }
+                }
+            }
+        },
+        'm': {
+            'a': {
+                't': {
+                    'h': {
+                        'b': {
+                            'f':{
+                                '{':{
+                                    'd':{
+                                        '}':['diff', 'closestruct', 1], //especially used for defining differential operator d
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        'p': {
+            'i': ['pi', 'constant', 0],
+            'r': {
+                'o': {
+                    'd': ['prod', 'operator', 2]
+                }
+            }
+        },
+        'r': {
+            'i': {
+                'g': {
+                    'h': {
+                        't': {
+                            ')': [')', 'closestruct', 0],
+                            '|': ['|', 'closestruct', 0],
+                            '}': ['}', 'closestruct', 0],
+                        }
+                    }
+                }
+            }
+        },
+        's': {
+            'i': {
+                'n': ['sin', 'function', 0]
+            },
+            'u': {
+                'm': ['sum', 'operator', 2]
+            },
+            'q': {
+                'r': {
+                    't': ['sqrt', 'function', 1]
+                }
+            }
+        },
+        't': {
+            'a': {
+                'n': ['tan', 'function', 0]
+            }
+        },
+    }
+};
+
 class Token{
+    //Possible types include: function, operator, openstruct, closestruct, #, $
     type: string = 'none';
     content: string;
     //Indices for the token in the list
@@ -237,123 +389,6 @@ class SymNode{
     type: ['$', '#', 'operator'];
 }
 
-type MStruct = {[key:string]:MStruct | [string, string, number]};
-// Item structure: [name, type, sub-clause count]
-let macros:MStruct = {
-    '{': ['{', 'openstruct', 0],
-    '}': ['}', 'closestruct', 0],
-    '(': ['(', 'openstruct', 0],
-    ')': ['(', 'closestruct', 0],
-    '$': ['$', 'closestruct', 0],
-    '+': ['add', 'operator', 0],
-    '-': ['sub', 'operator', 0],
-    '*': ['mul', 'operator', 0],
-    '/': ['div', 'operator', 0],
-    '^': ['pow', 'operator', 0],
-    '=': ['equal', 'operator', 0],
-    '!': ['factorial', 'operator', 0],
-    '\\': {
-        ' ': ['space', 'structure', 0],
-        'c': {'d': {'o': {'t': ['dot', 'operator', 0],
-                }
-            },
-            'o': {
-                's': ['cos', 'function', 0],
-                't': ['cot', 'function', 1]
-            },
-        },
-        'd': {
-            'i': {
-                'v': ['div', 'operator', 0]
-            }
-        },
-        'f': {
-            'r': {
-                'a': {
-                    'c': ['div', 'operator', 2]
-                }
-            }
-        },
-        /*
-         *  Integration takes four subclauses, the first and second are the lower and upper bounds, the third is the integrand,
-         *  and the last is the integration variable d$.
-         */
-        'i':{
-            'n':{
-                't': ['integrate', 'operator', 4]
-            }
-        },
-        'l': {
-            'n': ["ln", 'operator', 0],
-            'e': {
-                'f': {
-                    't': {
-                        '(': ['(', 'openstruct', 0],
-                        '|': ['|', 'openstruct', 1],
-                        '{': ['{', 'openstruct', 0],
-                    }
-                }
-            }
-        },
-        'm': {
-            'a': {
-                't': {
-                    'h': {
-                        'b': {
-                            'f':{
-                                '{':{
-                                    'd':{
-                                        '}':['diff', 'closestruct', 1], //especially used for defining differential operator d
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        'p': {
-            'i': ['pi', 'constant', 0],
-            'r': {
-                'o': {
-                    'd': ['prod', 'operator', 2]
-                }
-            }
-        },
-        'r': {
-            'i': {
-                'g': {
-                    'h': {
-                        't': {
-                            ')': [')', 'closestruct', 0],
-                            '|': ['|', 'closestruct', 0],
-                            '}': ['}', 'closestruct', 0],
-                        }
-                    }
-                }
-            }
-        },
-        's': {
-            'i': {
-                'n': ['sin', 'function', 0]
-            },
-            'u': {
-                'm': ['sum', 'operator', 2]
-            },
-            'q': {
-                'r': {
-                    't': ['sqrt', 'function', 1]
-                }
-            }
-        },
-        't': {
-            'a': {
-                'n': ['tan', 'function', 0]
-            }
-        },
-    }
-};
-
 /**
  * Inside the formats are instructions for the matching of various structures. In the parse stack,
  * a close close parenthesis shall be inserted on account of each open parenthesis, and all closing structures
@@ -377,39 +412,6 @@ class Structure{
     }
 }
 
-//Parsing constants
-const zerocode = '0'.charCodeAt(0);
-const ninecode = '9'.charCodeAt(0);
-const slashcode = '\\'.charCodeAt(0);
-const dotcode = '.'.charCodeAt(0);
-const isSymbol = (code = 0) => {
-    return (code <= 63 && code >= 58) || (code <= 47 && code >= 33)
-        || (code <= 126 && code >= 123) || (code <= 96 && code >= 91) || code === ' '.charCodeAt(0);
-};
-const acode = 'a'.charCodeAt(0);
-const zcode = 'z'.charCodeAt(0);
-const Acode = 'A'.charCodeAt(0);
-const Zcode = 'Z'.charCodeAt(0);
-
-/**
- * Check and returns the type of the given character
- * @param {string} c The character
- * @returns {string} type can be one of digit, symbol, letter or '.'
- */
-function getCharType(c:string) {
-    let code = c.charCodeAt(0);
-    if (code <= ninecode && code >= zerocode)
-        return "digit";
-    else if (c === '.')
-        return ".";
-    else if (c===' ')
-        return "space";
-    else if ((code <= zcode && code >= acode) || (code <= Zcode && code >= Acode))
-        return "letter";
-    else
-        return "symbol";
-}
-
 class Parser{
 
     toStatementTree(latex:string){
@@ -422,7 +424,7 @@ class Parser{
             console.log(e);
         }
         console.log(this.tokenList);
-        return this.reParse(this.tokenList);
+        return this.syParse(this.tokenList);
     }
 
     /**
@@ -446,7 +448,6 @@ class Parser{
     linParse(tex: string, start:number = 0, previousToken = new Token(),
              terminator:Structure = new Structure('$', previousToken)): number{
         this.tokenList.length=0;
-        let token: Token;
         this.parseStack.push(terminator);
         let i = start;
         while (this.parseStack.length!=0&&i<tex.length){
@@ -459,6 +460,16 @@ class Parser{
                     throw new SyntaxError('Unrecognized syntax at '+token.start+' on character '+tex[token.end]);
                 default:
                     break;
+            }
+            if(addInvisibleDots){
+                if((['closestruct', '$', '#'].indexOf(previousToken.type)!=-1)&&
+                    (['openstruct', '$', 'function', '#', 'function'].indexOf(token.type)!=-1)){
+                    let invisDot = new Token();
+                    invisDot.type = 'operator';
+                    invisDot.start = invisDot.end = previousToken.end;
+                    invisDot.content = 'invisdot';
+                    this.tokenList.push(invisDot);
+                }
             }
             this.tokenList.push(token);
             if(token.type == 'openstruct'){
@@ -476,9 +487,16 @@ class Parser{
         return i;
     }
 
-    reParse(tokenList: Token[]): SymNode{
+    /**
+     * The core algorithm for parsing token list into statement trees, relies primarily
+     * on shunting yard. Left/right associativity are differentiated for certain operators and functions.
+     * @param tokenList the list of parsed tokens
+     */
+    syParse(tokenList: Token[]): SymNode{
+
         return new SymNode();
     }
+
 
 }
 
