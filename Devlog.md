@@ -113,3 +113,12 @@ when it comes to reading specific sequences of expressions, conceptualized the c
 analyzed the general applicability of the enhanced shunting yard implementation. Minor changes to graph.ts.
 
 ![img.png](images/img.png)
+
+#### 08/14
+Implemented Shunting Yard parser for conversion from token list into statement trees at the root level (ignoring sub-clauses). Discussed user-defined function 
+clausing with Derek, implemented the default behavior of linear parser when encountering "f(...)" like syntax, that the token type gets changed to funcVar and 
+tentative toward both the algebraic type or the function type, and the content inside parenthesis gets parsed into a sub-clause of 
+the token f. The evaluation method of this 'f', that is whether there is an invisible multiplication between 'f' and '(', or if
+what is inside '(...)' will serve as the parameter of 'f', will be determined within the core module after dependency walks.
+
+![img.png](images/2021-08-14.png)

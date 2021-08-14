@@ -53,7 +53,7 @@ let macros:MStruct = {
                 }
             },
             'o': {
-                's': ['cos', 'function', 0],
+                's': ['cos', 'function', 1],
                 't': ['cot', 'function', 1]
             },
         },
@@ -130,7 +130,7 @@ let macros:MStruct = {
         },
         's': {
             'i': {
-                'n': ['sin', 'function', 0]
+                'n': ['sin', 'function', 1]
             },
             'u': {
                 'm': ['sum', 'operator', 2]
@@ -143,7 +143,7 @@ let macros:MStruct = {
         },
         't': {
             'a': {
-                'n': ['tan', 'function', 0]
+                'n': ['tan', 'function', 1]
             }
         },
     }
@@ -247,7 +247,8 @@ class Token{
                             break;
                         case 'symbol':
                         case 'space':
-                            if(char == '_') state = 'var_'
+                            if(char == '_') state = 'var_';
+                            else if(tex.substr(i, 6)=='\\left(') return this.parseClauses(tex, i, 1);
                             else terminating = true;
                     }
                     break;
@@ -257,31 +258,34 @@ class Token{
                         case 'letter':
                             this.content += char;
                             //queue for termination after one extra round (the next char will be ignored)
-                            state = 'terminating';
-                            console.log(state);
+                            state = 'var_{}';
                             break;
                         case 'symbol':
                         case 'space':
                             if(char == '{') state = 'var_{';
                             else if(char != ' ') return 1;
-                            console.log(state);
                             break;
                         case 'dot': return 1;
                     }
                     break;
                 case 'var_{':
                     if(char != '}') this.content += char;
-                    else state = 'terminating';
+                    else state = 'var_{}';
+                    break;
+                case 'var_{}':
+                    if(tex.substr(i, 6)=='\\left(') return this.parseClauses(tex, i, 1);
+                    else terminating = true;
                     break;
                 case 'macro':
                     if(macro instanceof Array) {
                         terminating = true;
+                        this.checkNegation(previousType);
                         return this.parseClauses(tex, i, this.clauseCount);
                     }else if((macro = macro[char])!=undefined){
-                        if(macro instanceof Array){
+                        if(macro instanceof Array) {
                             this.content = <string>macro[0];
                             this.type = <string>macro[1];
-                            this.clauseCount = <number> macro[2];
+                            this.clauseCount = <number>macro[2];
                         }
                     }else return 1;
                     break;
@@ -348,6 +352,30 @@ class Token{
                 this.subClauses[0]=[token];
                 i = token.end;
                 break;
+            case 'cos':
+            case 'sin':
+            case 'cot':
+            case 'tan':
+                if(tex.charAt(i)=='^') i = this.parseSubClause(tex, i+1, 0);
+                else {
+                    this.subClauses[0] = [];
+                    this.clauseCount = 0;
+                }
+                break;
+        }
+        if(this.type == '$'){
+            if(tex.substr(i, 6)=='\\left('){
+                let parser = new Parser();
+                let openStruct = new Token();
+                openStruct.type = 'openStruct';
+                openStruct.content = '(';
+                openStruct.start = start;
+                openStruct.end = start+1;
+                i = parser.linParse(tex, start+6, openStruct, new Structure(')', openStruct));
+                parser.tokenList.pop();
+                this.subClauses[0] = parser.tokenList;
+                this.type = 'func$'
+            }
         }
         this.end = i;
     }
@@ -365,7 +393,8 @@ class Token{
             let openStruct = new Token();
             openStruct.type = 'openStruct';
             openStruct.content = '{';
-            openStruct.end = start;
+            openStruct.start = start;
+            openStruct.end = start+1;
             end = parser.linParse(tex, start+1, openStruct, new Structure('}', openStruct));
             parser.tokenList.pop();
             this.subClauses[clauseIndex] = parser.tokenList;
@@ -377,6 +406,19 @@ class Token{
         }
         return end;
     }
+
+    /**
+     * Called to check if '-' should be parsed to a
+     * subtraction operator or a negation operator
+     * @param previousType
+     */
+    checkNegation(previousType: string){
+        if(this.content=='sub'){
+            if(previousType==undefined||previousType=='operator'){
+                this.content = 'neg';
+            }
+        }
+    }
 }
 
 // Token.prototype.toString = function(){
@@ -384,9 +426,10 @@ class Token{
 // }
 
 class SymNode{
-    children: SymNode[];
-    symbol: string|number;
-    type: ['$', '#', 'operator'];
+    children: SymNode[]=[];
+    content: string|number;
+    token: Token;
+    type: string;
 }
 
 /**
@@ -419,12 +462,13 @@ class Parser{
         console.log("in to statement tree");
         try{
             this.linParse(latex+'$');
-            this.tokenList.pop();
         }catch (e) {
             console.log(e);
         }
         console.log(this.tokenList);
-        return this.syParse(this.tokenList);
+        let statementTree = this.syParse(this.tokenList);
+        console.log(statementTree);
+        return statementTree;
     }
 
     /**
@@ -463,7 +507,7 @@ class Parser{
             }
             if(addInvisibleDots){
                 if((['closestruct', '$', '#'].indexOf(previousToken.type)!=-1)&&
-                    (['openstruct', '$', 'function', '#', 'function'].indexOf(token.type)!=-1)){
+                    (['$', 'function', '#'].indexOf(token.type)!=-1||token.content=='(')){
                     let invisDot = new Token();
                     invisDot.type = 'operator';
                     invisDot.start = invisDot.end = previousToken.end;
@@ -479,7 +523,8 @@ class Parser{
                 if(this.parseStack[this.parseStack.length-1].identifier==token.content){
                     this.parseStack.pop();
                 }
-                else throw new SyntaxError('Mismatched closures between '+this.parseStack[0].destination+' and '+token);
+                else throw new SyntaxError('Mismatched closures between '+
+                                this.parseStack[0].destination.content+' and '+token.content);
             }
             previousToken = token;
             i = token.end;
@@ -488,16 +533,84 @@ class Parser{
     }
 
     /**
+    /**
      * The core algorithm for parsing token list into statement trees, relies primarily
      * on shunting yard. Left/right associativity are differentiated for certain operators and functions.
      * @param tokenList the list of parsed tokens
      */
     syParse(tokenList: Token[]): SymNode{
-
-        return new SymNode();
+        let shuntingYard:Token[] = [];
+        let tray: SymNode[] = [];
+        for(let token of tokenList){
+            if(token.type == '$' ||token.type == '#'){
+                let node = new SymNode();
+                node.type = token.type;
+                node.content = token.content;
+                node.token = token;
+                tray.push(node);
+            }else if(token.type == 'function' ||token.type == 'operator'){
+                while(shuntingYard.length!=0&&shuntingYard[shuntingYard.length-1].type!='openstruct'
+                    &&this.compareAssociativity(shuntingYard[shuntingYard.length-1], token)) {
+                    let operator = shuntingYard.pop();
+                    let node = new SymNode();
+                    node.type = operator.type;
+                    node.content = operator.content;
+                    node.token = operator;
+                    let operandCount = this.operatorChart[operator.content][2];
+                    for(let i = 0; i<operandCount; i++){
+                        node.children[operandCount-i-1]=tray.pop();
+                    }
+                    tray.push(node);
+                }
+                shuntingYard.push(token);
+            } else if(token.type == 'openstruct')
+                shuntingYard.push(token);
+            else if(token.type == 'closestruct'){
+                let operator;
+                while(shuntingYard.length!= 0 && formats[(operator=shuntingYard.pop()).content]!=token.content){
+                    let node = new SymNode();
+                    node.type = operator.type;
+                    node.content = operator.content;
+                    node.token = operator;
+                    for(let i = 0; i<this.operatorChart[operator.content][2]; i++){
+                        node.children[i] = tray.pop();
+                    }
+                    tray.push(node);
+                }
+            }
+        }
+        return tray[0];
     }
 
-
+    /**
+     * [left associativity, right associativity, parameter count]
+     * @private
+     */
+    private operatorChart: {[key:string]:number[]}={
+        'add': [1, 1, 2],
+        'sub': [1, 1, 2],
+        'mul': [3, 2, 2],
+        'invisdot': [3, 2, 2],
+        'div': [3, 2, 2],
+        'pow': [4, 5, 2],
+        'equal': [0, 0, 2],
+        'tan': [1.5, 6, 1],
+        'cot': [1.5, 6, 1],
+        'sin': [1.5, 6, 1],
+        'cos': [1.5, 6, 1],
+        'factorial': [6, 5, 1],
+        'neg':[1.5, 6, 1],
+        'ln': [5, 6, 1]
+    }
+    /**
+     * Returns true if opr1 has higher left associativity than opr2's
+     * right associativity
+     * @param opr1 left operator
+     * @param opr2 right operator
+     */
+    compareAssociativity(opr1: Token, opr2: Token): boolean{
+        return this.operatorChart[opr1.content][0]>=this.operatorChart[opr2.content][1];
+    }
 }
 
 export {Parser, SymNode};
