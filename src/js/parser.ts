@@ -353,9 +353,9 @@ class Token{
     }
 
     /**
-     * Parse for a particular sub-clause
+     * Parse for a particular sub-clause beginning with '{' and ending with '}'
      * @param tex the entire tex string
-     * @param start the beginning of the sub-clause, { included
+     * @param start the beginning of the sub-clause, '{' included
      * @param clauseIndex the sub-clause that the parsed segment of string belongs to
      */
     parseSubClause(tex: string, start: number, clauseIndex:number):number{
