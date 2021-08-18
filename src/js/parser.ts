@@ -427,9 +427,22 @@ class Token{
 
 class SymNode{
     children: SymNode[]=[];
-    content: string|number;
+    content: string;
     token: Token;
     type: string;
+
+    /**
+     * Retrieves all the leaf nodes underlying this tree
+     */
+    getLeaves():SymNode[] {
+        if(this.children.length==0)
+            return [this];
+
+        let nodeList:SymNode[] = [];
+        for(let child of this.children){
+            nodeList.push(...child.getLeaves());
+        }
+    }
 }
 
 /**

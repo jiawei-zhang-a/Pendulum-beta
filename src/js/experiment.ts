@@ -111,7 +111,9 @@ console.timeEnd('360000 runs hard code');
 // console.timeEnd('360000 runs functional');
 
 context[24] = 12.25;
-console.time('360000 runs eval');
+console.time('360000 runs construct');
 for(let i = 0; i<3600000; i++)
-    context[24]=f();
-console.timeEnd('360000 runs eval');
+    context[24]=routine();
+console.timeEnd('360000 runs construct');
+
+

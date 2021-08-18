@@ -1,10 +1,9 @@
-
 # Documentation
 A brief log of the important design decisions and implementations made along the way.
 ## Project setup
 
 ### Node
-``npm init``
+``npm init``r
 Prompts the project setup procedures, and creates package.json.
 
 Reference: https://docs.npmjs.com/cli/v7/commands/npm-init
@@ -324,7 +323,7 @@ of more independent variables. There are two ways that independent variables of 
   the `context` contains values for other algebraic variables. In this case it is parameterized.
 
 ### Reference list (for local variables)
-To avoid repeated reading from hashmaps, a reference list accessed by indices will be created when compiling statement trees into pi scripts. The scripts 
+To avoid repeated reading from hashmaps, a reference list accessed by indices will be created _inside Variable_ when compiling statement trees into pi scripts. The scripts 
 generated for leaf nodes in the statement tree will contain references to indices instead of the original variable names. Mapping between
 the specific var names and the indices will be kept in `Variable` instances. The reference list has a nested array structure. Each top-level item
 contained in the reference list is called a "reference". Each reference is a list (tuple).
