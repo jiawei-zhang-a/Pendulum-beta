@@ -1,6 +1,7 @@
 import {SymNode} from "./parser";
 
 class Core {
+
     environment: Environment;
 
     /**
@@ -8,44 +9,80 @@ class Core {
      * @param label
      * @param statementTree
      */
-    readStatement(label: string, statement: SymNode) {
-        let newVar = new Function(statement.token.content);
+    readDefinition(label: string, statement: SymNode) {
+        let newVar:Variable;
 
-        // First top-down traversal to generate variables and establish dependency.
-        let nodes = [... statement.children];
-        while (nodes.length != 0) {
-            let node = nodes[0];
-            // Consider only symbols representing functions or algebraics.
-            if (node.type == '$') {
-                if (this.environment.variables.has(node.token.content)) {
-                    // Build dependency on existing variable in environment.
-                    let envVar = this.environment.variables.get(node.token.content);
-                    newVar.dependencies.push(envVar);
-                    envVar.dependants.push(newVar);
-                } else {
-                    // Assume the new variable is an algebraic.
-                }
-            }
-            // Remove this node.
-            nodes.shift();
+        // For redefinition, erase the previous dependencies.
+        if(this.environment.variables[label] != undefined) {
+            newVar = this.environment.variables[label];
+            newVar.referenceList.length = 0;
+            newVar.dependencies.length = 0;
+            newVar.rlMapping = {};
+            newVar.inverseRlMapping = {};
+        } else {
+            newVar = new Variable(label);
         }
 
+        // First top-down traversal to generate variables and establish dependency.
+        // let nodes = [... statement.children];
+        // while (nodes.length != 0) {
+        //     let node = nodes[0];
+        //     // Consider only symbols representing functions or algebraics.
+        //     if (node.type == '$') {
+        //         if (this.environment.variables[node.content]!=undefined) {
+        //             // Build dependency on existing variable in environment.
+        //             let envVar = this.environment.variables.get(node.token.content);
+        //             newVar.dependencies.push(envVar);
+        //             envVar.dependants.push(newVar);
+        //         } else {
+        //             // Assume the new variable is an algebraic.
+        //         }
+        //     }
+        //     // Remove this node.
+        //     nodes.shift();
+        // }
 
-        // Identify the algebraics from the leaves.
+        // First top-down traversal to generate variables and establish dependency.
         let leaves:Array<SymNode> = statement.getLeaves();
         for (let leaf of leaves) {
-            if (leaf.type == 'func$' || leaf.type == '$') {
-                let alg = new Variable();
-                newVar.dependencies.push(alg);
-                // newVar.referenceList.push([leaf.type]);
+            let depVarLabel = leaf.content;
+            let reference:number[];
+            let rlIndex;
+            if ((rlIndex = newVar.rlMapping[depVarLabel]) == undefined) {
+                reference = [];
+                newVar.rlMapping[depVarLabel] = newVar.referenceList.length;
+                newVar.inverseRlMapping[newVar.referenceList.length] = depVarLabel;
+                newVar.referenceList.push(reference);
             }
-        }        
+            else {
+                reference = newVar.referenceList[rlIndex];
+            }
+            // Consider only symbols representing functions or algebraics.
+            if (leaf.type == 'func$' || leaf.type == '$') {
+                let depVar = this.environment.variables[depVarLabel];
+
+                // Build dependency on existing variable in environment.
+                if (depVar == undefined) {
+                    depVar = new Variable(depVarLabel);
+                    this.environment.variables[depVarLabel] = depVar;
+                }
+                reference[0] = depVar.type;
+                newVar.dependencies.push(depVar);
+                depVar.dependants.push(newVar);
+            }
+            newVar.referenceList.push(reference);
+        }
+        //Set type of new var away from algebraic if it has dependency.
+        newVar.type = (newVar.dependencies.length==0)? 3: 2;
+
+        newVar.piscript = this.parseTree(statement, newVar);
     }
 
     parseTree(node: SymNode, variable: Variable):string {
         switch(node.type){
             case '$':
-                return "get(rl[])";
+                let nodeLabel = node.content;
+                return "get(rl["+variable.rlMapping[nodeLabel]+"])";
             case '#':
                 return node.content;
             case 'constant':
@@ -140,12 +177,20 @@ class Arithmetics {
     }
 }
 
-abstract class Variable {
+class Variable {
 
     /**
      * String identifier of variable.
      */
     public name:string;
+    /**
+     * Specifies the tentative type of this variable
+     * 1: algebraic, 
+     * 2: Function,
+     * 3, constant
+     */
+    public type: number = 1;
+
     /**
      * References of variables that this variable depends for its definition.
      */
@@ -157,12 +202,12 @@ abstract class Variable {
     /**
      * Code for evaluating this variable.
      */
-    evalStr:string = '';
+    piscript:string = '';
 
     /**
      * Contains references of structure [type, parameter1, parameter2, ...]
      */
-    referenceList:[number[]];
+    referenceList:number[][];
     /**
      * A mapping from local variable names to the index of that
      * local variable inside the reference list
@@ -176,54 +221,17 @@ abstract class Variable {
     /**
      * Default constructors with no intialization.
      */
-    protected constructor(name:string) {
-        this.name = name;
-    }
-
-    abstract eval(): number;
-}
-
-class Constant extends Variable {
-
-    /**
-     * Constant value of the constant.
-     */
-    readonly val: number;
-
-    constructor(name:string, val:number) {
-        super(name);
-        this.name = name;
-        this.val = val;
-        this.evalStr = val.toString();
-    }
-
-    eval(): number{
-        return this.val;
-    }
-}
-
-class Algebraic extends Variable {
-
     constructor(name:string) {
-        super(name);
+        this.name = name;
+        this.referenceList = [];
+        this.dependants = [];
+        this.dependencies = [];
     }
 
-    // TODO: unimplemented.
-    eval(): number {
+    evaluation(context: number[][]): number{
+        
         return 0;
-    }
-}
-
-class Function extends Variable {
-
-    constructor(name:string) {
-        super(name)
-    }
-
-    // TODO: unimplemented.
-    eval(): number {
-        return 0;
-    }
+    };
 }
 
 export {Variable};
