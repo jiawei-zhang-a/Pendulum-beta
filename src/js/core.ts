@@ -9,8 +9,27 @@ class Core {
      * @param statementTree
      */
     readStatement(label: string, statement: SymNode) {
-        // Generate variables and dependencies by first traversal.
-        let newVar = new Variable();
+        let newVar = new Function(statement.token.content);
+
+        // First top-down traversal to generate variables and establish dependency.
+        let nodes = [... statement.children];
+        while (nodes.length != 0) {
+            let node = nodes[0];
+            // Consider only symbols representing functions or algebraics.
+            if (node.type == '$') {
+                if (this.environment.variables.has(node.token.content)) {
+                    // Build dependency on existing variable in environment.
+                    let envVar = this.environment.variables.get(node.token.content);
+                    newVar.dependencies.push(envVar);
+                    envVar.dependants.push(newVar);
+                } else {
+                    // Assume the new variable is an algebraic.
+                }
+            }
+            // Remove this node.
+            nodes.shift();
+        }
+
 
         // Identify the algebraics from the leaves.
         let leaves:Array<SymNode> = statement.getLeaves();
@@ -92,7 +111,7 @@ class Arithmetics {
     }
 
     /**
-     * Cross prodcut for three element vectors
+     * Cross product for three-element vectors
      * @param u first vector
      * @param v second vector
      * @param holder passed in as a container for the computation result to avoid
@@ -121,18 +140,31 @@ class Arithmetics {
     }
 }
 
+abstract class Variable {
 
-class Variable {
+    /**
+     * String identifier of variable.
+     */
+    public name:string;
+    /**
+     * References of variables that this variable depends for its definition.
+     */
     dependencies:Variable[];
-    dependents:Variable[];
-    defined = false;
-    constant = false;
+    /**
+     * References of variables that depend on this variable.
+     */
+    dependants:Variable[];
+    /**
+     * Code for evaluating this variable.
+     */
+    evalStr:string = '';
+
     /**
      * Contains references of structure [type, parameter1, parameter2, ...]
      */
     referenceList:[number[]];
     /**
-     * A mapping from local variable names to the index of that 
+     * A mapping from local variable names to the index of that
      * local variable inside the reference list
      */
     rlMapping: { [varLabel: string]: number };
@@ -140,8 +172,57 @@ class Variable {
      * A mapping from reference list indicies
      */
     inverseRlMapping: { [rlIndex: number]: string };
-    evaluation(){
-        
+
+    /**
+     * Default constructors with no intialization.
+     */
+    protected constructor(name:string) {
+        this.name = name;
+    }
+
+    abstract eval(): number;
+}
+
+class Constant extends Variable {
+
+    /**
+     * Constant value of the constant.
+     */
+    readonly val: number;
+
+    constructor(name:string, val:number) {
+        super(name);
+        this.name = name;
+        this.val = val;
+        this.evalStr = val.toString();
+    }
+
+    eval(): number{
+        return this.val;
+    }
+}
+
+class Algebraic extends Variable {
+
+    constructor(name:string) {
+        super(name);
+    }
+
+    // TODO: unimplemented.
+    eval(): number {
+        return 0;
+    }
+}
+
+class Function extends Variable {
+
+    constructor(name:string) {
+        super(name)
+    }
+
+    // TODO: unimplemented.
+    eval(): number {
+        return 0;
     }
 }
 
