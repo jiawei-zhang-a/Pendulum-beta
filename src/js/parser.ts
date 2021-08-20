@@ -425,10 +425,12 @@ class Token{
 //     return this.type+':'+this.content;
 // }
 
-class SymNode{
-    children: SymNode[]=[];
+class SymNode {
+    children: SymNode[] = [];
     content: string;
+    subClauses: SymNode[] = [];
     token: Token;
+    // '#' for number, '$' for variable, 'func$' for functional variable, 'operator' for operator.
     type: string;
 
     /**
@@ -439,9 +441,10 @@ class SymNode{
             return [this];
 
         let nodeList:SymNode[] = [];
-        for(let child of this.children){
+        for(let child of this.children) {
             nodeList.push(...child.getLeaves());
         }
+        return nodeList;
     }
 }
 
@@ -472,14 +475,15 @@ class Parser{
 
     toStatementTree(latex:string){
         console.log(latex);
-        console.log("in to statement tree");
-        try{
+        try {
             this.linParse(latex+'$');
-        }catch (e) {
+        } catch (e) {
             console.log(e);
         }
         console.log(this.tokenList);
         let statementTree = this.syParse(this.tokenList);
+        this.parseSubClauses(statementTree);
+        console.log('Statement Tree: ')
         console.log(statementTree);
         return statementTree;
     }
@@ -596,6 +600,26 @@ class Parser{
     }
 
     /**
+     * Reuse syParse to generate statement trees for all subclauses recursively.
+     * @param node
+     */
+    parseSubClauses(node: SymNode) {
+        if (node.token.subClauses != undefined && node.token.subClauses.length != 0) {
+            node.subClauses = new Array<SymNode>(node.token.subClauses.length);
+            // Parse subclauses of this node recursively.
+            for (let i = 0; i < node.token.subClauses.length; i++) {
+                let tokens = node.token.subClauses[i];
+                let subnode = this.syParse(tokens);
+                node.subClauses[i] = subnode;
+                this.parseSubClauses(subnode);
+            }
+        }
+        // Parse subclauses of children nodes recursively.
+        for (let child of node.children)
+            this.parseSubClauses(child);
+    }
+
+    /**
      * [left associativity, right associativity, parameter count]
      * @private
      */
@@ -613,7 +637,9 @@ class Parser{
         'cos': [1.5, 6, 1],
         'factorial': [6, 5, 1],
         'neg':[1.5, 6, 1],
-        'ln': [5, 6, 1]
+        'ln': [5, 6, 1],
+
+        'integrate': [0.1, 0.1]
     }
     /**
      * Returns true if opr1 has higher left associativity than opr2's

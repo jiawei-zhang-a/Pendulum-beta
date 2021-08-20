@@ -6,13 +6,13 @@ class Core {
 
     /**
      * Interpret the statement tree as native data representations.
-     * @param label
-     * @param statementTree
+     * @param label Given name of variable whose value is defined by the statement tree.
+     * @param statement Tree representation of the string definition of 'label'.
      */
     readDefinition(label: string, statement: SymNode) {
         let newVar:Variable;
 
-        // For redefinition, erase the previous dependencies.
+        // For redefinition, erase the previous dependencies, retain the dependants.
         if(this.environment.variables[label] != undefined) {
             newVar = this.environment.variables[label];
             newVar.referenceList.length = 0;
@@ -42,12 +42,20 @@ class Core {
         //     nodes.shift();
         // }
 
-        // First top-down traversal to generate variables and establish dependency.
+        /*
+            First top-down traversal to generate variables and establish dependencies.
+         */
         let leaves:Array<SymNode> = statement.getLeaves();
+
         for (let leaf of leaves) {
+            if (leaf.type == '#')
+                continue;
+            // Build reference list.
+            // Name of this dependency.
             let depVarLabel = leaf.content;
             let reference:number[];
             let rlIndex;
+            // Add a new dependency.
             if ((rlIndex = newVar.rlMapping[depVarLabel]) == undefined) {
                 reference = [];
                 newVar.rlMapping[depVarLabel] = newVar.referenceList.length;
@@ -57,11 +65,12 @@ class Core {
             else {
                 reference = newVar.referenceList[rlIndex];
             }
+            // Construct new variables.
             // Consider only symbols representing functions or algebraics.
             if (leaf.type == 'func$' || leaf.type == '$') {
+                // Dependency.
                 let depVar = this.environment.variables[depVarLabel];
-
-                // Build dependency on existing variable in environment.
+                // Create new variable not present in the current environment.
                 if (depVar == undefined) {
                     depVar = new Variable(depVarLabel);
                     this.environment.variables[depVarLabel] = depVar;
