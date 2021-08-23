@@ -434,18 +434,35 @@ class SymNode {
     type: string;
 
     /**
-     * Retrieves all the leaf nodes underlying this tree
+     * Retrieves all leaf nodes underlying this statement tree.
      */
-    getLeaves():SymNode[] {
-        if(this.children.length==0)
-            return [this];
-
-        let nodeList:SymNode[] = [];
-        for(let child of this.children) {
-            nodeList.push(...child.getLeaves());
+    getLeaves(): Set<SymNode> {
+        let leaves = new Set<SymNode>();
+        if(this.children.length == 0) {
+            leaves.add(this);
+            return leaves;
         }
-        return nodeList;
+        for(let child of this.children) {
+            leaves.forEach(leaves.add, child.getLeaves())
+        }
+        return leaves;
     }
+
+    /**
+     * Retrieves all leaf nodes underlying this statement tree.
+     */
+    getLeafStrs(): Set<string> {
+        let leaves = new Set<string>();
+        if(this.children.length == 0) {
+            leaves.add(this.content);
+            return leaves;
+        }
+        for(let child of this.children) {
+            leaves.forEach(leaves.add, child.getLeaves())
+        }
+        return leaves;
+    }
+
 }
 
 /**
@@ -471,7 +488,7 @@ class Structure{
     }
 }
 
-class Parser{
+class Parser {
 
     toStatementTree(latex:string){
         console.log(latex);
@@ -480,11 +497,18 @@ class Parser{
         } catch (e) {
             console.log(e);
         }
+        console.log('Token List: ');
         console.log(this.tokenList);
-        let statementTree = this.syParse(this.tokenList);
-        this.parseSubClauses(statementTree);
         console.log('Statement Tree: ')
-        console.log(statementTree);
+        let statementTree = this.syParse(this.tokenList);
+        // Parse recursively all subclauses and those of children.
+        try {
+            this.syParseSubClauses(statementTree);
+            console.log(statementTree);
+        } catch(e) {
+            console.log('Incomplete statement from input!')
+            console.log(e)
+        }
         return statementTree;
     }
 
@@ -600,10 +624,10 @@ class Parser{
     }
 
     /**
-     * Reuse syParse to generate statement trees for all subclauses recursively.
+     * Reuse syParse() to generate statement trees for all subclauses, as well as children, recursively.
      * @param node
      */
-    parseSubClauses(node: SymNode) {
+    syParseSubClauses(node: SymNode) {
         if (node.token.subClauses != undefined && node.token.subClauses.length != 0) {
             node.subClauses = new Array<SymNode>(node.token.subClauses.length);
             // Parse subclauses of this node recursively.
@@ -611,12 +635,12 @@ class Parser{
                 let tokens = node.token.subClauses[i];
                 let subnode = this.syParse(tokens);
                 node.subClauses[i] = subnode;
-                this.parseSubClauses(subnode);
+                this.syParseSubClauses(subnode);
             }
         }
         // Parse subclauses of children nodes recursively.
         for (let child of node.children)
-            this.parseSubClauses(child);
+            this.syParseSubClauses(child);
     }
 
     /**
