@@ -18,24 +18,37 @@ class Core {
         // Check if an equation is given.
         if (statement.content != 'equal')
             throw new this.ResolutionError("Equation expected!");
-        // Strings of leaves.
-        let leafStrs = statement.getLeafStrs();
+
+        let leaves: Map<string, SymNode> = statement.getLeaves();
         // Explicit definition. Left hand side is the second child.
         let explicit: boolean = statement.children[1].type == '$' || statement.children[1].type == 'func$' &&
-            !leafStrs.has(statement.children[0].content);
+            !leaves.has(statement.children[0].content);
         if (explicit)
-            this.readDefinition(statement.children[1].content, statement.children[0])
+            this.readExplicitDefinition(statement.children[1].content, statement.children[0])
+        else {
+            // If a single variable name is undefined, use the current statement for its implicit definition.
+            let undefinedCount = 0;
+            // Implicit variable.
+            let impVarName: string;
+            for (let leafStr in leaves) {
+                if (this.environment.variables[leafStr] == undefined) {
+                    if (undefinedCount != 0)
+                        break;
+                    undefinedCount++;
+                    impVarName = leafStr;
+                }
+            }
+            if (undefinedCount == 1)
+                this.readImplicitDefinition(impVarName, statement);
+        }
     }
-
-
-
 
     /**
      * Interpret the statement tree as native data representations.
      * @param label Given name of variable whose value is defined by the statement tree.
      * @param statement Tree representation of the string definition of 'label'.
      */
-    readDefinition(label: string, statement: SymNode) {
+    readExplicitDefinition(label: string, statement: SymNode) {
         let newVar:Variable;
 
         // For redefinition, erase the previous dependencies, retain the dependants.
@@ -71,9 +84,9 @@ class Core {
         /*
             First top-down traversal to generate variables and establish dependencies.
          */
-        let leaves:Set<SymNode> = statement.getLeaves();
+        let leaves:Map<string, SymNode> = statement.getLeaves();
 
-        for (let leaf of leaves) {
+        for (let leaf of leaves.values()) {
             if (leaf.type == '#')
                 continue;
             // Build reference list.
@@ -111,6 +124,10 @@ class Core {
         newVar.type = (newVar.dependencies.length==0)? 3: 2;
 
         newVar.piscript = this.parseTree(statement, newVar);
+    }
+
+    readImplicitDefinition(label: string, expression: SymNode) {
+
     }
 
     parseTree(node: SymNode, variable: Variable):string {
