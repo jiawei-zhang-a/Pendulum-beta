@@ -436,14 +436,14 @@ class SymNode {
     /**
      * Retrieves all leaf nodes underlying this statement tree.
      */
-    getLeaves(): Set<SymNode> {
-        let leaves = new Set<SymNode>();
+    getLeaves(): Map<string, SymNode> {
+        let leaves = new Map<string, SymNode>();
         if(this.children.length == 0) {
-            leaves.add(this);
+            leaves.set(this.content, this);
             return leaves;
         }
         for(let child of this.children) {
-            leaves.forEach(leaves.add, child.getLeaves())
+            leaves = new Map<string, SymNode>([...Array.from(leaves.entries()), ...Array.from(child.getLeaves().entries())]);
         }
         return leaves;
     }
