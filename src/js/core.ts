@@ -5,6 +5,32 @@ class Core {
     environment: Environment;
 
     /**
+     * Methods for resolving types of inputted statements (in string) to native representations.
+     */
+
+    public ResolutionError = class extends Error {
+        constructor(message: string) {
+            super(message)
+        }
+    };
+
+    resolveDefinition(statement: SymNode) {
+        // Check if an equation is given.
+        if (statement.content != 'equal')
+            throw new this.ResolutionError("Equation expected!");
+        // Strings of leaves.
+        let leafStrs = statement.getLeafStrs();
+        // Explicit definition. Left hand side is the second child.
+        let explicit: boolean = statement.children[1].type == '$' || statement.children[1].type == 'func$' &&
+            !leafStrs.has(statement.children[0].content);
+        if (explicit)
+            this.readDefinition(statement.children[1].content, statement.children[0])
+    }
+
+
+
+
+    /**
      * Interpret the statement tree as native data representations.
      * @param label Given name of variable whose value is defined by the statement tree.
      * @param statement Tree representation of the string definition of 'label'.
@@ -45,7 +71,7 @@ class Core {
         /*
             First top-down traversal to generate variables and establish dependencies.
          */
-        let leaves:Array<SymNode> = statement.getLeaves();
+        let leaves:Set<SymNode> = statement.getLeaves();
 
         for (let leaf of leaves) {
             if (leaf.type == '#')
