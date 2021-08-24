@@ -1,5 +1,7 @@
 import {SymNode} from "./parser";
 
+const alphabet: {[varLabel: string]: number} = {a:0, b:1, c:2, d:3};
+
 class Core {
 
     environment: Environment;
@@ -28,18 +30,26 @@ class Core {
         else {
             // If a single variable name is undefined, use the current statement for its implicit definition.
             let undefinedCount = 0;
+            let algebraicCount = 0;
             // Implicit variable.
             let impVarName: string;
+            let algVarName: string;
             for (let leafStr in leaves) {
-                if (this.environment.variables[leafStr] == undefined) {
-                    if (undefinedCount != 0)
-                        break;
+                let variable = this.environment.variables[leafStr]
+                if (variable == undefined) {
                     undefinedCount++;
                     impVarName = leafStr;
+                }
+                // Also allow definition of an existing algebraic variable.
+                else if (variable.type == 'Algebraic') {
+                    algebraicCount++;
+                    algVarName = leafStr;
                 }
             }
             if (undefinedCount == 1)
                 this.readImplicitDefinition(impVarName, statement);
+            else if (undefinedCount == 0 && algebraicCount == 1)
+                this.readImplicitDefinition(algVarName, statement);
         }
     }
 
@@ -229,19 +239,31 @@ class Arithmetics {
     }
 }
 
+interface Evaluable {
+    eval(param: number[], context: number[][]): number;
+}
+
 class Variable {
 
     /**
      * String identifier of variable.
      */
     public name:string;
+
     /**
-     * Specifies the tentative type of this variable
-     * 1: algebraic, 
-     * 2: Function,
-     * 3, constant
+     * String ID of the type of variable matching the inner class names.
+     * 'Algebraic'
+     * 'Constant'
+     * 'Function'
+     * 'ImplicitFunctional'
      */
-    public type: number = 1;
+    public type: string;
+
+    /**
+     * Inner class implemented evaluation handle.
+     */
+    evalHandle: Evaluable;
+
 
     /**
      * References of variables that this variable depends for its definition.
@@ -273,16 +295,68 @@ class Variable {
     /**
      * Default constructors with no intialization.
      */
-    constructor(name:string) {
+    public constructor(name:string) {
         this.name = name;
         this.referenceList = [];
         this.dependants = [];
         this.dependencies = [];
     }
 
-    evaluation(context: number[][]): number{
-        
-        return 0;
+    /**
+     * Species of variables whose different modes of evaluation are encapsulated by the following classes.
+     */
+    public Algebraic = class implements Evaluable {
+        /**
+         * Reference to outer class.
+         */
+        ref: Variable;
+
+        constructor(ref: Variable) {
+            this.ref = ref;
+        }
+
+        public eval(param: number[], context: number[][]): number {
+            if (this.ref.name.length > 1)
+                return context[alphabet[this.ref.name.substring(0, 1)]][+this.ref.name.substring(1, 2)]
+        }
+    };
+
+    /**
+     * Univariate solvable through an implicit equation.
+     */
+    public ImplicitFunctional = class implements Evaluable {
+        /**
+         * Reference to outer class.
+         */
+        ref: Variable;
+
+        /**
+         * Left and right hand sides of the implicit definition as originally given.
+         */
+        lhs: string;
+        rhs: string
+
+        /**
+         * Reformed expression for equation whose one side is assumed to be 0.
+         */
+        eq: string;
+
+        constructor(ref: Variable) {
+            this.ref = ref;
+        }
+
+        /**
+         * TODO:
+         * @param param
+         * @param context
+         */
+        public eval(param: number[], context: number[][]): number {
+            return 0;
+        }
+    };
+
+    evaluate(param: number[], context: number[][]): number{
+        return this.evalHandle.eval(param, context);
     };
 }
 
