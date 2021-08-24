@@ -4,6 +4,8 @@ class Core {
 
     environment: Environment;
 
+
+
     /**
      * Interpret the statement tree as native data representations.
      * @param label Given name of variable whose value is defined by the statement tree.
@@ -13,10 +15,10 @@ class Core {
         let newVar:Variable;
 
         // For redefinition, erase the previous dependencies, retain the dependants.
-        if(this.environment.variables[label] != undefined) {
+        if (this.environment.variables[label] != undefined) {
             newVar = this.environment.variables[label];
+            newVar.removeDependencies();
             newVar.referenceList.length = 0;
-            newVar.dependencies.length = 0;
             newVar.rlMapping = {};
             newVar.inverseRlMapping = {};
         } else {
@@ -76,13 +78,13 @@ class Core {
                     this.environment.variables[depVarLabel] = depVar;
                 }
                 reference[0] = depVar.type;
-                newVar.dependencies.push(depVar);
-                depVar.dependants.push(newVar);
+                newVar.dependencies[depVar.name] = depVar;
+                depVar.dependants[newVar.name] = newVar;
             }
             newVar.referenceList.push(reference);
         }
         //Set type of new var away from algebraic if it has dependency.
-        newVar.type = (newVar.dependencies.length==0)? 3: 2;
+        newVar.type = (newVar.referenceList.length==0)? 3: 2;
 
         newVar.piscript = this.parseTree(statement, newVar);
     }
@@ -203,11 +205,11 @@ class Variable {
     /**
      * References of variables that this variable depends for its definition.
      */
-    dependencies:Variable[];
+    dependencies:{[key:string]:Variable};
     /**
      * References of variables that depend on this variable.
      */
-    dependants:Variable[];
+    dependants:{[key:string]:Variable};
     /**
      * Code for evaluating this variable.
      */
@@ -233,9 +235,19 @@ class Variable {
     constructor(name:string) {
         this.name = name;
         this.referenceList = [];
-        this.dependants = [];
-        this.dependencies = [];
+        this.dependants = {};
+        this.dependencies = {};
     }
+
+    removeDependencies(){
+        for(let label in this.dependencies){
+            delete this.dependencies[label].dependants[this.name];
+            delete this.dependencies[label];
+        }
+    }
+
+    preloadEvaluation(){}
+
 
     evaluation(context: number[][]): number{
         
