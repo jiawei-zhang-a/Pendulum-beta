@@ -75,7 +75,7 @@ let macros:MStruct = {
          */
         'i':{
             'n':{
-                't': ['integrate', 'operator', 4]
+                't': ['integrate', '$', 4]
             }
         },
         'l': {
@@ -340,8 +340,8 @@ class Token{
                 else return 1;
                 //Parse integrand
                 let parser = new Parser();
-                i = parser.linParse(tex, i, this, new Structure('diff', this));
-                this.subClauses[3] = [parser.tokenList.pop()];
+                i = parser.linParse(tex, i, new Token(), new Structure('diff', this));
+                this.subClauses[3] = [parser.tokenList[parser.tokenList.length-1]];
                 this.subClauses[2] = parser.tokenList;
                 break;
             case 'diff':
@@ -367,12 +367,11 @@ class Token{
             if(tex.substr(i, 6)=='\\left('){
                 let parser = new Parser();
                 let openStruct = new Token();
-                openStruct.type = 'openStruct';
+                openStruct.type = 'openstruct';
                 openStruct.content = '(';
                 openStruct.start = start;
                 openStruct.end = start+1;
                 i = parser.linParse(tex, start+6, openStruct, new Structure(')', openStruct));
-                parser.tokenList.pop();
                 this.subClauses[0] = parser.tokenList;
                 this.type = 'func$'
             }
@@ -396,7 +395,6 @@ class Token{
             openStruct.start = start;
             openStruct.end = start+1;
             end = parser.linParse(tex, start+1, openStruct, new Structure('}', openStruct));
-            parser.tokenList.pop();
             this.subClauses[clauseIndex] = parser.tokenList;
         } else {
             let token = new Token();
@@ -436,33 +434,17 @@ class SymNode {
     /**
      * Retrieves all leaf nodes underlying this statement tree.
      */
-    getLeaves(): Map<string, SymNode> {
-        let leaves = new Map<string, SymNode>();
+    getLeaves(): {[varName: string]: SymNode} {
+        let leaves: {[varName: string]: SymNode} = {};
         if(this.children.length == 0) {
-            leaves.set(this.content, this);
+            leaves[this.content] = this;
             return leaves;
         }
         for(let child of this.children) {
-            leaves = new Map<string, SymNode>([...Array.from(leaves.entries()), ...Array.from(child.getLeaves().entries())]);
+            leaves = {...leaves, ...child.getLeaves()};
         }
         return leaves;
     }
-
-    /**
-     * Retrieves all leaf nodes underlying this statement tree.
-     */
-    getLeafStrs(): Set<string> {
-        let leaves = new Set<string>();
-        if(this.children.length == 0) {
-            leaves.add(this.content);
-            return leaves;
-        }
-        for(let child of this.children) {
-            leaves.forEach(leaves.add, child.getLeaves())
-        }
-        return leaves;
-    }
-
 }
 
 /**
@@ -480,7 +462,7 @@ let formats:{[key:string]:string} = {
 class Structure{
     identifier: string;
     //The token that serves as the open structure corresponding to this (closing structure)
-    //The start and end index inside destination can be particularly helpful when raising parsing errors
+    //The start and end index insides destination can be particularly helpful when raising parsing errors
     destination: Token;
     constructor(identifier:string, destination: Token) {
         this.identifier = identifier;
@@ -488,7 +470,7 @@ class Structure{
     }
 }
 
-class Parser {
+class Parser{
 
     toStatementTree(latex:string){
         console.log(latex);
@@ -497,18 +479,11 @@ class Parser {
         } catch (e) {
             console.log(e);
         }
-        console.log('Token List: ');
         console.log(this.tokenList);
-        console.log('Statement Tree: ')
         let statementTree = this.syParse(this.tokenList);
-        // Parse recursively all subclauses and those of children.
-        try {
-            this.syParseSubClauses(statementTree);
-            console.log(statementTree);
-        } catch(e) {
-            console.log('Incomplete statement from input!')
-            console.log(e)
-        }
+        this.syParseSubClauses(statementTree);
+        console.log('Statement Tree: ')
+        console.log(statementTree);
         return statementTree;
     }
 
@@ -582,6 +557,7 @@ class Parser {
     syParse(tokenList: Token[]): SymNode{
         let shuntingYard:Token[] = [];
         let tray: SymNode[] = [];
+        console.log("parsing: "+tokenList);
         for(let token of tokenList){
             if(token.type == '$' ||token.type == '#'){
                 let node = new SymNode();
@@ -613,21 +589,32 @@ class Parser {
                     node.type = operator.type;
                     node.content = operator.content;
                     node.token = operator;
-                    for(let i = 0; i<this.operatorChart[operator.content][2]; i++){
+                    for(let i = this.operatorChart[operator.content][2]-1; i>=0; i--){
                         node.children[i] = tray.pop();
                     }
                     tray.push(node);
                 }
+                if(token.content=='diff'){
+                    let node  = new SymNode();
+                    node.type = '$';
+                    node.content = token.subClauses[0][0].content;
+                    node.token = token.subClauses[0][0];
+                    if(tray.length==0)
+                        tray.push(node);
+                }
             }
         }
+        console.log(tray);
         return tray[0];
     }
 
     /**
-     * Reuse syParse() to generate statement trees for all subclauses, as well as children, recursively.
+     * Reuse syParse to generate statement trees for all subclauses recursively.
      * @param node
      */
     syParseSubClauses(node: SymNode) {
+        if (node==undefined)
+            return;
         if (node.token.subClauses != undefined && node.token.subClauses.length != 0) {
             node.subClauses = new Array<SymNode>(node.token.subClauses.length);
             // Parse subclauses of this node recursively.
@@ -648,8 +635,8 @@ class Parser {
      * @private
      */
     private operatorChart: {[key:string]:number[]}={
-        'add': [1, 1, 2],
-        'sub': [1, 1, 2],
+        'add': [1, 1.5, 2],
+        'sub': [1, 1.5, 2],
         'mul': [3, 2, 2],
         'invisdot': [3, 2, 2],
         'div': [3, 2, 2],
@@ -662,8 +649,6 @@ class Parser {
         'factorial': [6, 5, 1],
         'neg':[1.5, 6, 1],
         'ln': [5, 6, 1],
-
-        'integrate': [0.1, 0.1]
     }
     /**
      * Returns true if opr1 has higher left associativity than opr2's
