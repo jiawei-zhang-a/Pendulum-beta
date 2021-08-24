@@ -432,17 +432,18 @@ class SymNode {
     type: string;
 
     /**
-     * Retrieves all the leaf nodes underlying this tree
+     * Retrieves all leaf nodes underlying this statement tree.
      */
-    getLeaves():SymNode[] {
-        if(this.children.length==0)
-            return [this];
-
-        let nodeList:SymNode[] = [];
-        for(let child of this.children) {
-            nodeList.push(...child.getLeaves());
+    getLeaves(): {[varName: string]: SymNode} {
+        let leaves: {[varName: string]: SymNode} = {};
+        if(this.children.length == 0) {
+            leaves[this.content] = this;
+            return leaves;
         }
-        return nodeList;
+        for(let child of this.children) {
+            leaves = {...leaves, ...child.getLeaves()};
+        }
+        return leaves;
     }
 }
 
@@ -461,7 +462,7 @@ let formats:{[key:string]:string} = {
 class Structure{
     identifier: string;
     //The token that serves as the open structure corresponding to this (closing structure)
-    //The start and end index inside destination can be particularly helpful when raising parsing errors
+    //The start and end index insides destination can be particularly helpful when raising parsing errors
     destination: Token;
     constructor(identifier:string, destination: Token) {
         this.identifier = identifier;
