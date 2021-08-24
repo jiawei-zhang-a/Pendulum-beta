@@ -16,15 +16,15 @@ class Core {
         }
     };
 
-    resolveDefinition(statement: SymNode) {
+    resolveEquation(statement: SymNode) {
         // Check if an equation is given.
         if (statement.content != 'equal')
             throw new this.ResolutionError("Equation expected!");
 
-        let leaves: Map<string, SymNode> = statement.getLeaves();
+        let leaves: {[varName: string]: SymNode} = statement.getLeaves();
         // Explicit definition. Left hand side is the second child.
         let explicit: boolean = statement.children[1].type == '$' || statement.children[1].type == 'func$' &&
-            !leaves.has(statement.children[0].content);
+            (leaves[statement.children[0].content] != undefined);
         if (explicit)
             this.readExplicitDefinition(statement.children[1].content, statement.children[0])
         else {
@@ -94,9 +94,10 @@ class Core {
         /*
             First top-down traversal to generate variables and establish dependencies.
          */
-        let leaves:Map<string, SymNode> = statement.getLeaves();
+        let leaves: {[varName: string]: SymNode} = statement.getLeaves();
 
-        for (let leaf of leaves.values()) {
+        for (let varName in leaves) {
+            let leaf = leaves[varName];
             if (leaf.type == '#')
                 continue;
             // Build reference list.
