@@ -14,7 +14,9 @@ The general problem of statement resolution is understanding the relation of a s
 
 A chain of explicit definitions in the form of, where the expressions to the right are arbitrarily substantiated,
 
-![def-chain](https://github.com/YuelongLi/Pendulum-beta/tree/main/doc/eq-pics/def-chain.gif)
+<p align="center">
+  <img src="https://github.com/YuelongLi/Pendulum-beta/blob/main/doc/eq-pics/def-chain.gif" />
+</p>
 
 Is conveniently handled by first creating `Algebraic` representations of variables yet to be defined and later modifying their types and contents upon further definition. 
 
