@@ -1,6 +1,7 @@
 /* jshint esversion: 6 */
 import "mathquill/build/mathquill";
 import {SymNode, Parser} from "./parser";
+import {Core} from './core';
 
 // @ts-ignore
 var MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
@@ -16,6 +17,8 @@ var objectBar = $('#object-bar')[0];
 let names:string[] = [];
 let nameControls:{[key:string]:NameControl} = {};
 let defControls:{[key:string]:DefControl} = {};
+
+let core = new Core();
 
 /**
  * Used to record whether certain number slots are filled
@@ -170,7 +173,7 @@ function removeDefField(name = "") {
 function appendDefinition(name:string) {
     addNameField(name);
     addExpField(name);
-    var autoIndex = getIndex(names.length);
+    let autoIndex = getIndex(names.length);
     nameControls[name].loadDefControl(defControls[name]);
     defControls[name].loadNameControl(nameControls[name]);
 }
@@ -260,8 +263,8 @@ function initiateDefControl(name:string, container:HTMLElement, field:HTMLElemen
             edit: () => {
                 ec.updateSize();
                 // core.resizeGraphics();
-                let rpns = ec.parser.toStatementTree(ec.mathquill.latex());
-                // core.updateDefinition(name, rpns);
+                let root = ec.parser.toStatementTree(ec.mathquill.latex());
+                core.resolveEquation(name, root);
             },
             enter: () => {
                 insertDefinition(ec.varName);
@@ -278,6 +281,7 @@ function initiateDefControl(name:string, container:HTMLElement, field:HTMLElemen
         }
     });
     let root = ec.parser.toStatementTree(ec.mathquill.latex());
+    core.resolveEquation(name, root);
     // console.log(root);
     // core.updateDefinition(name, rpns);
     return ec;

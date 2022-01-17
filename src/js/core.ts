@@ -1,10 +1,16 @@
 import {SymNode} from "./parser";
 
-const alphabet: {[varLabel: string]: number} = {a:0, b:1, c:2, d:3};
+const aAscii = 'a'.charCodeAt(0);
+const alphabet = function(letter: string){
+    let index = aAscii-letter.charCodeAt(0);
+    if(index<0||index>=26)
+        return -1;
+    return index;
+}
 
 class Core {
 
-    environment: Environment;
+    environment: Environment = new Environment();
 
     /**
      * Methods for resolving types of inputted statements (in string) to native representations.
@@ -16,19 +22,35 @@ class Core {
         }
     };
 
-    resolveEquation(statement: SymNode) {
+    /**
+     * Resolves the equation by assigning it the proper label
+     * @param label the overriding string for label supplied by the user
+     * @param statement
+     * @return parseMessage the message constant that prompts the UI response
+     */
+    resolveEquation(label: string, statement: SymNode):number {
+        console.log("label: "+label);
+        console.log(statement);
         // Check if an equation is given.
         if (statement.content != 'equal')
             throw new this.ResolutionError("Equation expected!");
-
-        let leaves: {[varName: string]: SymNode} = statement.getLeaves();
-        // Explicit definition. Left hand side is the second child.
-        let explicit: boolean = statement.children[1].type == '$' || statement.children[1].type == 'func$' &&
-            (leaves[statement.children[0].content] != undefined);
+        try{//Check for expression completeness
+            statement.getLeaves();
+        }catch (e) {
+            if(e instanceof ReferenceError){
+                throw new this.ResolutionError("Incomplete expression");
+            }else
+                throw e;
+        }
+        // Explicit definition. Left hand side is the first child.
+        let explicit: boolean = statement.children[0].type == '$' || statement.children[0].type == 'func$';
+        let variable:Variable;
         if (explicit)
-            this.readExplicitDefinition(statement.children[1].content, statement.children[0])
-        else {
-            // If a single variable name is undefined, use the current statement for its implicit definition.
+            variable = this.readExplicitDefinition(label, statement.children[1])
+        else
+            variable = this.readExplicitDefinition(label, statement);
+        //Below are obsolete code for implicit label guessing
+            /*// If a single variable name is undefined, use the current statement for its implicit definition.
             let undefinedCount = 0;
             let algebraicCount = 0;
             // Implicit variable.
@@ -41,7 +63,7 @@ class Core {
                     impVarName = leafStr;
                 }
                 // Also allow definition of an existing algebraic variable.
-                else if (variable.type == 'Algebraic') {
+                else if (variable.type == 3) {
                     algebraicCount++;
                     algVarName = leafStr;
                 }
@@ -49,8 +71,10 @@ class Core {
             if (undefinedCount == 1)
                 this.readImplicitDefinition(impVarName, statement);
             else if (undefinedCount == 0 && algebraicCount == 1)
-                this.readImplicitDefinition(algVarName, statement);
-        }
+                this.readImplicitDefinition(algVarName, statement);*/
+        variable.pulseDependents();
+        variable.createEvalHandle();
+        return 0;
     }
 
     /**
@@ -58,38 +82,19 @@ class Core {
      * @param label Given name of variable whose value is defined by the statement tree.
      * @param statement Tree representation of the string definition of 'label'.
      */
-    readExplicitDefinition(label: string, statement: SymNode) {
+    readExplicitDefinition(label: string, statement: SymNode): Variable {
         let newVar:Variable;
 
         // For redefinition, erase the previous dependencies, retain the dependants.
         if(this.environment.variables[label] != undefined) {
             newVar = this.environment.variables[label];
             newVar.referenceList.length = 0;
-            newVar.dependencies.length = 0;
+            newVar.removeDependencies();
             newVar.rlMapping = {};
             newVar.inverseRlMapping = {};
         } else {
             newVar = new Variable(label);
         }
-
-        // First top-down traversal to generate variables and establish dependency.
-        // let nodes = [... statement.children];
-        // while (nodes.length != 0) {
-        //     let node = nodes[0];
-        //     // Consider only symbols representing functions or algebraics.
-        //     if (node.type == '$') {
-        //         if (this.environment.variables[node.content]!=undefined) {
-        //             // Build dependency on existing variable in environment.
-        //             let envVar = this.environment.variables.get(node.token.content);
-        //             newVar.dependencies.push(envVar);
-        //             envVar.dependants.push(newVar);
-        //         } else {
-        //             // Assume the new variable is an algebraic.
-        //         }
-        //     }
-        //     // Remove this node.
-        //     nodes.shift();
-        // }
 
         /*
             First top-down traversal to generate variables and establish dependencies.
@@ -98,6 +103,7 @@ class Core {
 
         for (let varName in leaves) {
             let leaf = leaves[varName];
+            //Consider only symbols representing functions or algebraics
             if (leaf.type == '#')
                 continue;
             // Build reference list.
@@ -105,40 +111,37 @@ class Core {
             let depVarLabel = leaf.content;
             let reference:number[];
             let rlIndex;
-            // Add a new dependency.
+            // Dependency.
+            let depVar = this.environment.variables[depVarLabel];
+            // Create dependent variable not present in the current environment.
+            if (depVar == undefined) {
+                depVar = new Variable(depVarLabel);
+                this.environment.variables[depVarLabel] = depVar;
+            }
+            //Idempotent dependency construction
+            newVar.dependencies[depVarLabel]=depVar;
+            depVar.dependants[newVar.name] = newVar;
+            // Initialize rl cache if needed.
             if ((rlIndex = newVar.rlMapping[depVarLabel]) == undefined) {
                 reference = [];
+                reference[0] = depVar.type;
                 newVar.rlMapping[depVarLabel] = newVar.referenceList.length;
                 newVar.inverseRlMapping[newVar.referenceList.length] = depVarLabel;
                 newVar.referenceList.push(reference);
+                depVar.configureReference(depVarLabel);
+                console.log(newVar.rlMapping);
             }
-            else {
-                reference = newVar.referenceList[rlIndex];
-            }
-            // Construct new variables.
-            // Consider only symbols representing functions or algebraics.
-            if (leaf.type == 'func$' || leaf.type == '$') {
-                // Dependency.
-                let depVar = this.environment.variables[depVarLabel];
-                // Create new variable not present in the current environment.
-                if (depVar == undefined) {
-                    depVar = new Variable(depVarLabel);
-                    this.environment.variables[depVarLabel] = depVar;
-                }
-                reference[0] = depVar.type;
-                newVar.dependencies.push(depVar);
-                depVar.dependants.push(newVar);
-            }
-            newVar.referenceList.push(reference);
         }
-        //Set type of new var away from algebraic if it has dependency.
-        newVar.type = (newVar.dependencies.length==0)? 3: 2;
-
-        newVar.piscript = this.parseTree(statement, newVar);
+        //Set type of new var away from constant if it has dependency. As the
+        //new variable is reasonably defined by this time, it shouldn't be algebraic
+        newVar.type = (Object.keys(newVar.dependencies).length==0)? 2: 1;
+        newVar.setPiScript("return "+this.parseTree(statement, newVar));
+        console.log("piScript: "+newVar.piScript);
+        return newVar;
     }
 
-    readImplicitDefinition(label: string, expression: SymNode) {
-
+    readImplicitDefinition(label: string, expression: SymNode):Variable {
+        return undefined;
     }
 
     parseTree(node: SymNode, variable: Variable):string {
@@ -156,19 +159,37 @@ class Core {
                 for(let subTree of node.children){
                     concatenated+=this.parseTree(subTree, variable)+",";
                 }
-                return node.content
-                    +"("+ concatenated.substring(0, concatenated.length-1) +")";
+                if(node.type == 'operator'){
+                    return this.convertAlias(node.content)
+                        +"("+ concatenated.substring(0, concatenated.length-1) +")";
+                }else{
+                    return node.content+".evaluate(a, c"
+                        +"["+ concatenated.substring(0, concatenated.length-1) +"]"+")";
+                }
         }
         return "";
+    }
+
+    /**
+     * Converts from an alias of an operator to its unified name in Arithmetics.
+     *
+     * @param operator
+     */
+    convertAlias(operator: string): string{
+        if(operator == 'invisdot' || operator == 'dot')
+            return 'a.mul';
+        if(operator == 'neg')
+            return '-'
+        return 'a.'+operator;
     }
 }
 
 class Environment {
-    variables: {[name: string]: Variable};
+    variables: {[name: string]: Variable} = {};
 }
 
 
-class ArithmeticError extends Error { };
+class ArithmeticError extends Error { }
 
 class Arithmetics {
      
@@ -240,8 +261,17 @@ class Arithmetics {
     }
 }
 
-interface Evaluable {
-    eval(param: number[], context: number[][]): number;
+/**
+ * A simple interface as an evaluation handle for
+ * external access of a variable, carries with itself
+ * a context matrix
+ */
+abstract class Evaluable {
+    context: number[][];
+    public constructor() {
+        this.context = new Array(26).fill(Array(1));
+    }
+    abstract compute(...param: number[]): number;
 }
 
 class Variable {
@@ -252,32 +282,32 @@ class Variable {
     public name:string;
 
     /**
-     * String ID of the type of variable matching the inner class names.
-     * 'Algebraic'
-     * 'Constant'
-     * 'Function'
-     * 'ImplicitFunctional'
+     * Indexed ID of the type of variable matching the inner class names.
+     * 1. 'Constant'
+     * 2. 'Function'
+     * 3. 'Algebraic'
      */
-    public type: string;
+    public type: number = 3;
 
     /**
      * Inner class implemented evaluation handle.
      */
     evalHandle: Evaluable;
 
-
     /**
      * References of variables that this variable depends for its definition.
+     * Actively managed.
      */
-    dependencies:Variable[];
+    dependencies:{[key: string]: Variable};
     /**
      * References of variables that depend on this variable.
+     * Passively managed.
      */
-    dependants:Variable[];
+    dependants:{[key: string]: Variable};
     /**
      * Code for evaluating this variable.
      */
-    piscript:string = '';
+    piScript:string = '';
 
     /**
      * Contains references of structure [type, parameter1, parameter2, ...]
@@ -292,73 +322,69 @@ class Variable {
      * A mapping from reference list indicies
      */
     inverseRlMapping: { [rlIndex: number]: string };
+    protected evaluate: Function;
+    protected compute: Function;
 
     /**
      * Default constructors with no intialization.
      */
     public constructor(name:string) {
         this.name = name;
+        this.rlMapping = {};
         this.referenceList = [];
-        this.dependants = [];
-        this.dependencies = [];
+        this.inverseRlMapping = {};
+        this.dependants = {};
+        this.dependencies = {};
+    }
+
+    setPiScript(piScript:string){
+        this.piScript = piScript;
+        //a is the Arithmetics library, p contains the parameters,
+        // and c is the context matrix
+        this.evaluate = new Function('a', 'c', 'p', piScript);
     }
 
     /**
-     * Species of variables whose different modes of evaluation are encapsulated by the following classes.
+     * Instantiates a new evaluation handle for the variable. The type
+     * of the evaluation handle varies depending on the number of local
+     * algebraics
      */
-    public Algebraic = class implements Evaluable {
-        /**
-         * Reference to outer class.
-         */
-        ref: Variable;
+    createEvalHandle(){
 
-        constructor(ref: Variable) {
-            this.ref = ref;
-        }
+    }
 
-        public eval(param: number[], context: number[][]): number {
-            if (this.ref.name.length > 1)
-                return context[alphabet[this.ref.name.substring(0, 1)]][+this.ref.name.substring(1, 2)]
+    removeDependencies(){
+        for(let key in this.dependencies){
+            let object = this.dependencies[key];
+            delete object.dependants[this.name];
+            delete this.dependencies[key];
         }
-    };
+    }
 
     /**
-     * Univariate solvable through an implicit equation.
+     * After (re)definition, pulse dependents should be called
+     * to inform the dependents of this about the changed internal states.
+     *
+     * When internal states of this are unchanged, pulseDependents
+     * should be idempotent.
      */
-    public ImplicitFunctional = class implements Evaluable {
-        /**
-         * Reference to outer class.
-         */
-        ref: Variable;
+    pulseDependents(){
 
-        /**
-         * Left and right hand sides of the implicit definition as originally given.
-         */
-        lhs: string;
-        rhs: string
+    }
 
-        /**
-         * Reformed expression for equation whose one side is assumed to be 0.
-         */
-        eq: string;
+    /**
+     * Configures the locally referenced variable based on its type,
+     * by updating the local cache structures such as the reference list.
+     * The specified variable is assumed to exist in the dependency table by
+     * the time of this call.
+     *
+     * Idempotent.
+     *
+     * @param varName the name of the locally referenced variable.
+     */
+    configureReference(varName: string){
 
-        constructor(ref: Variable) {
-            this.ref = ref;
-        }
-
-        /**
-         * TODO:
-         * @param param
-         * @param context
-         */
-        public eval(param: number[], context: number[][]): number {
-            return 0;
-        }
-    };
-
-    evaluate(param: number[], context: number[][]): number{
-        return this.evalHandle.eval(param, context);
-    };
+    }
 }
 
-export {Variable};
+export {Variable, Core};

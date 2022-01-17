@@ -441,6 +441,8 @@ class SymNode {
             return leaves;
         }
         for(let child of this.children) {
+            if(child == undefined)
+                throw new ReferenceError("incomplete expression");
             leaves = {...leaves, ...child.getLeaves()};
         }
         return leaves;
@@ -548,7 +550,6 @@ class Parser{
         return i;
     }
 
-    /**
     /**
      * The core algorithm for parsing token list into statement trees, relies primarily
      * on shunting yard. Left/right associativity are differentiated for certain operators and functions.
