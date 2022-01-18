@@ -738,7 +738,7 @@ if(+.associativity<*.associativity){
     shuntingYard.push(*);
 }
 ```
-To organize the comparison inside `compareAssociativity` in a reasonable manner, we may not just simply right n*n conditional clauses, where
+To organize the comparison inside `compareAssociativity` in a reasonable manner, we can avoid writing n*n conditional clauses, where
 n is the number of different types of operators and functions. We may instead create two lists of associativity rankings, called the 
 **left association rank**, and the **right association rank**, so that upon comparison, a corresponding rank for `operator1` is retrieved,
 and a rank for `operator2` is also retrieved, and the function correspondingly returns the comparison between these two ranks; that is to
@@ -749,3 +749,24 @@ _The other difference is that compared to conventional shunting yard parsing, th
 or they might be of the type "function" that permits only one operand as its parameters. But as long as the operators are dealing with values
 that are to its direct vicinity, and that the associativity between operators are correctly configured, there will be no problems or additional troubles 
 that we need to go through in parsing them._
+
+#### Additional SymNode Standards
+```javascript
+class SymNode{
+    children: SymNode[];
+    symbol: string|number;
+    type: ['$', '#', 'operator', 'func$'];
+}
+```
+Certain cases of more complicated types of definitions are worth going over. 
+
+In particular, statement ```f\left(...\right)``` gets parsed 
+into a 'func$' token with subclauses, under the condition that it is a stand-alone variable immediately followed by parenthesis. Depending on
+the number of parameters, SymNode f should have the corresponding number of children taking the respective root of the parameters.
+
+The large operand summation 'sum' in statement ```\sum_{x=1}^{12}\cos\left(x\right)+...``` gets parsed into two subclauses,
+one corresponding to the lower bound specification, one for the upper bound, each holding a linear token list. The lower clause and
+the upper clause should be syParsed respectively and collapsed into separate trees. The roots of the upper clause tree
+and the lower clause tree shall go into the children of the SymNode representing 'sum', along with the root of the statement
+that it is operating on. 'sum', aside from its clumsy definition body, should be treated somewhat like 'function' typed token
+'sin', where the right associativity holds up until addition/subtractions.

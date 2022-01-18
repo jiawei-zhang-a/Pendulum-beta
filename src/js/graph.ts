@@ -3,14 +3,14 @@ import {Vector3} from "three";
 
 const colors: {[key:string]:number}= {
     orange: 0xfb6500,
-    green: 0x378b59,
-    steelBlue: 0x4377bf,
     blue: 0x0065fb,
+    green: 0x378b59,
+    purple: 0x8300de,
+    mint: 0x83ffde,
     red: 0xd82c5d,
     lightgray: 0xf3f3f3,
     air: 0xf0f8ff,
-    purple: 0x8300de,
-    mint: 0x83ffde
+    steelBlue: 0x4377bf,
 };
 
 function createMaterial(type:string, color:string, clipOverflow = true, clipDistance = 6){
@@ -119,6 +119,10 @@ abstract class Graph {
      * Disposes the THREE mesh and geometries of this, releasing their memory
      */
     abstract dispose():void;
+
+    generateIndices() {
+
+    }
 }
 
 class CartesianGraph extends Graph{
@@ -336,4 +340,4 @@ class CartesianGraph2D extends Graph{
     }
 }
 
-export {Graph, CartesianGraph, CartesianGraph2D};
+export {Graph, CartesianGraph, CartesianGraph2D, colors};

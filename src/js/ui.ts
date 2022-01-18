@@ -2,13 +2,14 @@
 import "mathquill/build/mathquill";
 import {SymNode, Parser} from "./parser";
 import {Core} from './core';
+import {Pendulum} from './pendulum';
 
 // @ts-ignore
-var MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
+let MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
 
-var objectBar = $('#object-bar')[0];
+let objectBar = $('#object-bar')[0];
 
-// var types = {
+// let types = {
 //     ":": "Variable",
 //     "": "Function",
 //     "{": "Object"
@@ -18,19 +19,23 @@ let names:string[] = [];
 let nameControls:{[key:string]:NameControl} = {};
 let defControls:{[key:string]:DefControl} = {};
 
-let core = new Core();
+let pendulum: Pendulum;
+function loadPendulum(p: Pendulum){
+    pendulum = p;
+}
 
 /**
  * Used to record whether certain number slots are filled
  */
-var indexes:boolean[] = [];
+let indexes:boolean[] = [];
 
 function getIndex(position = 0) {
     if (position >= indexes.length) {
         indexes[position] = true;
         return position;
     }
-    for (var i = position; i < indexes.length; i++) {
+    let i = position;
+    for (; i < indexes.length; i++) {
         if (!indexes[i]) {
             indexes[i] = true;
             return i;
@@ -59,8 +64,8 @@ class NameControl {
      * Used to synchronize height between definition container and namefield container
      */
     updateSize() {
-        var definition = this.defControl.defField;
-        var defContainer = this.defControl.defContainer;
+        let definition = this.defControl.defField;
+        let defContainer = this.defControl.defContainer;
         $(this.nameContainer).innerHeight($(this.nameField).outerHeight());
         if (definition.offsetHeight > this.nameField.offsetHeight)
             $(this.nameContainer).outerHeight($(defContainer).outerHeight(true),true);
@@ -86,8 +91,8 @@ class DefControl {
      * Used to synchronize height between definition container and namefield container
      */
     updateSize() {
-        var name = this.nameControl.nameField;
-        var nameContainer = this.nameControl.nameContainer;
+        let name = this.nameControl.nameField;
+        let nameContainer = this.nameControl.nameContainer;
         $(this.defContainer).innerHeight($(this.defField).outerHeight());
         if (this.defField.offsetHeight > name.offsetHeight)
             $(nameContainer).outerHeight($(this.defContainer).outerHeight(true),true);
@@ -102,9 +107,9 @@ class DefControl {
 
 function loadTags() {
     $('.name').each(function () {
-        var container = this.parentElement;
-        var name = container.getAttribute('varname');
-        var nc = initiateNameControl(name, container, this);
+        let container = this.parentElement;
+        let name = container.getAttribute('varname');
+        let nc = initiateNameControl(name, container, this);
         names.push(name);
         nameControls[name] = nc;
     });
@@ -121,8 +126,8 @@ function loadShelves() {
 
 function loadReference() {
     for (let varName in nameControls) {
-        var nc = nameControls[varName];
-        var ec = defControls[varName];
+        let nc = nameControls[varName];
+        let ec = defControls[varName];
         nc.loadDefControl(ec);
         ec.loadNameControl(nc);
         nc.updateSize();
@@ -132,19 +137,19 @@ function loadReference() {
 
 function addNameField(name:string, autoIndex = 0) {
     if (name == undefined) name = (1 + autoIndex).toString();
-    var html = $.parseHTML(`<div class="name-container" varname="${name}"><div class="name">${name}</div><div class="type">:</div></div>`);
+    let html = $.parseHTML(`<div class="name-container" varname="${name}"><div class="name">${name}</div><div class="type">:</div></div>`);
     $('#object-bar').append(html);
     // @ts-ignore
-    var nc = initiateNameControl(name, html[0], html[0].children[0]);
+    let nc = initiateNameControl(name, html[0], html[0].children[0]);
     nameControls[nc.varName] = nc;
 }
 
 function addExpField(name:string, autoIndex = 0) {
     if (name == undefined) name = (1 + autoIndex).toString();
-    var html = $.parseHTML(`<div class=\"expression-container\" varname=\"${name} \"> <span class = \"expression\"></span> </div>`);
+    let html = $.parseHTML(`<div class=\"expression-container\" varname=\"${name} \"> <span class = \"expression\"></span> </div>`);
     $('#mathpanel').append(html);
     // @ts-ignore
-    var ec = initiateDefControl(name, html[0], html[0].children[0]);
+    let ec = initiateDefControl(name, html[0], html[0].children[0]);
     defControls[name] = ec;
 }
 
@@ -159,14 +164,14 @@ function focusLast(name:string) {
 }
 
 function removeNameField(name = "") {
-    var nc = nameControls[name];
-    var html = nc.nameContainer;
+    let nc = nameControls[name];
+    let html = nc.nameContainer;
     html.parentNode.removeChild(html);
 }
 
 function removeDefField(name = "") {
-    var ec = defControls[name];
-    var html = ec.defContainer;
+    let ec = defControls[name];
+    let html = ec.defContainer;
     html.parentNode.removeChild(html);
 }
 
@@ -179,7 +184,7 @@ function appendDefinition(name:string) {
 }
 
 function removeDefinition(name = "") {
-    var index = -1;
+    let index = -1;
     if ((index = names.indexOf(name)) != -1) {
         removeNameField(name);
         delete nameControls[name];
@@ -193,30 +198,28 @@ function removeDefinition(name = "") {
 }
 
 function insertNameField(previous = "", name:string, autoIndex = 0) {
-    if (name == undefined) name = (1+autoIndex).toString();
-    var html = $.parseHTML(`<div class="name-container" varname="${name}"><div class="name">${name}</div><div class="type">:</div></div>`);
-    var previousContainer = nameControls[previous].nameContainer;
+    let html = $.parseHTML(`<div class="name-container" varname="${name}"><div class="name">${name}</div><div class="type">:</div></div>`);
+    let previousContainer = nameControls[previous].nameContainer;
     previousContainer.parentNode.insertBefore(html[0], previousContainer.nextSibling);
-    var nc = initiateNameControl(name, <HTMLElement>html[0], <HTMLElement>(<HTMLElement>html[0]).children[0]);
+    let nc = initiateNameControl(name, <HTMLElement>html[0], <HTMLElement>(<HTMLElement>html[0]).children[0]);
     nameControls[nc.varName] = nc;
 }
 
 function insertExpField(previous = "", name:string, autoIndex = 0) {
-    if (name == undefined) name = (1 + autoIndex).toString();
-    var html = $.parseHTML(`<div class=\"expression-container\" varname=\"${name} \"> <span class = \"expression\"></span> </div>`);
-    var previousContainer = defControls[previous].defContainer;
+    let html = $.parseHTML(`<div class=\"expression-container\" varname=\"${name} \"> <span class = \"expression\"></span> </div>`);
+    let previousContainer = defControls[previous].defContainer;
     previousContainer.parentNode.insertBefore(html[0], previousContainer.nextSibling);
-    var ec = initiateDefControl(name, <HTMLElement>html[0], <HTMLElement>(<HTMLElement>html[0]).children[0]);
+    let ec = initiateDefControl(name, <HTMLElement>html[0], <HTMLElement>(<HTMLElement>html[0]).children[0]);
     defControls[ec.varName] = ec;
-    return name;
 }
 
 function insertDefinition(previous = "", name:string = undefined) {
-    var index;
+    let index;
     if ((index = names.indexOf(previous)) != -1) {
-        var autoIndex = getIndex(index + 1);
+        let autoIndex = getIndex(index + 1);
+        if (name == undefined) name = (1 + autoIndex).toString();
         insertNameField(previous, name, autoIndex);
-        name = insertExpField(previous, name, autoIndex);
+        insertExpField(previous, name, autoIndex);
         names.splice(names.indexOf(previous) + 1, 0, name);
         nameControls[name].loadDefControl(defControls[name]);
         defControls[name].loadNameControl(nameControls[name]);
@@ -225,7 +228,7 @@ function insertDefinition(previous = "", name:string = undefined) {
 }
 
 function initiateNameControl(name:string, container:HTMLElement, field:HTMLElement) {
-    var nc = new NameControl();
+    let nc = new NameControl();
     nc.nameContainer = container;
     nc.nameField = field;
     nc.varName = name;
@@ -251,7 +254,7 @@ function initiateNameControl(name:string, container:HTMLElement, field:HTMLEleme
 }
 
 function initiateDefControl(name:string, container:HTMLElement, field:HTMLElement) {
-    var ec = new DefControl();
+    let ec = new DefControl();
     ec.defContainer = container;
     ec.defField = field;
     ec.varName = name;
@@ -264,7 +267,7 @@ function initiateDefControl(name:string, container:HTMLElement, field:HTMLElemen
                 ec.updateSize();
                 // core.resizeGraphics();
                 let root = ec.parser.toStatementTree(ec.mathquill.latex());
-                core.resolveEquation(name, root);
+                pendulum.updateDefinition(name, root);
             },
             enter: () => {
                 insertDefinition(ec.varName);
@@ -281,15 +284,14 @@ function initiateDefControl(name:string, container:HTMLElement, field:HTMLElemen
         }
     });
     let root = ec.parser.toStatementTree(ec.mathquill.latex());
-    core.resolveEquation(name, root);
-    // console.log(root);
-    // core.updateDefinition(name, rpns);
+    pendulum.updateDefinition(name, root);
     return ec;
 }
 
 export  {
     nameControls,
     defControls,
+    loadPendulum,
     loadTags,
     loadShelves,
     loadReference

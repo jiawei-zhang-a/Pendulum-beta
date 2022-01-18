@@ -65,7 +65,7 @@ let macros:MStruct = {
         'f': {
             'r': {
                 'a': {
-                    'c': ['div', 'operator', 0]
+                    'c': ['frac', 'function', 0]
                 }
             }
         },
@@ -79,7 +79,7 @@ let macros:MStruct = {
             }
         },
         'l': {
-            'n': ["ln", 'operator', 0],
+            'n': ["ln", 'function', 0],
             'e': {
                 'f': {
                     't': {
@@ -111,7 +111,7 @@ let macros:MStruct = {
             'i': ['pi', 'constant', 0],
             'r': {
                 'o': {
-                    'd': ['prod', 'operator', 2]
+                    'd': ['prod', 'function', 2]
                 }
             }
         },
@@ -133,7 +133,7 @@ let macros:MStruct = {
                 'n': ['sin', 'function', 1]
             },
             'u': {
-                'm': ['sum', 'operator', 2]
+                'm': ['sum', 'function', 2]
             },
             'q': {
                 'r': {
@@ -316,7 +316,7 @@ class Token{
         if(clauseCount == 0){
             return;
         }else{
-            this.subClauses = new Array(clauseCount);
+            this.subClauses = [];
         }
         let i = start;
         switch(this.content){
@@ -358,22 +358,27 @@ class Token{
             case 'tan':
                 if(tex.charAt(i)=='^') i = this.parseSubClause(tex, i+1, 0);
                 else {
-                    this.subClauses[0] = [];
+                    this.subClauses.length = 0;
                     this.clauseCount = 0;
                 }
                 break;
         }
         if(this.type == '$'){
             if(tex.substr(i, 6)=='\\left('){
-                let parser = new Parser();
                 let openStruct = new Token();
                 openStruct.type = 'openstruct';
                 openStruct.content = '(';
                 openStruct.start = start;
-                openStruct.end = start+1;
-                i = parser.linParse(tex, start+6, openStruct, new Structure(')', openStruct));
-                this.subClauses[0] = parser.tokenList;
-                this.type = 'func$'
+                openStruct.end = start+6
+                i = start+6;
+                let parser;
+                do {
+                    parser = new Parser();
+                    i = parser.linParse(tex, i, openStruct, new Structure(',)', openStruct));
+                    this.subClauses.push(parser.tokenList);
+                }while(parser.tokenList[parser.tokenList.length-1].content!=')');
+                this.clauseCount = this.subClauses.length;
+                this.type = 'func$';
             }
         }
         this.end = i;
@@ -436,6 +441,11 @@ class SymNode {
      */
     getLeaves(): {[varName: string]: SymNode} {
         let leaves: {[varName: string]: SymNode} = {};
+        for(let clause of this.subClauses) {
+            if(clause == undefined)
+                throw new ReferenceError("incomplete expression");
+            leaves = {...leaves, ...clause.getLeaves()};
+        }
         if(this.children.length == 0) {
             leaves[this.content] = this;
             return leaves;
@@ -516,6 +526,10 @@ class Parser{
             let token = new Token();
             //Starts reading the tex string starting from index i,
             let parseConstant = token.readFrom(tex, i, previousToken.type);
+            if(token.type == 'structure'&&token.content == "space"){
+                i=token.end;
+                continue;
+            }
             switch(parseConstant){
                 case 1:
                     console.log(previousToken);
@@ -524,8 +538,8 @@ class Parser{
                     break;
             }
             if(addInvisibleDots){
-                if((['closestruct', '$', '#'].indexOf(previousToken.type)!=-1)&&
-                    (['$', 'function', '#'].indexOf(token.type)!=-1||token.content=='(')){
+                if((['closestruct', '$', '#', 'constant'].indexOf(previousToken.type)!=-1)&&
+                    (['$', 'function', 'func$', '#', 'constant'].indexOf(token.type)!=-1||token.content=='(')){
                     let invisDot = new Token();
                     invisDot.type = 'operator';
                     invisDot.start = invisDot.end = previousToken.end;
@@ -538,7 +552,8 @@ class Parser{
                 this.parseStack.push(new Structure(formats[token.content], token));
             }
             if(token.type == 'closestruct'){
-                if(this.parseStack[this.parseStack.length-1].identifier==token.content){
+                //Use index of to track multiple symbols
+                if(this.parseStack[this.parseStack.length-1].identifier.indexOf(token.content)!=-1){
                     this.parseStack.pop();
                 }
                 else throw new SyntaxError('Mismatched closures between '+
@@ -560,7 +575,7 @@ class Parser{
         let tray: SymNode[] = [];
         console.log("parsing: "+tokenList);
         for(let token of tokenList){
-            if(token.type == '$' ||token.type == '#'){
+            if(token.type == '$' ||token.type == '#' ||token.type == 'func$'){
                 let node = new SymNode();
                 node.type = token.type;
                 node.content = token.content;
@@ -632,7 +647,14 @@ class Parser{
     }
 
     /**
-     * [left associativity, right associativity, parameter count]
+     * [left associativity, right associativity, parameter count],
+     *
+     * frac pops as soon as it meets other operators or functions with its high
+     * left associativity.
+     * It also has high right associativity so as to ensure that it always gets
+     * in the stack ensuring that the fraction will get computed first prior to whatever
+     * comes before it, except for when it encounters another fraction, which is already
+     * an unlikely occurrence, in which case the first fraction is to be computed first before this.
      * @private
      */
     private operatorChart: {[key:string]:number[]}={
@@ -640,16 +662,21 @@ class Parser{
         'sub': [1, 1.5, 2],
         'mul': [3, 2, 2],
         'invisdot': [3, 2, 2],
+        'dot': [3, 2, 2],
         'div': [3, 2, 2],
+        'frac': [8, 7, 2],
         'pow': [4, 5, 2],
         'equal': [0, 0, 2],
-        'tan': [1.5, 6, 1],
-        'cot': [1.5, 6, 1],
-        'sin': [1.5, 6, 1],
-        'cos': [1.5, 6, 1],
+        'tan': [2.5, 6, 1],
+        'cot': [2.5, 6, 1],
+        'sin': [2.5, 6, 1],
+        'cos': [2.5, 6, 1],
+        'sum': [2.5, 6, 1],
+        'prod': [2.5, 6, 1],
         'factorial': [6, 5, 1],
-        'neg':[1.5, 6, 1],
+        'neg':[2.5, 6, 1],
         'ln': [5, 6, 1],
+        'sqrt': [8, 7, 1],
     }
     /**
      * Returns true if opr1 has higher left associativity than opr2's
