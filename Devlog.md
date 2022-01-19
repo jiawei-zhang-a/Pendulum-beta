@@ -136,3 +136,8 @@ Multivariate function definition:
 
 'func$' typed function clause pseudo-multiplication:
 ![img.png](images/2022-01-18-2.png)
+
+#### 01/19/22
+User interface development. Outlined the module-based nature and the loading architecture of UI. Implemented the drag bar
+(the divider) and the defSettingsBtn, which allows users to adjust the size of the definition area to give more space to the
+canvas. Minor font adjustments. Slight adjustments to the css layouts of the defpanel to produce more consistent results.

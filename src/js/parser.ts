@@ -574,7 +574,6 @@ class Parser{
     syParse(tokenList: Token[]): SymNode{
         let shuntingYard:Token[] = [];
         let tray: SymNode[] = [];
-        console.log("parsing: "+tokenList);
         for(let token of tokenList){
             if(token.type == '$' ||token.type == '#' ||token.type == 'func$'){
                 let node = new SymNode();

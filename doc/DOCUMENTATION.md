@@ -519,17 +519,32 @@ If y is never defined else where, or the variable in concern is explicitly label
 ## UI
 Short for user interface, the section on the left of the software window for user inputs and providing feedbacks. The updates made by users on the user interface will be sent to the Core
 through asynchronous hooks.
+### Loading
+Many dynamic functionalities of the UI need to be realized by javascript. The UI module serves as the centralized location
+for the management of the entire user interface. After the initialization call back from jQuery, Pendulum will 
+invoke the load() function of the UI. Note that UI is a "static" access module, reflecting that there is only one window,
+namely the browser page that is under management. The load function call then invokes a sequence of loading of HTML components
+of the UI, including:
+* loadDragBar();
+* loadTags();
+* loadShelves();
+* linkNameDefControls();
+* loadDefSettingsBtn();
+* ...
+
+After this sequence is invoked, the UI will be completely up and running.
 ### Definition
-The collection of statement field and its corresponding label field that allows users to define variables.  
 ![img_12.png](img_12.png)
-### Statement Field
-The LaTeX field on the right is dedicated to user inputs of long mathematical expressions. Expressions entered here will be parsed into
-statement trees to reflect the hierarchical structure inside computation, and then interpreted by Core into pi-scripts.
-### Label Field
+The pair of statement field and its corresponding label field that allows users to define variables.  
+#### Label Field
 The label field to the left of the statement field accepts a single LaTeX letter (with subscripts). The letter is the label for the statement,
 denoting the very variable that the user is trying to define using the entire math statement, which the Core will then try to extract. If the label
 is not specified by the user, the Core will read the statement and try to read the user's intent. A suggestive label will be posted on the same field
 with a light gray color.
+#### Statement Field
+The LaTeX field on the right is dedicated to user inputs of long mathematical expressions. Expressions entered here will be parsed into
+statement trees to reflect the hierarchical structure inside computation, and then interpreted by Core into pi-scripts.
+
 
 ### Parser
 A very important sub-module of UI that will serve the function of converting user inputs into statement trees. The reading of individual TeX commands relies

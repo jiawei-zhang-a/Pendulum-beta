@@ -85,6 +85,7 @@ class Core {
         if(isNaN(Number(label))&&!this.containsLabel(label, leaves))
             throw new ResolutionError("Invalid label override");
         let variable = this.defineEqnVariable(label, statement);
+        console.log(variable);
         this.environment.variables[label] = variable;
         variable.pulseDependents();
         variable.createEvalHandle();

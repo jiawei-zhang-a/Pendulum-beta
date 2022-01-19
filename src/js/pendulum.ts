@@ -70,6 +70,14 @@ class Pendulum{
             this.wipeGraph(label);
         }
     }
+
+    /**
+     * Makes an active call to resize the canvas, especially useful
+     * for UI drag bar updates
+     */
+    canvasResized(){
+        this.canvas.onResize();
+    }
 }
 let p: Pendulum;
 
@@ -91,10 +99,7 @@ $(()=>{
     canvas.scene.add(axesHelper);
 
     p = new Pendulum(canvas);
-    UI.loadPendulum(p);
-    UI.loadTags();
-    UI.loadShelves();
-    UI.loadReference();
+    UI.load(p);
     // p.updateGraph("sinusoidal", (x,y)=>Math.cos(x*3+p.canvas.time));
 
     // let graph2 = new CartesianGraph("cosinusoidal",(x,y)=>x*y*Math.cos(y+canvas.time));
