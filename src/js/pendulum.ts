@@ -95,7 +95,7 @@ $(()=>{
     UI.loadTags();
     UI.loadShelves();
     UI.loadReference();
-    p.updateGraph("sinusoidal", (x,y)=>Math.cos(x*3+p.canvas.time));
+    // p.updateGraph("sinusoidal", (x,y)=>Math.cos(x*3+p.canvas.time));
 
     // let graph2 = new CartesianGraph("cosinusoidal",(x,y)=>x*y*Math.cos(y+canvas.time));
     // graph2.constructGeometry({'material':'standard', 'color':'purple'});

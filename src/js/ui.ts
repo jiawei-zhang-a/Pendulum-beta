@@ -284,7 +284,11 @@ function initiateDefControl(name:string, container:HTMLElement, field:HTMLElemen
         }
     });
     let root = ec.parser.toStatementTree(ec.mathquill.latex());
-    pendulum.updateDefinition(name, root);
+    try{
+        pendulum.updateDefinition(name, root);
+    }catch (e) {
+        
+    }
     return ec;
 }
 

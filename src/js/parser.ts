@@ -39,6 +39,7 @@ let macros:MStruct = {
     '}': ['}', 'closestruct', 0],
     '(': ['(', 'openstruct', 0],
     ')': ['(', 'closestruct', 0],
+    ',': [',', 'closestruct', 0],
     '$': ['$', 'closestruct', 0],
     '+': ['add', 'operator', 0],
     '-': ['sub', 'operator', 0],
@@ -658,8 +659,8 @@ class Parser{
      * @private
      */
     private operatorChart: {[key:string]:number[]}={
-        'add': [1, 1.5, 2],
-        'sub': [1, 1.5, 2],
+        'add': [1.5, 1, 2],
+        'sub': [1.5, 1, 2],
         'mul': [3, 2, 2],
         'invisdot': [3, 2, 2],
         'dot': [3, 2, 2],

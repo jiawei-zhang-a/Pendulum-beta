@@ -122,3 +122,17 @@ the token f. The evaluation method of this 'f', that is whether there is an invi
 what is inside '(...)' will serve as the parameter of 'f', will be determined within the core module after dependency walks.
 
 ![img.png](images/2021-08-14.png)
+
+#### 01/16/22-01/18/22
+Completion of core infrastructure, including context maintenance, piScript generation, parameterized function definition, evaluation
+handle creation. Created Pendulum class as the centralized controller. Linked graphics, core and ui through Pendulum methods.
+Major bug fixes for UI, parser, and core module. Fixed compatibility of 'func$' in syParsing, added multi-parameter function 
+clause parsing. Improved coverage of 'invisDot' (invisible dot) insertions. Further specified behavior of equation resolution
+pertaining label guessing and equation structure recognition, as well as the shunting yard parsing behavior of function clauses
+and larger operands (e.g `\sum_{n=12}^5`).
+
+Multivariate function definition:
+![img_1.png](images/2022-01-18.png)
+
+'func$' typed function clause pseudo-multiplication:
+![img.png](images/2022-01-18-2.png)

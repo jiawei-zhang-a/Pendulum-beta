@@ -1,5 +1,6 @@
 import {SymNode} from "./parser";
 import {Pendulum} from "./pendulum";
+import {stat} from "fs";
 
 const aAscii = 'a'.charCodeAt(0);
 const contextID = function(letter: string){
@@ -21,6 +22,46 @@ class Core {
      */
 
     /**
+     * Deduces the default label for the statement given, if no label can be effectively deduced,
+     * returns undefined.
+     * @param statement
+     */
+    guessLabel(statement: SymNode): string{
+        //First investigate if an equation is present
+        if(!(statement.type == 'operator'&&statement.content == 'equal')){
+            return undefined;
+        }
+        let lhs = statement.children[0];
+        let rhs = statement.children[1];
+        //Check for singletons
+        if(lhs.type=='$'||lhs.type=='func$')
+            return lhs.content;
+        if(rhs.type=='$'||rhs.type=='func$')
+            return rhs.content;
+
+        let leaves;
+        try{//Check for expression completeness
+            leaves = statement.getLeaves();
+        }catch (e) {
+            return undefined;
+        }
+        //Check for stand-alone algebraics
+         let algebraicCounts:{[p: string]:number} = {};
+         for(let key in leaves){
+             if(algebraicCounts[key]==undefined)
+                 algebraicCounts[key] = 1;
+             else
+                 algebraicCounts[key]++;
+         }
+         for(let key in algebraicCounts){
+             if(algebraicCounts[key]==1
+                 &&(this.environment.variables[key]==undefined
+                     ||this.environment.variables[key].type==3))
+                 return key;
+         }
+         return undefined;
+    }
+    /**
      * Resolves the equation by assigning it the proper label
      * @param label the overriding string for label supplied by the user
      * @param statement
@@ -31,65 +72,66 @@ class Core {
         if(statement == undefined){
             throw new ResolutionError("No definition");
         }
-        if (statement.content != 'equal')
-            throw new ResolutionError("Equation expected!");
+        let leaves;
         try{//Check for expression completeness
-            statement.getLeaves();
+            leaves = statement.getLeaves();
         }catch (e) {
             if(e instanceof ReferenceError){
                 throw new ResolutionError("Incomplete expression");
             }else
                 throw e;
         }
-        let lhs = statement.children[0];
-        // Explicit definition. Left hand side is a singleton of a variable.
-        let explicit: boolean = lhs.type == '$' || lhs.type == 'func$';
-        let rhsLeaves = statement.children[1].getLeaves();
-        for(let key in rhsLeaves){
-            let leaf = rhsLeaves[key];
-            explicit&&=((leaf.type!='$'&&leaf.type!='func$')||leaf.content!=label);
-        }
-        let variable:Variable;
-        if (explicit)
-            variable = this.readExplicitDefinition(label, statement.children[0], statement.children[1])
-        else
-            variable = this.readImplicitDefinition(label, statement);
-        //Below are obsolete code for implicit label guessing
-            /*// If a single variable name is undefined, use the current statement for its implicit definition.
-            let undefinedCount = 0;
-            let algebraicCount = 0;
-            // Implicit variable.
-            let impVarName: string;
-            let algVarName: string;
-            for (let leafStr in leaves) {
-                let variable = this.environment.variables[leafStr]
-                if (variable == undefined) {
-                    undefinedCount++;
-                    impVarName = leafStr;
-                }
-                // Also allow definition of an existing algebraic variable.
-                else if (variable.type == 3) {
-                    algebraicCount++;
-                    algVarName = leafStr;
-                }
-            }
-            if (undefinedCount == 1)
-                this.readImplicitDefinition(impVarName, statement);
-            else if (undefinedCount == 0 && algebraicCount == 1)
-                this.readImplicitDefinition(algVarName, statement);*/
+        console.log(label);
+        if(isNaN(Number(label))&&!this.containsLabel(label, leaves))
+            throw new ResolutionError("Invalid label override");
+        let variable = this.defineEqnVariable(label, statement);
         this.environment.variables[label] = variable;
         variable.pulseDependents();
         variable.createEvalHandle();
         return 0;
     }
 
+    defineEqnVariable(label: string, statement:SymNode):Variable{
+        if(!(statement.content=='equal'&&statement.type=='operator'))
+            return this.readExplicitDefinition(label, undefined, statement);
+        let variable:Variable;
+        let lhs = statement.children[0];
+        let rhs = statement.children[1];
+        // Explicit definition. Left hand side is a singleton of a variable
+        if(lhs.type == '$' || lhs.type == 'func$'){
+            let rhsLeaves = statement.children[1].getLeaves();
+            if(!this.containsLabel(lhs.content, rhsLeaves))
+                return this.readExplicitDefinition(label, statement.children[0], statement.children[1])
+        }
+        if(rhs.type == '$' || rhs.type == 'func$'){
+            let lhsLeaves = statement.children[0].getLeaves();
+            if(!this.containsLabel(rhs.content, lhsLeaves))
+                return this.readExplicitDefinition(label, statement.children[1], statement.children[0])
+        }
+        return this.readImplicitDefinition(label, statement);
+    }
+
+    /**
+     * Checks whether the statement tree contains variables with the
+     * specified label, if not returns false
+     * @param label
+     * @param leaves
+     */
+    containsLabel(label: string, leaves: {[p: string]: SymNode}){
+        for(let key in leaves){
+            if(key==label)
+                return true;
+        }
+        return false;
+    }
+
     /**
      * Interpret the statement tree as native data representations.
      * @param label Given name of variable whose value is defined by the statement tree.
-     * @param lhs Tree representation of the left hand side of the equation, should be a leaf here.
-     * @param rhs Tree representation of the right hand side of the equation
+     * @param defined Tree representation of the variable that is defined, should be a leaf here.
+     * @param definition Tree representation of the definition in terms of an expression
      */
-    readExplicitDefinition(label: string, lhs: SymNode, rhs: SymNode): Variable {
+    readExplicitDefinition(label: string, defined: SymNode, definition: SymNode): Variable {
         let newVar:Variable;
 
         // For redefinition, erase the previous dependencies, retain the dependants.
@@ -103,10 +145,10 @@ class Core {
         } else {
             newVar = new Variable(label);
         }
-        newVar.parameterized = lhs.type=='func$';
+        newVar.parameterized = defined.type=='func$';
         if(newVar.parameterized){//Initialize parameter mapping for parameterized functions
-            for(let index in lhs.subClauses){
-                let child = lhs.subClauses[index];
+            for(let index in defined.subClauses){
+                let child = defined.subClauses[index];
                 if(child.subClauses.length!=0){
                     throw new ResolutionError("Parameterized function variable with nested denominator is invalid");
                 }
@@ -116,7 +158,7 @@ class Core {
         /*
             First top-down traversal to generate variables and establish dependencies.
          */
-        let leaves: {[varName: string]: SymNode} = rhs.getLeaves();
+        let leaves: {[varName: string]: SymNode} = definition.getLeaves();
 
         for (let varName in leaves) {
             let leaf = leaves[varName];
@@ -153,7 +195,7 @@ class Core {
         //Set type of new var away from constant if it has dependency. As the
         //new variable is reasonably defined by this time, it shouldn't be algebraic
         newVar.type = (Object.keys(newVar.dependencies).length!=0)? 2: 1;
-        let piScript = this.getPiScript(rhs, newVar);
+        let piScript = this.getPiScript(definition, newVar);
         console.log("piScript: \n"+piScript);
         newVar.setPiScript(piScript);
         return newVar;
@@ -167,8 +209,8 @@ class Core {
         let piScript: string = "";
         if(variable.parameterized){//Append parameter override clause
             piScript+=
-                "for(let index in p){\n" +
-                "    c[pm[index]][0] = p[index];\n" +
+                "for(let index in pm){\n" +
+                " c[pm[index]][0] = p[index];\n" +
                 "}\n";
         }
         piScript+="return "+this.parseTree(statement, variable)+';';
