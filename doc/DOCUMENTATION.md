@@ -544,8 +544,17 @@ with a light gray color.
 #### Statement Field
 The LaTeX field on the right is dedicated to user inputs of long mathematical expressions. Expressions entered here will be parsed into
 statement trees to reflect the hierarchical structure inside computation, and then interpreted by Core into pi-scripts.
-
-
+#### Definition ID's
+The TypeScript objects representing the visual components such as label field and statement field are instances of the 
+classes DefControl and NameControl respectively. To ensure consistency, their id's will be generated sequentially
+by an incremental id generator, and once assigned, will not vary during the course of the existence of a particular field.
+The entrance of variable labels inside these fields run independently of the field id's, however corresponding defControl
+and nameControl do share the same id.
+#### NameControl interface
+The NameControl class gives a uniform interface for controlling the label field. Not only does it provide a parameterless
+method called `getLabel()` that yields a parsed label (as a SymNode) of its LaTeX content, it also accepts hints through
+the `setHint()` method that takes a SymNode and generates its corresponding LaTeX, and displays it in a dimmed MathQuill
+static field as the machine interpreted label directly under the normal label field.
 ### Parser
 A very important sub-module of UI that will serve the function of converting user inputs into statement trees. The reading of individual TeX commands relies
 on a finite state machine combined with a macro dictionary. The conversion of the linear command list into the statement tree is then to be performed recursively.

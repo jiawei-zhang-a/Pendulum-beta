@@ -2,13 +2,10 @@
 import "mathquill/build/mathquill";
 import {SymNode, Parser} from "./parser";
 import {Pendulum} from './pendulum';
-import MouseDownEvent = JQuery.MouseDownEvent;
-import MouseMoveEvent = JQuery.MouseMoveEvent;
 
 // @ts-ignore
 let MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
 
-let objectBar = $('#object-bar')[0];
 
 // let types = {
 //     ":": "Variable",
@@ -16,41 +13,17 @@ let objectBar = $('#object-bar')[0];
 //     "{": "Object"
 // };
 
-let names:string[] = [];
-let nameControls:{[key:string]:NameControl} = {};
-let defControls:{[key:string]:DefControl} = {};
+let idGenerator = 1;
 
-/**
- * Used to record whether certain number slots are filled
- */
-let indexes:boolean[] = [];
-
-function getIndex(position = 0) {
-    if (position >= indexes.length) {
-        indexes[position] = true;
-        return position;
-    }
-    let i = position;
-    for (; i < indexes.length; i++) {
-        if (!indexes[i]) {
-            indexes[i] = true;
-            return i;
-        }
-    }
-    indexes.push(true);
-    return i;
-}
-
-function removeIndex(position = 0) {
-    indexes[position] = false;
+function getID() {
+    return (idGenerator++).toString();
 }
 
 function load(pendulum:Pendulum){
     loadPendulum(pendulum);
+    loadComponents();
     loadDragBar();
-    loadTags();
-    loadShelves();
-    linkNameDefControls();
+    loadDefinitions();
     loadDefSettingsBtn();
 }
 
@@ -59,12 +32,28 @@ function loadPendulum(p: Pendulum){
     pendulum = p;
 }
 
+let resizer: HTMLElement,
+    defPanel: HTMLElement,
+    graphPanel:HTMLElement,
+    root: HTMLElement,
+    defSettings: HTMLElement,
+    navBar: HTMLElement,
+    mathPanel: HTMLElement,
+    defBar: HTMLElement;
+
+function loadComponents(){
+    resizer = document.getElementById('dragBar');
+    defPanel = document.getElementById('defpanel');
+    graphPanel = document.getElementById('graphpanel');
+    root = <HTMLElement> document.getElementById('root');
+    defSettings = document.getElementById("defSettings");
+    navBar = document.getElementById("navbar");
+    mathPanel = document.getElementById("mathpanel");
+    defBar = document.getElementById('object-bar');
+}
+
 function loadDragBar(){
     // Query the element
-    const resizer = document.getElementById('dragBar');
-    const leftSide = <HTMLElement>resizer.previousElementSibling;
-    const rightSide = <HTMLElement>resizer.nextElementSibling;
-    const root = <HTMLElement> document.getElementById('root');
 // The current position of mouse
     let x = 0;
     let y = 0;
@@ -78,7 +67,7 @@ function loadDragBar(){
         // Get the current mouse position
         x = e.clientX;
         y = e.clientY;
-        leftWidth = leftSide.getBoundingClientRect().width;
+        leftWidth = defPanel.getBoundingClientRect().width;
 
         // Attach the listeners to `document`
         document.addEventListener('mousemove', mouseMoveHandler);
@@ -91,21 +80,21 @@ function loadDragBar(){
         const newLeftWidth = ((leftWidth + dx) * 100) /
             root.getBoundingClientRect().width;
         root.style.gridTemplateColumns = `minmax(${newLeftWidth}%, max-content) 2.5pt 1fr`;
-        leftSide.style.userSelect = 'none';
-        leftSide.style.pointerEvents = 'none';
-        rightSide.style.userSelect = 'none';
-        rightSide.style.pointerEvents = 'none';
+        defPanel.style.userSelect = 'none';
+        defPanel.style.pointerEvents = 'none';
+        graphPanel.style.userSelect = 'none';
+        graphPanel.style.pointerEvents = 'none';
         pendulum.canvasResized();
     };
 
     const mouseUpHandler = function () {
         document.body.style.removeProperty('cursor');
 
-        leftSide.style.removeProperty('user-select');
-        leftSide.style.removeProperty('pointer-events');
+        defPanel.style.removeProperty('user-select');
+        defPanel.style.removeProperty('pointer-events');
 
-        rightSide.style.removeProperty('user-select');
-        rightSide.style.removeProperty('pointer-events');
+        graphPanel.style.removeProperty('user-select');
+        graphPanel.style.removeProperty('pointer-events');
 
         // Remove the handlers of `mousemove` and `mouseup`
         document.removeEventListener('mousemove', mouseMoveHandler);
@@ -116,51 +105,27 @@ function loadDragBar(){
     resizer.addEventListener('mousedown', mouseDownHandler);
 }
 
-function loadTags() {
-    $('.name').each(function () {
-        let container = this.parentElement;
-        let id = container.getAttribute('varname');
-        let nc = initiateNameControl(id, container, this);
-        names.push(id);
-        nameControls[id] = nc;
-    });
-}
-
-function loadShelves() {
-    $('.expression').each(function () {
-        let container = this.parentElement;
-        let id = container.getAttribute('varname');
-        let ec = initiateDefControl(id, container, this);
-        defControls[id] = ec;
-    });
-}
-
-function linkNameDefControls() {
-    for (let varName in nameControls) {
-        let nc = nameControls[varName];
-        let ec = defControls[varName];
-        nc.loadDefControl(ec);
-        ec.loadNameControl(nc);
-        nc.updateSize();
-        ec.updateSize();
+function loadDefinitions(){
+    let expressionContainers = $('.expression-container');
+    let prev:DefControl = undefined;
+    for(let i = 0; i<expressionContainers.length; i++){
+        let expression = expressionContainers[i];
+        let id = expression.getAttribute('defID');
+        let def = new DefControl(id);
+        def.previous=prev;
+        if(prev!=undefined)
+            prev.next = def;
+        prev = def;
+        idGenerator++;
     }
 }
 
 function loadDefSettingsBtn(){
-    const defSettings = document.getElementById("defSettings");
-    const navBar = document.getElementById("navbar");
-    const defPanel = document.getElementById("defpanel");
-    const mathPanel = document.getElementById("mathpanel");
-    const dragBar = document.getElementById("dragBar");
-    const root = document.getElementById("root");
-
-    const mainHighlight = getComputedStyle(defSettings).getPropertyValue('--mainHighlight');
-    const white = '#ffffff';
 
     let hideExpressions = false;
     defSettings.addEventListener("click", toggleHideExpressions);
     let previousLeftWidth = 0;
-    function toggleHideExpressions(e: Event){
+    function toggleHideExpressions(){
         hideExpressions = !hideExpressions;
 
         if(hideExpressions){
@@ -169,7 +134,7 @@ function loadDefSettingsBtn(){
             navBar.textContent = "Π";
             mathPanel.style.display = "none";
             defPanel.style.gridTemplateColumns = 'minmax(36pt, auto) 0px';
-            dragBar.style.display = "none";
+            resizer.style.display = "none";
             root.style.gridTemplateColumns = 'max-content 0pt 1fr';
 
             pendulum.canvasResized();
@@ -177,232 +142,244 @@ function loadDefSettingsBtn(){
             navBar.textContent = "Pendulum";
             mathPanel.style.display = "block";
             defPanel.style.gridTemplateColumns = 'minmax(36pt, auto) 1fr';
-            dragBar.style.display = "block";
+            resizer.style.display = "block";
             root.style.gridTemplateColumns = `minmax(${previousLeftWidth}%, max-content) 2.5pt 1fr`;
 
             pendulum.canvasResized();
         }
     }
 }
+let defControls:{[key:string]:DefControl} = {};
+/**
+ * Semi-linkedList structure for definition management
+ */
+class DefControl{
+    id: string;
+    previous: DefControl = undefined;
+    next: DefControl = undefined;
+    labelControl: LabelControl;
+    statementControl: StatementControl;
+    constructor(id:string) {
+        this.id = id;
+        defControls[id] = this;
+        this.initializeControls();
+        this.updateDefinition();
+    }
+    initializeControls(){
+        let labelContainer = document.getElementById(`${this.id}-label`);
+        this.labelControl = new LabelControl(this, labelContainer, <HTMLElement>labelContainer.children[0]);
+        let statementContainer = document.getElementById(`${this.id}-statement`);
+        this.statementControl = new StatementControl(this, statementContainer, <HTMLElement>statementContainer.children[0]);
+        this.linkControls();
+    }
+    linkControls(){
+        this.labelControl.statementControl = this.statementControl;
+        this.statementControl.labelControl = this.labelControl;
+        this.labelControl.updateSize();
+        this.statementControl.updateSize();
+    }
+    insert(defControl: DefControl){
+        defControl.next = this.next;
+        defControl.previous = this;
+        if(this.next!=undefined){
+            this.next.previous=defControl
+        }
+        this.next = defControl;
+    }
+    insertNewDefinition(){
+        let newID = getID();
+        this.labelControl.insertLabelHTML(newID);
+        this.statementControl.insertStatementHTML(newID);
+        let newDefControl = new DefControl(newID);
+        this.insert(newDefControl);
+    }
+    delete(){
+        if(this.previous!=undefined)
+            this.previous.next = this.next;
+        if(this.next!=undefined)
+            this.next.previous = this.previous;
+        this.labelControl.removeHTML();
+        this.statementControl.removeHTML();
+    }
+    focusNext() {
+        this.statementControl.mathquill.blur();
+        if(this.next!=undefined)
+            this.next.statementControl.mathquill.focus();
+    }
+    focusLast() {
+        this.statementControl.mathquill.blur();
+        if(this.previous!=undefined)
+            this.previous.statementControl.mathquill.focus();
+    }
 
-class NameControl {
+    /**
+     * Label control and statement control should all be fully initialized at this point
+     */
+    updateDefinition(){
+        this.labelControl.setHint(pendulum.getHint(this.statementControl.statement));
+        pendulum.updateDefinition(this.labelControl.label, this.statementControl.statement);
+    }
+}
+
+class LabelControl {
+    parent: DefControl;
     public id = "";
-    public nameContainer:HTMLElement;
-    public nameField:HTMLElement;
+    public labelContainer:HTMLElement;
+    public labelField:HTMLElement;
     public type = ':';
-    public defControl:DefControl = null;
+    public statementControl:StatementControl;
+    public label: SymNode;
     mathquill: any;
     parser: Parser;
-    constructor() {
+    hinting = false;
+    hintTeX = '';
+    constructor(parent: DefControl, container: HTMLElement, field: HTMLElement) {
+        this.parent = parent;
+        this.id = parent.id;
         this.parser = new Parser();
+        this.labelContainer = container;
+        this.labelField = field;
+        this.initiate();
     }
-    /**
-     * Used to synchronize height between definition container and namefield container
-     */
-    updateSize() {
-        let defField = this.defControl.defField;
-        let defContainer = this.defControl.defContainer;
-        $(this.nameContainer).innerHeight($(this.nameField).outerHeight());
-        if (defField.offsetHeight > this.nameField.offsetHeight)
-            $(this.nameContainer).outerHeight($(defContainer).outerHeight(true),true);
-        else $(defContainer).outerHeight($(this.nameField).outerHeight(true));
-    }
-
-    loadDefControl(ec:DefControl) {
-        this.defControl = ec;
-    }
-}
-class DefControl {
-    public id: string = "";
-    public defContainer = document.body;
-    public defField = document.body;
-    public type = ':';
-    public nameControl: NameControl = null;
-    mathquill: any;
-    parser: Parser;
-    constructor() {
-        this.parser = new Parser();
-    }
-    /**
-     * Used to synchronize height between definition container and namefield container
-     */
-    updateSize() {
-        let nameField = this.nameControl.nameField;
-        let nameContainer = this.nameControl.nameContainer;
-        $(this.defContainer).innerHeight($(this.defField).outerHeight());
-        if (this.defField.offsetHeight > nameField.offsetHeight)
-            $(nameContainer).outerHeight($(this.defContainer).outerHeight(true),true);
-        else $(this.defContainer).outerHeight($(nameField).outerHeight(true));
-    }
-
-    loadNameControl(nc = new NameControl()) {
-        this.type = nc.type;
-        this.nameControl = nc;
-    }
-}
-
-function addNameField(id:string, autoIndex = 0) {
-    if (id == undefined) id = (1 + autoIndex).toString();
-    let html = $.parseHTML(
-        `<div class="name-container" varname="${id}">
-            <div class="name">${id}</div>
-            <div class="type">:</div>
-        </div>`);
-    $('#object-bar').append(html);
-    // @ts-ignore
-    let nc = initiateNameControl(id, html[0], html[0].children[0]);
-    nameControls[nc.id] = nc;
-}
-
-function addExpField(id:string, autoIndex = 0) {
-    if (id == undefined) id = (1 + autoIndex).toString();
-    let html = $.parseHTML(
-        `<div class=\"expression-container\" varname=\"${id} \">
-            <span class = \"expression\"></span> 
-        </div>`);
-    $('#mathpanel').append(html);
-    // @ts-ignore
-    let ec = initiateDefControl(id, html[0], html[0].children[0]);
-    defControls[id] = ec;
-}
-
-function focusNext(id:string) {
-    defControls[id].mathquill.blur();
-    defControls[names[(names.indexOf(id) + 1) % names.length]].mathquill.focus();
-}
-
-function focusLast(id:string) {
-    defControls[id].mathquill.blur();
-    defControls[names[(names.indexOf(id) + names.length - 1) % names.length]].mathquill.focus();
-}
-
-function removeNameField(id = "") {
-    let nc = nameControls[id];
-    let html = nc.nameContainer;
-    html.parentNode.removeChild(html);
-}
-
-function removeDefField(id = "") {
-    let ec = defControls[id];
-    let html = ec.defContainer;
-    html.parentNode.removeChild(html);
-}
-
-function appendDefinition(id:string) {
-    addNameField(id);
-    addExpField(id);
-    let autoIndex = getIndex(names.length);
-    nameControls[id].loadDefControl(defControls[id]);
-    defControls[id].loadNameControl(nameControls[id]);
-}
-
-function removeDefinition(id = "") {
-    let index = -1;
-    if ((index = names.indexOf(id)) != -1) {
-        removeNameField(id);
-        delete nameControls[id];
-        removeDefField(id);
-        delete defControls[id];
-        names.splice(index, 1);
-        // core.removeDefinition(id);
-        if (Number.isInteger(+id)) removeIndex(+id - 1);
-    }
-    return index;
-}
-
-function insertNameField(previous = "", id:string, autoIndex = 0) {
-    let html = $.parseHTML(`<div class="name-container" varname="${id}"><div class="name">${id}</div><div class="type">:</div></div>`);
-    let previousContainer = nameControls[previous].nameContainer;
-    previousContainer.parentNode.insertBefore(html[0], previousContainer.nextSibling);
-    let nc = initiateNameControl(id, <HTMLElement>html[0], <HTMLElement>(<HTMLElement>html[0]).children[0]);
-    nameControls[nc.id] = nc;
-}
-
-function insertExpField(previous = "", id:string, autoIndex = 0) {
-    let html = $.parseHTML(`<div class=\"expression-container\" varname=\"${id} \"> <span class = \"expression\"></span> </div>`);
-    let previousContainer = defControls[previous].defContainer;
-    previousContainer.parentNode.insertBefore(html[0], previousContainer.nextSibling);
-    let ec = initiateDefControl(id, <HTMLElement>html[0], <HTMLElement>(<HTMLElement>html[0]).children[0]);
-    defControls[ec.id] = ec;
-}
-
-function insertDefinition(previous = "", id:string = undefined) {
-    let index;
-    if ((index = names.indexOf(previous)) != -1) {
-        let autoIndex = getIndex(index + 1);
-        if (id == undefined) id = (1 + autoIndex).toString();
-        insertNameField(previous, id, autoIndex);
-        insertExpField(previous, id, autoIndex);
-        names.splice(names.indexOf(previous) + 1, 0, id);
-        nameControls[id].loadDefControl(defControls[id]);
-        defControls[id].loadNameControl(nameControls[id]);
-    }
-
-}
-
-function initiateNameControl(id:string, container:HTMLElement, field:HTMLElement) {
-    let nc = new NameControl();
-    nc.nameContainer = container;
-    nc.nameField = field;
-    nc.id = id;
-
-    nc.type = (<HTMLElement>nc.nameContainer.lastElementChild).innerText;
-    // console.log(MQ.MathField);
-    nc.mathquill = MQ.MathField(nc.nameField, {
-        autoSubscriptNumerals: true,
-        handlers: {
-            edit: () => {
-                nc.updateSize();
-                //@TODO: replace name with identifier
-                let label = nc.parser.toStatementTree(nc.mathquill.latex());
-                console.log("updating identifier " + nc.mathquill.latex() + ": " + label);
+    initiate() {
+        this.type = (<HTMLElement>this.labelContainer.lastElementChild).innerText;
+        // console.log(MQ.MathField);
+        this.mathquill = MQ.MathField(this.labelField, {
+            spaceBehavesLikeTab: true,
+            autoSubscriptNumerals: true,
+            handlers: {
             }
+        });
+        this.label = this.parser.toStatementTree(this.mathquill.latex());
+        this.labelField.addEventListener('focusin', this.onFocus.bind(this));
+        this.labelField.addEventListener('focusout', this.onFocusExit.bind(this));
+        this.onFocusExit();
+        console.log("updating identifier " + this.mathquill.latex() + ": " + this.label);
+    }
+    setHint(hint: string){
+        if(hint==undefined)
+            this.hintTeX=this.id;
+        else
+            this.hintTeX=`\\left(${hint}\\right)`;
+        if(this.hinting){
+            this.mathquill.latex(this.hintTeX);
+            this.label = this.parser.toStatementTree(this.mathquill.latex());
         }
-    });
+    }
+    onFocus(){
+        if(this.hinting){
+            this.mathquill.latex('');
+        }
+    }
+    onFocusExit(){
+        this.hinting = this.mathquill.latex()=='';
+        if(this.hinting){
+            this.mathquill.latex(this.hintTeX);
+            this.label = this.parser.toStatementTree(this.mathquill.latex());
+        }
+    }
+    /**
+     * Used to synchronize height between definition container and namefield container
+     */
+    updateSize() {
+        let defField = this.statementControl.statementField;
+        let defContainer = this.statementControl.statementContainer;
+        $(this.labelContainer).innerHeight($(this.labelField).outerHeight());
+        if (defField.offsetHeight > this.labelField.offsetHeight)
+            $(this.labelContainer).outerHeight($(defContainer).outerHeight(true),true);
+        else $(defContainer).outerHeight($(this.labelField).outerHeight(true));
+    }
 
-    let label = nc.parser.toStatementTree(nc.mathquill.latex());
-    console.log("updating identifier " + nc.mathquill.latex() + ": " + label);
-    // core.createDefinition(name);
-    return nc;
+    removeHTML(){
+        this.labelContainer.parentNode.removeChild(this.labelContainer);
+    }
+    insertLabelHTML(newID: string) {
+        let html = $.parseHTML(`<div class="name-container" id="${newID}-label" defID="${newID}"> <div class="name"></div> <div class="type">:</div></div>`);
+        this.labelContainer.parentNode.insertBefore(html[0], this.labelContainer.nextSibling);
+    }
 }
 
-function initiateDefControl(id:string, container:HTMLElement, field:HTMLElement) {
-    let ec = new DefControl();
-    ec.defContainer = container;
-    ec.defField = field;
-    ec.id = id;
-    // ec.parser = new Parser();
-    ec.mathquill = MQ.MathField(ec.defField, {
-        autoSubscriptNumerals: true,
-        autoCommands:'mathbf partial',
-        handlers: {
-            edit: () => {
-                ec.updateSize();
-                // core.resizeGraphics();
-                let root = ec.parser.toStatementTree(ec.mathquill.latex());
-                pendulum.updateDefinition(id, root);
-            },
-            enter: () => {
-                insertDefinition(ec.id);
-                focusNext(ec.id);
-            },
-            deleteOutOf: (direction:any) => {
-                if (direction == MQ.L) {
-                    focusLast(id);
-                    removeDefinition(id);
-                }
-            },
-            upOutOf: () => focusLast(id),
-            downOutOf: () => focusNext(id),
-        }
-    });
-    let root = ec.parser.toStatementTree(ec.mathquill.latex());
-    pendulum.updateDefinition(id, root);
-    return ec;
+class StatementControl {
+    parent: DefControl;
+    public id: string = "";
+    public statementContainer:HTMLElement;
+    public statementField:HTMLElement;
+    public type = ':';
+    public labelControl: LabelControl;
+    mathquill: any;
+    parser: Parser;
+    statement: SymNode;
+    constructor(parent: DefControl, container: HTMLElement, field: HTMLElement) {
+        this.parent = parent;
+        this.id = parent.id;
+        this.parser = new Parser();
+        this.statementContainer = container;
+        this.statementField = field;
+        this.initiate();
+    }
+    /**
+     * Used to synchronize height between definition container and namefield container
+     */
+    updateSize() {
+        let nameField = this.labelControl.labelField;
+        let nameContainer = this.labelControl.labelContainer;
+        $(this.statementContainer).innerHeight($(this.statementField).outerHeight());
+        if (this.statementField.offsetHeight > nameField.offsetHeight)
+            $(nameContainer).outerHeight($(this.statementContainer).outerHeight(true),true);
+        else $(this.statementContainer).outerHeight($(nameField).outerHeight(true));
+    }
+
+    initiate() {
+        // ec.parser = new Parser();
+        this.mathquill = MQ.MathField(this.statementField, {
+            autoSubscriptNumerals: true,
+            autoCommands:'mathbf partial',
+            handlers: {
+                edit: this.onEdit.bind(this),
+                enter: () => {
+                    this.parent.insertNewDefinition();
+                    this.parent.focusNext();
+                },
+                deleteOutOf: (direction:any) => {
+                    if (direction == MQ.L) {
+                        this.parent.focusLast();
+                        this.parent.delete();
+                    }
+                },
+                upOutOf: () => this.parent.focusLast(),
+                downOutOf: () => this.parent.focusNext(),
+            }
+        });
+        this.statement = this.parser.toStatementTree(this.mathquill.latex());
+        this.statementContainer.addEventListener('focusin', this.onFocus.bind(this));
+        this.statementContainer.addEventListener('focusout', this.onFocusExit.bind(this));
+    }
+    loadStatement(){
+        this.statement = this.parser.toStatementTree(this.mathquill.latex());
+        this.parent.updateDefinition();
+    }
+    onEdit(){
+        this.updateSize();
+        this.loadStatement();
+    }
+    onFocus(){
+        if(this.parent.previous!=undefined)
+            this.parent.previous.statementControl.statementContainer.style.borderBottomWidth='0';
+    }
+    onFocusExit(){
+        if(this.parent.previous!=undefined)
+            this.parent.previous.statementControl.statementContainer.style.removeProperty('border-bottom-width');
+    }
+    removeHTML(){
+        this.statementContainer.parentNode.removeChild(this.statementContainer);
+    }
+    insertStatementHTML(newID: string) {
+        let html = $.parseHTML(`<div class=\"expression-container\" id="${newID}-statement" defID="${newID}"> <span class = \"expression\"></span> </div>`);
+        mathPanel.insertBefore(html[0], this.statementContainer.nextSibling);
+    }
 }
 
 export  {
-    nameControls,
     defControls,
     load
 };

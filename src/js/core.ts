@@ -27,6 +27,8 @@ class Core {
      * @param statement
      */
     guessLabel(statement: SymNode): string{
+        if(statement==undefined)
+            return undefined;
         //First investigate if an equation is present
         if(!(statement.type == 'operator'&&statement.content == 'equal')){
             return undefined;
@@ -69,6 +71,9 @@ class Core {
      */
     resolveEquation(label: string, statement: SymNode):number {
         // Check if an equation is given.
+        if(label == undefined){
+            throw new ResolutionError("Unable to guess label");
+        }
         if(statement == undefined){
             throw new ResolutionError("No definition");
         }

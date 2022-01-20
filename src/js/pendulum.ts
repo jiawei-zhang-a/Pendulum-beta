@@ -60,14 +60,20 @@ class Pendulum{
     deleteGraph(label: string){
         this.canvas.removeGraph(label);
     }
-    updateDefinition(label: string, definition: SymNode){
+
+    getHint(statement: SymNode) {
+        return this.core.guessLabel(statement);
+    }
+    updateDefinition(label: SymNode, definition: SymNode){
         try{
-            this.core.resolveEquation(label, definition);
-            let variable = this.core.environment.variables[label];
+            if(label == undefined)
+                return;
+            this.core.resolveEquation(label.content, definition);
+            let variable = this.core.environment.variables[label.content];
             variable.loadVisualization(this);
         }catch (e) {
             console.log(e);
-            this.wipeGraph(label);
+            this.wipeGraph(label.content);
         }
     }
 

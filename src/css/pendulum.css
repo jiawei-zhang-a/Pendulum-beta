@@ -17,7 +17,6 @@ body {
     outline: none;
 }
 
-
 #root {
     --blue: #3abdff;
     --blueShadow: #007fbe;
@@ -194,7 +193,6 @@ body {
     position: relative;
 }
 
-
 .name-container .name {
     width: 100%;
     padding-left: 15px;
@@ -227,7 +225,7 @@ body {
 }
 
 #object-bar>* :hover .mq-cursor {
-    border-left: 1px solid black;
+    border-left: 1px solid white;
 }
 
 #object-bar>.active {
@@ -253,22 +251,17 @@ body {
 
 .expression-container {
     margin: 0px;
-    display: table-row;
+    display: flex;
     /*height: stretch;*/
     min-height: 50px;
-    border-width: 1px 0px 0px 0px;
+    border-width: 0px 0px 1px 0px;
     border-style: solid;
     border-color: var(--grayShadow);
-    display: flex;
 }
 
 .expression-container:focus-within {
     border-width: 2px 2px 2px 0px;
     border-color: lightskyblue;
-}
-
-.expression-container:focus-within+.expression-container {
-    border-width: 0px 0px 0px 0px;
 }
 
 .expression-container .expression {
@@ -279,4 +272,27 @@ body {
     border: none;
     box-shadow: none;
     align-self: center;
+}
+
+/* width */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 3px;
+    margin: 3pt;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+    background: #b6b6b6;
+    border-radius: 3px;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+    background: #a2a2a2;
 }
