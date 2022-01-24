@@ -35,12 +35,19 @@ class Core {
         }
         let lhs = statement.children[0];
         let rhs = statement.children[1];
+        if(lhs==undefined||rhs==undefined)
+            return undefined;
         //Check for singletons
-        if(lhs.type=='$'||lhs.type=='func$')
+        if((lhs.type=='$'||lhs.type=='func$')){
+            if('xyz'.indexOf(lhs.content)!=-1)
+                return undefined;
             return lhs.content;
-        if(rhs.type=='$'||rhs.type=='func$')
+        }
+        if(rhs.type=='$'||rhs.type=='func$'){
+            if('xyz'.indexOf(lhs.content)!=-1)
+                return undefined;
             return rhs.content;
-
+        }
         let leaves;
         try{//Check for expression completeness
             leaves = statement.getLeaves();
@@ -69,7 +76,7 @@ class Core {
      * @param statement
      * @return parseMessage the message constant that prompts the UI response
      */
-    resolveEquation(label: string, statement: SymNode):number {
+    resolveEquation(label: SymNode, statement: SymNode):number {
         // Check if an equation is given.
         if(label == undefined){
             throw new ResolutionError("Unable to guess label");
@@ -87,32 +94,40 @@ class Core {
                 throw e;
         }
         console.log(label);
-        if(isNaN(Number(label))&&!this.containsLabel(label, leaves))
+        if(this.isEquation(statement)&&label.type=='$'||label.type=='$func'
+            &&!this.containsLabel(label.content, leaves))
             throw new ResolutionError("Invalid label override");
         let variable = this.defineEqnVariable(label, statement);
         console.log(variable);
-        this.environment.variables[label] = variable;
+        this.environment.variables[label.content] = variable;
         variable.pulseDependents();
         variable.createEvalHandle();
         return 0;
     }
 
-    defineEqnVariable(label: string, statement:SymNode):Variable{
+    /**
+     * Tests whether a given statement is an equation
+     * @param statement
+     */
+    isEquation(statement: SymNode){
+        return statement.type=='operator'&&statement.content=='=';
+    }
+
+    defineEqnVariable(label: SymNode, statement:SymNode):Variable{
         if(!(statement.content=='equal'&&statement.type=='operator'))
-            return this.readExplicitDefinition(label, undefined, statement);
-        let variable:Variable;
+            return this.readExplicitDefinition(label.content, label, statement);
         let lhs = statement.children[0];
         let rhs = statement.children[1];
         // Explicit definition. Left hand side is a singleton of a variable
         if(lhs.type == '$' || lhs.type == 'func$'){
             let rhsLeaves = statement.children[1].getLeaves();
             if(!this.containsLabel(lhs.content, rhsLeaves))
-                return this.readExplicitDefinition(label, statement.children[0], statement.children[1])
+                return this.readExplicitDefinition(label.content, lhs, rhs);
         }
         if(rhs.type == '$' || rhs.type == 'func$'){
             let lhsLeaves = statement.children[0].getLeaves();
             if(!this.containsLabel(rhs.content, lhsLeaves))
-                return this.readExplicitDefinition(label, statement.children[1], statement.children[0])
+                return this.readExplicitDefinition(label.content, rhs, lhs);
         }
         return this.readImplicitDefinition(label, statement);
     }
@@ -133,13 +148,12 @@ class Core {
 
     /**
      * Interpret the statement tree as native data representations.
-     * @param label Given name of variable whose value is defined by the statement tree.
+     * @param label Label specified by the user
      * @param defined Tree representation of the variable that is defined, should be a leaf here.
      * @param definition Tree representation of the definition in terms of an expression
      */
     readExplicitDefinition(label: string, defined: SymNode, definition: SymNode): Variable {
         let newVar:Variable;
-
         // For redefinition, erase the previous dependencies, retain the dependants.
         if(this.environment.variables[label] != undefined) {
             newVar = this.environment.variables[label];
@@ -207,7 +221,7 @@ class Core {
         return newVar;
     }
 
-    readImplicitDefinition(label: string, expression: SymNode):Variable {
+    readImplicitDefinition(label: SymNode, expression: SymNode):Variable {
         throw new ResolutionError("not yet implemented");
     }
 
@@ -263,6 +277,8 @@ class Core {
             return 'a.div';
         if(operator == 'neg')
             return '-';
+        if(operator == 'ln')
+            return 'Math.log';
         if(operator == 'cos'||operator == 'sin'||operator=='tan' ||operator == 'sqrt')
             return 'Math.'+operator;
         if(operator == 'cot')

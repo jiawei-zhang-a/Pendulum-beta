@@ -823,3 +823,18 @@ the upper clause should be syParsed respectively and collapsed into separate tre
 and the lower clause tree shall go into the children of the SymNode representing 'sum', along with the root of the statement
 that it is operating on. 'sum', aside from its clumsy definition body, should be treated somewhat like 'function' typed token
 'sin', where the right associativity holds up until addition/subtractions.
+
+#### Parenthesis special cases: function collapse & vector collapse
+In normal shunting-yard parsings, parenthesis are discarded. However, in some cases parenthesis may entail important conventions
+or information besides evaluation priorities. 
+* In particular, equations of the form `cos\left(...\right)`, namely a function followed by a pair of parenthesis implies that the content
+enclosed by the parenthesis should be immediately absorbed by cos no matter what comes after. As opposed to the bare case where
+`cos x^2` may seem indistinguishable from `cos(x)^2` when we discard parenthesis, `cos x^2` gets parsed into `cos {^{x,2}}` while
+the latter becomes `^{cos {x},2}` due to the function collapse protocol. _This is the main way how functions differs from operators
+in terms of operator typing_.
+  * The algorithm is when a closing parenthesis gets collapsed with the opening parenthesis in the parse stack: `[..., (] <- ')'`-->
+    `[(,?, ...] <- ')'`, it checks one element further down into the parse stack (shunting yard) to see if the new top is function typed
+    right after the collapse, `(...)<-[function, ..]` so that function typed token will be popped and absorb the parenthesis enclosing
+    node: `function{...}`.
+* Equations of the form `(...,...)` with at least one `,` token are considered vector typed. A vector typed SymNode will enclose
+the components as its children, and more on vector typed variables later.

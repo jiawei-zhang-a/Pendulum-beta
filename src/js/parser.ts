@@ -112,7 +112,7 @@ let macros:MStruct = {
             'i': ['pi', 'constant', 0],
             'r': {
                 'o': {
-                    'd': ['prod', 'function', 2]
+                    'd': ['prod', 'operator', 2]
                 }
             }
         },
@@ -134,7 +134,7 @@ let macros:MStruct = {
                 'n': ['sin', 'function', 1]
             },
             'u': {
-                'm': ['sum', 'function', 2]
+                'm': ['sum', 'operator', 2]
             },
             'q': {
                 'r': {
@@ -418,7 +418,7 @@ class Token{
      */
     checkNegation(previousType: string){
         if(this.content=='sub'){
-            if(previousType==undefined||previousType=='operator'){
+            if(previousType==undefined||previousType=='operator'||previousType=='openStruct'){
                 this.content = 'neg';
             }
         }
@@ -585,30 +585,20 @@ class Parser{
                 while(shuntingYard.length!=0&&shuntingYard[shuntingYard.length-1].type!='openstruct'
                     &&this.compareAssociativity(shuntingYard[shuntingYard.length-1], token)) {
                     let operator = shuntingYard.pop();
-                    let node = new SymNode();
-                    node.type = operator.type;
-                    node.content = operator.content;
-                    node.token = operator;
-                    let operandCount = this.operatorChart[operator.content][2];
-                    for(let i = 0; i<operandCount; i++){
-                        node.children[operandCount-i-1]=tray.pop();
-                    }
-                    tray.push(node);
+                    this.collapseOperator(operator, tray);
                 }
                 shuntingYard.push(token);
             } else if(token.type == 'openstruct')
                 shuntingYard.push(token);
             else if(token.type == 'closestruct'){
+                //This clause also needs to take care of the unmatched close struct in the token list or subclauses
                 let operator;
                 while(shuntingYard.length!= 0 && formats[(operator=shuntingYard.pop()).content]!=token.content){
-                    let node = new SymNode();
-                    node.type = operator.type;
-                    node.content = operator.content;
-                    node.token = operator;
-                    for(let i = this.operatorChart[operator.content][2]-1; i>=0; i--){
-                        node.children[i] = tray.pop();
-                    }
-                    tray.push(node);
+                    this.collapseOperator(operator, tray);
+                }//After parenthesis, check one element down the parse stack
+                if(token.content==')'&&shuntingYard[shuntingYard.length-1]!=undefined
+                    &&shuntingYard[shuntingYard.length-1].type=='function'){
+                    this.collapseOperator(shuntingYard.pop(), tray);
                 }
                 if(token.content=='diff'){
                     let node  = new SymNode();
@@ -624,6 +614,23 @@ class Parser{
         return tray[0];
     }
 
+    /**
+     * Collapses the specified operator into the tray with
+     * a newly instantiated SymNode enclosing it
+     * @param operator
+     * @param tray
+     */
+    collapseOperator(operator: Token, tray: SymNode[]){
+        let node = new SymNode();
+        node.type = operator.type;
+        node.content = operator.content;
+        node.token = operator;
+        let operandCount = this.operatorChart[operator.content][2];
+        for(let i = 0; i<operandCount; i++){
+            node.children[operandCount-i-1]=tray.pop();
+        }
+        tray.push(node);
+    }
     /**
      * Reuse syParse to generate statement trees for all subclauses recursively.
      * @param node

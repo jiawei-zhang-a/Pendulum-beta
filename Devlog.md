@@ -141,3 +141,9 @@ Multivariate function definition:
 User interface development. Outlined the module-based nature and the loading architecture of UI. Implemented the drag bar
 (the divider) and the defSettingsBtn, which allows users to adjust the size of the definition area to give more space to the
 canvas. Minor font adjustments. Slight adjustments to the css layouts of the defpanel to produce more consistent results.
+
+#### 01/23/22
+Fix SymNode labeling and direct definition (without equal sign) in core module. Specify and implement 
+function-parenthesis collapse for expressions like `\sin\left(x\right)` in syParsing. Line up and implement 
+minor changes in operator associativity. Now nested parameterized variables are fully functioning.
+![img.png](images/2022-01-23-1.png)

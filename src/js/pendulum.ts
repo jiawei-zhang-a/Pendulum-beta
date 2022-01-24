@@ -68,7 +68,7 @@ class Pendulum{
         try{
             if(label == undefined)
                 return;
-            this.core.resolveEquation(label.content, definition);
+            this.core.resolveEquation(label, definition);
             let variable = this.core.environment.variables[label.content];
             variable.loadVisualization(this);
         }catch (e) {
