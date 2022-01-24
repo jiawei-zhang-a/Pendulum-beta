@@ -145,5 +145,6 @@ canvas. Minor font adjustments. Slight adjustments to the css layouts of the def
 #### 01/23/22
 Fix SymNode labeling and direct definition (without equal sign) in core module. Specify and implement 
 function-parenthesis collapse for expressions like `\sin\left(x\right)` in syParsing. Line up and implement 
-minor changes in operator associativity. Now nested parameterized variables are fully functioning.
+minor changes in operator associativity. Now nested parameterized variables are fully functioning. Experiment with
+orthographic camera.
 ![img.png](images/2022-01-23-1.png)
