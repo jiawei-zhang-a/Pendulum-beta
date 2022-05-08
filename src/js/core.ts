@@ -523,7 +523,7 @@ class Variable {
      */
     loadVisualization(pendulum: Pendulum){
         let algebraics = this.getAlgebraics();
-        pendulum.updateGraph(this.name, this.evalHandle.compute.bind(this.evalHandle));
+        return pendulum.updateGraph(this.name, this.evalHandle.compute.bind(this.evalHandle));
     }
     /**
      * Instantiates a new evaluation handle for the variable. The type

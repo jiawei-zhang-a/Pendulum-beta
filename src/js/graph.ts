@@ -6,7 +6,7 @@ const colors: {[key:string]:number}= {
     blue: 0x0065fb,
     green: 0x378b59,
     purple: 0x8300de,
-    mint: 0x83ffde,
+    mint: 0x2effc7,
     red: 0xd82c5d,
     lightgray: 0xf3f3f3,
     air: 0xf0f8ff,
@@ -75,6 +75,8 @@ abstract class Graph {
     mesh: THREE.Mesh|THREE.Line;
     //Vector providing camera orientation for rendering optimization
     cameraPosition: THREE.Vector3;
+    //For informational use
+    color: string;
     protected constructor (name: string) {
         this.name = name;
     }
@@ -98,6 +100,10 @@ abstract class Graph {
 
     setMaterial(material:THREE.Material){
         this.material = material;
+    }
+
+    queryColor(){
+        return colors[this.color];
     }
 
     /**
@@ -149,6 +155,7 @@ class CartesianGraph extends Graph{
     constructGeometry(param:{[key:string]:string}=
                           {'material': "standard", 'color': "blue"}): void {
         this.geometry = new THREE.BufferGeometry();
+        this.color = (param['color'])?param['color']:'blue';
         this.geometry.setAttribute( 'position', new THREE.BufferAttribute( this.vertices, 3 ) );
         this.material = createMaterial((param['material'])?param['material']:'standard',
                                 (param['color'])?param['color']:'blue');

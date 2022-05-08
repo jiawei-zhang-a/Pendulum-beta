@@ -24,6 +24,7 @@ function load(pendulum:Pendulum){
     loadComponents();
     loadDragBar();
     loadDefinitions();
+    loadAddBtn();
     loadDefSettingsBtn();
 }
 
@@ -37,6 +38,7 @@ let resizer: HTMLElement,
     graphPanel:HTMLElement,
     root: HTMLElement,
     defSettings: HTMLElement,
+    addButton: HTMLElement,
     navBar: HTMLElement,
     mathPanel: HTMLElement,
     defBar: HTMLElement;
@@ -46,6 +48,7 @@ function loadComponents(){
     defPanel = document.getElementById('defpanel');
     graphPanel = document.getElementById('graphpanel');
     root = <HTMLElement> document.getElementById('root');
+    addButton = document.getElementById("addButton");
     defSettings = document.getElementById("defSettings");
     navBar = document.getElementById("navbar");
     mathPanel = document.getElementById("mathpanel");
@@ -104,7 +107,7 @@ function loadDragBar(){
 // Attach the handler
     resizer.addEventListener('mousedown', mouseDownHandler);
 }
-
+let defRoot: DefControl = undefined;
 function loadDefinitions(){
     let expressionContainers = $('.expression-container');
     let prev:DefControl = undefined;
@@ -112,6 +115,8 @@ function loadDefinitions(){
         let expression = expressionContainers[i];
         let id = expression.getAttribute('defID');
         let def = new DefControl(id);
+        if(defRoot == undefined)
+            defRoot = def;
         def.previous=prev;
         if(prev!=undefined)
             prev.next = def;
@@ -121,7 +126,6 @@ function loadDefinitions(){
 }
 
 function loadDefSettingsBtn(){
-
     let hideExpressions = false;
     defSettings.addEventListener("click", toggleHideExpressions);
     let previousLeftWidth = 0;
@@ -149,6 +153,12 @@ function loadDefSettingsBtn(){
         }
     }
 }
+function loadAddBtn(){
+    addButton.addEventListener("click", addFunction);
+}
+function addFunction(){
+    defRoot.getLast().insertNewDefinition();
+}
 let defControls:{[key:string]:DefControl} = {};
 /**
  * Semi-linkedList structure for definition management
@@ -169,7 +179,9 @@ class DefControl{
         let labelContainer = document.getElementById(`${this.id}-label`);
         this.labelControl = new LabelControl(this, labelContainer, <HTMLElement>labelContainer.children[0]);
         let statementContainer = document.getElementById(`${this.id}-statement`);
-        this.statementControl = new StatementControl(this, statementContainer, <HTMLElement>statementContainer.children[0]);
+        this.statementControl = new StatementControl(this, statementContainer,
+            <HTMLElement>statementContainer.children[0],
+            <HTMLElement>statementContainer.children[1]);
         this.linkControls();
     }
     linkControls(){
@@ -194,6 +206,11 @@ class DefControl{
         this.insert(newDefControl);
     }
     delete(){
+        if(defRoot == this)
+            if(this.next != undefined)
+                this.next = defRoot;
+            else
+                return;
         if(this.previous!=undefined)
             this.previous.next = this.next;
         if(this.next!=undefined)
@@ -218,6 +235,12 @@ class DefControl{
     updateDefinition(){
         this.labelControl.setHint(pendulum.getHint(this.statementControl.statement));
         pendulum.updateDefinition(this.labelControl.label, this.statementControl.statement);
+        this.statementControl.setColor(pendulum.queryColor(this.labelControl.label));
+    }
+    getLast():DefControl{
+        if(this.next==undefined)
+            return this;
+        else return this.next.getLast();
     }
 }
 
@@ -304,17 +327,19 @@ class StatementControl {
     public id: string = "";
     public statementContainer:HTMLElement;
     public statementField:HTMLElement;
+    public colorBox: HTMLElement;
     public type = ':';
     public labelControl: LabelControl;
     mathquill: any;
     parser: Parser;
     statement: SymNode;
-    constructor(parent: DefControl, container: HTMLElement, field: HTMLElement) {
+    constructor(parent: DefControl, container: HTMLElement, field: HTMLElement, colorBox:HTMLElement) {
         this.parent = parent;
         this.id = parent.id;
         this.parser = new Parser();
         this.statementContainer = container;
         this.statementField = field;
+        this.colorBox = colorBox;
         this.initiate();
     }
     /**
@@ -374,9 +399,23 @@ class StatementControl {
         this.statementContainer.parentNode.removeChild(this.statementContainer);
     }
     insertStatementHTML(newID: string) {
-        let html = $.parseHTML(`<div class=\"expression-container\" id="${newID}-statement" defID="${newID}"> <span class = \"expression\"></span> </div>`);
+        let html = $.parseHTML(
+            `<div class=\"expression-container\" id="${newID}-statement" defID="${newID}"> 
+                    <span class = \"expression\"></span>
+                    <div class="color-box"></div> 
+                </div>`);
         mathPanel.insertBefore(html[0], this.statementContainer.nextSibling);
     }
+    setColor(color: number) {
+
+        if(color>=0){
+            let b = color & 0xFF,
+                g = (color & 0xFF00) >>> 8,
+                r = (color & 0xFF0000) >>> 16;
+            this.colorBox.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+        }
+    }
+
 }
 
 export  {

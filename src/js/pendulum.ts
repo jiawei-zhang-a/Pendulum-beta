@@ -78,6 +78,20 @@ class Pendulum{
     }
 
     /**
+     * Queries for the color of a particular graph with
+     * specified label
+     */
+    queryColor(label: SymNode){
+        if(this.canvas.graphs[label.content]!=undefined){
+            console.log(this.canvas.graphs[label.content].color);
+            console.log(this.canvas.graphs[label.content].queryColor());
+            return this.canvas.graphs[label.content].queryColor();
+        }
+        else
+            return -1;
+    }
+
+    /**
      * Makes an active call to resize the canvas, especially useful
      * for UI drag bar updates
      */
