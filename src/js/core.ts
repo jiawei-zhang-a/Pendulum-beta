@@ -246,7 +246,7 @@ class Core {
             case '#':
                 return node.content;
             case 'constant':
-                return 'Math.'+node.content;
+                return 'Math.'+node.content.toUpperCase();
             case 'operator':
             case 'function':
                 for(let subTree of node.children){

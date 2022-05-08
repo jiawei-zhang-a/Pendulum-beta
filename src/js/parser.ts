@@ -1,4 +1,5 @@
 const addInvisibleDots = true;
+const convertE = true;
 //Parsing constants
 const zerocode = '0'.charCodeAt(0);
 const ninecode = '9'.charCodeAt(0);
@@ -244,12 +245,21 @@ class Token{
                         case '.':
                         case 'digit':
                         case 'letter':
+                            if(convertE&&this.content == 'e'){
+                                this.type = "constant";
+                            }
                             terminating = true;
                             break;
                         case 'symbol':
                         case 'space':
+                            if(convertE&&this.content == 'e'){
+                                this.type = "constant";
+                                terminating = true;
+                                break;
+                            }
                             if(char == '_') state = 'var_';
-                            else if(tex.substr(i, 6)=='\\left(') return this.parseClauses(tex, i, 1);
+                            else if(tex.substr(i, 6)=='\\left(')
+                                return this.parseClauses(tex, i, 1);
                             else terminating = true;
                     }
                     break;
@@ -575,7 +585,7 @@ class Parser{
         let shuntingYard:Token[] = [];
         let tray: SymNode[] = [];
         for(let token of tokenList){
-            if(token.type == '$' ||token.type == '#' ||token.type == 'func$'){
+            if(token.type == '$' ||token.type == '#' ||token.type == 'func$'||token.type == 'constant'){
                 let node = new SymNode();
                 node.type = token.type;
                 node.content = token.content;
