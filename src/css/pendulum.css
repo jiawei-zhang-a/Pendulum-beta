@@ -116,6 +116,7 @@ body {
     justify-content: center;
     display: flex;
     flex-direction: column;
+    background: var(--mainHighlight);
 }
 
 #defSettings, #addButton {
@@ -284,8 +285,8 @@ body {
     justify-self: center;
     align-self: center;
     margin-left: 15px;
-    width: 23px;
-    height: 23px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
     background-color: #66aaee;
     border-radius: 2.5px;

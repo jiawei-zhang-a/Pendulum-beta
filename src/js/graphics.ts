@@ -97,13 +97,13 @@ class Canvas{
 function init() {
 
     let camera: THREE.Camera, scene: THREE.Scene, renderer: WebGLRenderer;
-    //camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
     let dpp = 30;
     let htmlElement = document.getElementById("graphpanel");
     let width = htmlElement.offsetWidth;
     let height = htmlElement.offsetHeight
-    camera = new THREE.OrthographicCamera(-width/2/dpp, width/2/dpp,
-            height/2/dpp, -height/2/dpp, 0.1, 2000);
+    // camera = new THREE.OrthographicCamera(-width/2/dpp, width/2/dpp,
+    //         height/2/dpp, -height/2/dpp, -2000, 2000);
     camera.position.y = -12;
     //camera.position.z = 10;
     camera.lookAt(0, 0, 0);

@@ -228,6 +228,31 @@ is explicitly sorting the facelets behind the hood, while enjoying maximal rende
 
 ![img_30.png](img_30.png)
 
+### Vector3D
+This is a subclass of graph that deals with the visualization of vectors. This class serves to visualize 
+a single vector at a specified origin using `THREE.BufferedGeometry`. One needs to specify the `number[]`
+typed vector upon its initialization. When populate is called, it internally constructs a 3D basis with 
+the current direction specified by the vector, and builds an 3D arrow mesh around this basis. Optional
+parameters of the class include `colorInterface, lengthInterface` that computes the length and color of
+the visualizations based on the specified vector. There is also `tailRadius` and `headRadius` specifying
+the size of the tails and heads of the visualization. `cCount` and `zCount` are constants specifying the 
+mesh fineness, and are pre-adjusted to an optimum configuration.
+#### Basis creation
+The goal is to construct a basis with the z' axis aligned with the vector. The x' and y' component lying
+perpendicular to the z-component. We use polar coordinate system to achieve this goal. Suppose the 
+visualized vector is $\vec{r}$, then the z' vector will be $\hat r$, x' and y' will be $\hat{\theta}$
+and $\hat{\phi}$ respectively in this case.
+![img_32.png](img_32.png)
+For the special case where rx = 0, we pick θ = π/2, which takes care of the case where \vec r is aligned
+the z axis or being in the yz plane. 
+#### Mesh creation
+The parameterized surfaces of the arrow are as follows.
+![img_33.png](img_33.png)
+To optimize for efficiency, we try to make a high quality 3D arrow mesh with the least number of 
+vertices. The cylindrical part is produced by its bottom disk and its top disk, each mapped using
+cCount vertices, the top and bottom surfaces are then connected using triangles.
+For the cone, it is generated with two disks in the z direction, and a single vertex at exactly the tip.
+
 ## Core (`Core`)
 Core is the computation center that gives life to the Pendulum system. It
 - Receives and compiles commands from the UI
@@ -369,7 +394,13 @@ The first entry of a reference always specifies the type of the local variable. 
                        //...
                        [0.79], //x, some number supplied by the caller (graphics module)
                        [],//y
-                       []];//z
+                       [],//z
+                       [],//\vec{a}
+                       [],//\vec{b}
+                       [],//\vec{c}
+                       //...           
+                       [],//\vec{z}
+                      ];
    ```
     * Valid algebraics: $a_1$, $a_3$, $\{z_i\}_{[10]}$,  
     Non-valid algebraics: μ, $P _{ressure}$, $\text{System}$.
@@ -384,13 +415,19 @@ Each variable has a `evaluate(inputs,context)` function that wraps around the pi
 same context will be passed down recursively to all subsequent $.evaluation$ calls dispatched by the current instance:
 
 ```javascript
-variable.context = [[],//a
-[],//b
-[], //c
-//...
-[1.21], //x, some number supplied by the caller (graphics module)
-[],//y
-[]];//z
+ variable.context = [[],//a
+    [],//b
+    [NaN,11.34], //c0, some number supplied by the caller
+    //...
+    [0.79], //x, some number supplied by the caller (graphics module)
+    [],//y
+    [],//z
+    [],//\vec{a}
+    [],//\vec{b}
+    [],//\vec{c}
+    //...           
+    [],//\vec{z}
+];
 ```
 
 ![img_6.png](img_6.png)  
@@ -413,6 +450,235 @@ dynamic programming for non-parameterized functions can be achieved.
   functions are available for dynamic programming.
   
 - Function namings that don't follow the algebraic variable naming will not be available for dynamic programming.
+
+### Vector Processing
+Besides scalars, Pendulum also needs to support algebraic operations of vector and array typed quantities, as well as complex numbers. We start by specifying the set of conventions
+governing i/o and operations of vector & array typed quantities.
+
+#### Parsing Conventions
+For the parsing conventions we want something that are powerful and robust, allowing operations like creation of matrices,
+cartesian products. Here, we make the behaviors of arrays and vectors distinct, as they both hold an arbitrary amount of numbers, vectors
+are backed by their geometric importance while arrays are treated more like an ordered set of number/data.
+* ( , , ): Vector definition
+* [ , , ]: Array definition
+
+We specify the behaviors of different operators on scalar typed, vector typed, and array typed quantities:
+* ×:
+    * When acting on scalars, it is multiplication
+    * When acting on arrays, it is cartesian product
+    * When acting on vectors, it is cross product
+* ⋅:
+    * Scalars: multiplication
+    * Arrays: termwise products,
+      sub-elements inherit invisible dot product
+    * Vectors: dot product
+* invisDot:
+    * Scalars: multiplication
+    * Arrays: termwise product
+    * Vectors: matrix product
+* ⊗:
+    * Scalars: illegal operator
+    * Arrays: cartesian product
+    * Vectors: tensor product
+
+By default, all operators and functions that admit scalars can act on arrays to perform termwise operations.
+
+#### Type conventions
+Non-scalar quantities can have nested quantities. For example, vectors can contain complex numbers to form complex vectors,
+vectors can contain other vectors to form matrices; arrays can contain other arrays to form data matrices.
+* Vectors can contain scalars & complex numbers
+* Vectors can also contain vectors of the same dimensions to represent a matrix
+* (~, ~, ~) by default represents column vector
+* (~  ~  ~) by default represents row vector
+#### Core Implementation
+* Arithmetics should support type overloading
+* Operator overloading is supported through recursion
+    * Base case are plain numbers or those that are typed as real
+* Now context, evaluate should all support and transfer plain numbers and a data type called Quantity.
+```typescript
+class Quantity extends Number{
+    type: string; /*enum*/
+    data: number | Quantity[] | number[];
+    size: number; 
+}
+```
+* The variable type that data holds should be represented uniquely by the 'type' field, namely,
+  ![img_34.png](img_34.png)
+  so there are no ambiguity as to how to handle the data of the Quantity.
+* Allowed types: real, complex, array, vector
+#### Variable typing
+* We shall distinguish between the type of a variable and the type of the quantity that its expression yields.
+* Variable types are independent of the type of quantities that underlies.
+  * Variable types themselves don't carry type information, regardless of being algebraic, constant, or function.
+* In terms of determining the quantity type of the output of an expression, there is ultimately one 
+solution which is evaluation. This makes it necessarily so that variables are **dynamically typed**, since it takes
+as much effort to compute the quantity type transitions in an expression, like that `dot(\vec{a},\vec{b})` should
+yield scalar, as it does to evaluate the expression itself.
+  * Upon evaluation, the returned quantity of an expression like `dot(\vec{a},\vec{b})` always carries the type
+  'real' or 'complex' depending on the inputs. Hence, if an expression is operating on incompatible quantities,
+  like `\vec{a}+b`, the evaluation process can always be counted on to throw errors and inform user the 
+  incompatibility in the expression.
+  * The other reason for dynamic typing is that PiScript runs as a **fully interactive language**, the completion of
+  the input of an expression is simultaneous with its compilation and evaluation, so when there is no difference,
+  to the users, between compilation and evaluation, it appears as if **the validity of the expressions** that he is
+  entering are immediately checked. 
+  * It may even be possible to enable type query in the future, where user can hover cursor over any part of an
+  expression and check the (quantity) type of that algebraic symbol or operator, in the context of that 
+  expression. To enable this functionality, source mapping will be needed for each part of the parsing pipeline,
+  and quantities in the intermediate steps of evaluating the PiScript needs to be kept or sampled, and their 
+  types loaded back into the laTeX tokens through the source mapping.
+  * Again, since it takes as much effort to compute the type transitions as to evaluate the expressions, what the
+  users will then see are not predictions of the type transitions, but the actual type transitions sampled from
+  the process of evaluation.
+* The main challenge or impossibility when it comes to statically typing the PiScript expressions, is due to the
+fact that operators and hence functions can be overloaded. The functions are overloaded not just in terms of the
+parameters they admit, which is the case of Java, but also in terms of their returned values, e.g. vector \cross vector
+-> vector, array \cross array-> array; combined with the fact that a function defined at one place can be reused
+by users in two different places with two different kinds of inputs as parameters, there is no real consistency 
+when it comes to predicting the type outcome of expressions. It is a recursive process instead of being able to 
+just depend on the return type of the root of an expression tree.
+#### Context usage
+* The original 26 namespaces of letters are each capable of holding a quantity or a number
+* Additionally, `\mathbb{x}` and `\vec{x}` both map to a separate set of 26 namespaces called the vector space
+* They are strictly vector typed
+#### Universality and efficiency
+As shown in the section of core implementation, the class Quantity naturally extends the native Number class of 
+javascript. This **augments** the flow of numbers underlying variable evaluations to **incorporate** complex numbers,
+vectors, arrays, etc. Since Quantity inherits Number, implementation wise, regardless of the underlying quantity
+type, everything are passed around under the facade of the Number class. 
+
+Now let's consider the behavior of these augmented "Numbers" when we pass them into typescript. If our original 
+typescript involved any native operators, like `a*b`, acting on two of these augmented quantities, it will
+certainly be problematic as `a` and `b` may be effectively Quantities and have their values stored in the data 
+field. Hence, no native operators should show up in the compiled piScript, rather, operations like `a*b` should be
+replaced by the function style evaluation `dot(a,b)`, where `dot` has signature `(a: Number, b: Number)=>Number`. Inside
+`dot`, the parameters are first checked to be of the type Quantity, or simply plain Numbers. If they are baseclass 
+Numbers, they are evaluated directly using native operator or functions. If they belong to the inherited class
+Quantity, they are then examined by their exact type and operated on accordingly (see parsing conventions). This
+naturally achieves operator overloading, by giving `Arithmetic` methods signatures `(Number, Number)=>Number`, we 
+get to sneak around all kinds of quantities --- as long as they are quantities --- without causing any type violations
+or logical dilemma.
+
+In practice, when we are dealing with operations like cross products, if we wish to keep the original two vectors that
+we put in intact, the output must be held by a newly instantiated quantity with an n-dimensional array as its data. This
+causes troubles since say that we have a surface made out of 40000 vertices, and evaluating each vertex requires the 
+evocation of our piScript, and further assume that the surface is animated at a 30fps frame rate. This means each
+second there are 120000 new arrays being generated, each of dimension n. Take the common dimension of `n=3`, then
+360000*8 bytes per second can quickly eat up the memory, and put quite a strain on the garbage collector. 
+
+This efficiency challenge yields the need for reusing arrays (vectors). In practice, it is common to use a holder to pass by
+vectors in intermediate steps. Consider`a+b\cross c`, `a, b, c` are vectors. If we have a holder, we can load the 
+result of `a\cross c` into the holder, and then implement `holder = a+holder`. There are two issues with this solution,
+however. **First**, this necessitates the Arithmetic signature `(a: Number, b: Number, holder: Number)=>Number`, and Core
+needs to break up its original flow of piScript generation to accommodate for the instantiation and 
+passing of holders, it also needs to know **when to instantiate a new `holder`**, for example in the case of 
+`a\cross b + c\cross d`, each half of the statement must require a separate holder, such that the evaluation result 
+of the first half and second half gets retained before they get added together and merged into a singular holder, and
+then the second holder can be released. The **second challenge** is in the typing of the holder. As mentioned
+previously, the variables are dynamically typed, so there is no way for core to know before run time what the 
+type of `a` and `b` are for an Arithmetic operation, and hence **no way to predict what type of holder piScript 
+should instantiate**. 
+
+Thus, to resolve the aforementioned challenges, holders of vectors should be generated at run time. Methods in 
+Arithmetics should retain the signature `(a: Number, b: Number)=>Number`. But we **still want to reuse vectors**. This
+all suggests that we should bypass garbage collection by devising a small recycling station of our own. When quantities
+are used and no longer needed, for example the intermediate result `a*b` in expression `y=a*b+c`, can get recycled
+once the operation `+` has been completed. In terms of recycling, there should be a data structure, such as a queue
+or a stack, where Quantity that are no longer in use gets placed into. Then upon instantiation of quantities, instead
+of calling `new Quantity()`, one should first check in the recycle bin for ones of matching type and dimensions. As a
+rough outline of the algorithm:
+![img_35.png](img_35.png)
+The abstraction of calling getVector should be transparent to users in that it appears as if a new vector has been 
+instantiated, and the user will run into no trouble with manipulating this vector to arbitrary degreees without 
+worrying about the rest of the program. In the algorithm, after each Arithmetic's function is called, 
+the two (or one or three in some cases) quantities passed in as parameters will have their memories released 
+at the end of the operation. **Once recycle is called**, the quantity is passed into the recycle bin and its values 
+are subjected to overwriting by other usages. This doesn't mean that its original references are nullified, 
+but the values that the quantity holds is no longer reliable. As an example, consider piScript
+`A.add(A.cross(a, b), a)`, where a, b are both vector typed quantities. After evaluating `A.cross(a,b)`, 
+a new quantity `h` is instantiated to hold its value, since the recycle bin is originally empty,
+`a` and `b` are both placed into the recycle bin and their data are now unreliable. Now `A.add(...)`
+invokes for the value of the cross product `h` and the value of `a`. Now `A.add`
+requests for a quantity holder, then the original instance of `a` gets popped from the recycle stack. Then in add:
+```typescript
+for(i in range(3)){
+    a[i] = a[i]+h[i];
+}
+a.recycle();
+h.recycle();
+return a;
+```
+Here the correct result is yielded despite that `add` invokes on the value of `a` whose memory has already been
+released. In general though, this practice is not safe, as we might encounter the case where the data of a released
+quantity has been modified. Consider for example `A.add(A.add(A.cross(a, b), a), a)`, data of `a` is changed after
+the first `A.add`. To solve this problem we add a lock mechanism on quantities. Where if a quantity is accessed multiple
+times in piScript, it is locked until the whole piScript has completed it operation. When a quantity is locked, it 
+refuses to go into the recycle bin when `.recycle()` is called, so that its data will not be modified. It can also 
+be released from the lock state by invoking `.release()`. 
+![img_36.png](img_36.png)
+But how would Core know which quantities to lock, and when to release them? 
+Let's start by examining an arbitrary expression, written in laTeX `$a=b-c\cdot (d\cross b)$`. Here only `b` runs
+into the danger of memory modification. After compiling, `b` as a variable takes on one of the variable types:
+algebraic, function, or constant. Its values are retrieved using the `get(i,c)` syntax, where `i` is the reference
+index of `b`, and `c` is the context. 
+* If `b` is **function typed**, its value is retrieved by calling evaluate behind
+the hood, where evaluate invokes some piScript, which then invokes Arithmetic functions at the root level, which always
+yields a quantity that enjoys independent memory, hence their memory can be immediately released after usage, and no lock
+need to be placed.
+* If `b` is **constant typed**, its value is stored directly in the reference list, and reused every time it is invoked,
+hence it needs to have a lock place on its quantity. Generalizing this pattern, every quantity stored in the reference
+list should be locked, and released after the reference list is updated through dependency pulse
+* If `b` is **algebraic typed**, its value is retrieved from context, and also may get reused for multiple times. Hence,
+the best practice is to lock the quantities tha are fed into the context. Further, since it is already guaranteed in
+situations like populating vertices, the usage of context follows a certain determined pattern, and the type of the 
+quantities is not assumed to change. Hence, we can just keep the same set of quantities in corresponding positions in
+the context matrix, and feed their data iteratively without ever releasing their memory.
+#### More on recycle bin of quantities
+Programmatically, this is a tactic to bypass garbage collection and object creation by keeping instantiated memories in 
+a queue, and putting them into use whenever needed. However, this doesn't mean any trouble if we stopped using an
+instance of Quantity without releasing its memory by calling .release(), kind of "forgot" about it if you may, the 
+memory is not actually lost. Because the native garbage collector of javascript will catch those lose strings and
+destroy these objects, just causing a slightly higher memory complexity and runtime cost, but as long as the majority
+of instances of Quantities are recycled, we should be safe.
+
+As to the specific implementations, there is certainly an issue of reusability. It is almost guaranteed that arrays will
+hold multiple elements in its data array, typically larger than 3 in size. Vectors will hold less or equal to 3,
+elements, if the underlying problem is mechanics or E&M related. The most efficient way of reusing arrays is when 
+its size remains the same. When we pass an array with a larger size to an array with a smaller size, the extra memory
+allocated is wasted, increasing space complexity. When we pass an array with smaller size to a larger required size,
+allocating additional memory increases time complexity. Now since complex numbers are consistently 2 component 
+quantities, its instances can be kept in a separate queue or stack, and popped whenever needed.
+```typescript
+complexQueue = [Q([1,2]), Q([2,-1]), Q([34,45.23])] //Example of a complex number recycle queue
+```
+For array and vector quantities, we shall use two queues where elements from arrays and vectors are
+queried from interchangeably. One recycle queue contains quantities with size less or equal to 3, and the
+other contains quantities with data size larger than 3. 
+```typescript
+smallQueue = [Q([2,3]), Q([1,2]), Q([2,3,4])]
+largeQueue = [Q([2,4, 5,6,7]), Q([-2,34.4,54, 1.2, 9.6])]
+```
+The remaining question is whether a queue structure or stack structure should be used. A fast implementation
+of queue requires the use of LinkedList, which by itself is quite slow in javascript compared to regular Arrays.
+A stack naturally utilizes an Array, and is expected to perform faster under the stain of computations. Second, 
+as vector operations typically occur while preserving the dimension of the operands, we should expect locality
+in the dimension of the invoked data. So this also persuades the use of stacks. Now what to do when the top of
+a stack does not have the same dimension as that requested by the `getVector` method? 
+
+We may choose to discard elements until the exact matching dimension is found. But considering that we may want to 
+achieve efficiency when the size of quantities appear as alternating, and discarding elements that we can reuse 
+every another time causes waste. Thus, it is probably reasonable to grow the size of quantities in stacks at a
+factor of 2, once they go over 3.
+
+![img_37.png](img_37.png)
+It also makes sense to limit the size of stacks, to avoid keeping too much unused memory. It is probably 
+reasonable to keep the size of the stacks to 10. Once their length exceed 10, recycling will no longer
+push elements on top. As there are no locality of quantity dimension across different expressions, each
+variable should have its own recycle center for its evaluation function. The most consistent way to achieve
+this then is by making implementing the recycle center into the Arithmetics class, and instead of making it
+statically accessed, we can make it instance accessed, simultaneously avoiding issues of synchronization. 
+The time efficiency cost will be negligible: 
+[instance access vs static access in js](https://stackoverflow.com/questions/30403241/javascript-static-methods-vs-prototypal-instatiated-methods-on-performance#:~:text=The%20static%20version%20is%20faster,t%20have%20any%20substantial%20difference).
 
 ### Statement resolution
 Statement resolution is the process that Core goes through to identify which variable a TeX statement is meaning to define. 
@@ -516,6 +782,7 @@ If y is never defined else where, or the variable in concern is explicitly label
   to find the value of the differential term by solving unknowns. This will slow down the computation of the ODE/PDE, which is why unless the differential equation is 
   necessarily implicit, it is recommended that the highest order differential term gets specified explicitly.
   ![img_10.png](img_10.png)
+
 ## UI
 Short for user interface, the section on the left of the software window for user inputs and providing feedbacks. The updates made by users on the user interface will be sent to the Core
 through asynchronous hooks.
@@ -838,3 +1105,8 @@ in terms of operator typing_.
     node: `function{...}`.
 * Equations of the form `(...,...)` with at least one `,` token are considered vector typed. A vector typed SymNode will enclose
 the components as its children, and more on vector typed variables later.
+
+#### Variable name conventions
+`x_0` gets parsed into "x0". `x` gets parsed into "x". `\vec{x}` or `\mathbb{x}`
+gets parsed into ">x". All of them are typed as `$` in the token class. Note that
+`\vec{x}` and `x` refer to two distinct variables under this implementation.

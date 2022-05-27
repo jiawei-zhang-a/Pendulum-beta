@@ -148,6 +148,11 @@ let macros:MStruct = {
                 'n': ['tan', 'function', 1]
             }
         },
+        'v': {
+            'e': {
+                'c': ['vector', '$', 1]
+            }
+        }
     }
 };
 
@@ -373,6 +378,14 @@ class Token{
                     this.clauseCount = 0;
                 }
                 break;
+            case 'vector':
+                i = this.parseSubClause(tex, i, 0);
+                if(this.subClauses[0].length!=2||this.subClauses[0][0].type!='$'){
+                    return 1;
+                }
+                this.clauseCount = 0;
+                this.content = '>'+this.subClauses[0][0].content;
+                break;
         }
         if(this.type == '$'){
             if(tex.substr(i, 6)=='\\left('){
@@ -428,7 +441,7 @@ class Token{
      */
     checkNegation(previousType: string){
         if(this.content=='sub'){
-            if(previousType==undefined||previousType=='operator'||previousType=='openStruct'){
+            if(previousType==undefined||previousType=='none'||previousType=='operator'||previousType=='openStruct'){
                 this.content = 'neg';
             }
         }

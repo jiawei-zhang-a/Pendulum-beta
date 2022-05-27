@@ -3,7 +3,7 @@ import './experiment';
 import {init, Canvas, Graph, CartesianGraph} from './graphics';
 import * as THREE from 'three';
 import {Vector3} from "three";
-import {CartesianGraph2D, colors} from "./graph";
+import {CartesianGraph2D, Vector3D, colors} from "./graph";
 import {Core, ResolutionError} from "./core";
 import {SymNode} from "./parser";
 // import {init} from "./helloworld";
@@ -83,8 +83,6 @@ class Pendulum{
      */
     queryColor(label: SymNode){
         if(this.canvas.graphs[label.content]!=undefined){
-            console.log(this.canvas.graphs[label.content].color);
-            console.log(this.canvas.graphs[label.content].queryColor());
             return this.canvas.graphs[label.content].queryColor();
         }
         else
@@ -118,16 +116,28 @@ $(()=>{
     let axesHelper = new THREE.AxesHelper(7);
     canvas.scene.add(axesHelper);
 
+    let vector = new Vector3D("example", [1,0,0], [1,1,2]);
+    vector.constructGeometry({'color': 'lightgray'});
+    vector.generateIndices();
+    vector.populate();
+    canvas.addGraph(vector);
+
+    let vector1 = new Vector3D("example", [1,2,3], [-1,-1,-2]);
+    vector1.constructGeometry({'color': 'blue'});
+    vector1.generateIndices();
+    vector1.populate();
+    canvas.addGraph(vector1);
+
     p = new Pendulum(canvas);
     UI.load(p);
     // p.updateGraph("sinusoidal", (x,y)=>Math.cos(x*3+p.canvas.time));
 
-    // let graph2 = new CartesianGraph("cosinusoidal",(x,y)=>x*y*Math.cos(y+canvas.time));
+    // let graph2 = new CartesianGraph("cosinusoidal",(x,y)=>x*y*Math.cos(y+canvas.time)/4);
     // graph2.constructGeometry({'material':'standard', 'color':'purple'});
     // graph2.generateIndices();
     // graph2.populate();
     // canvas.addGraph(graph2);
-    //
+
     // let graph3 = new CartesianGraph2D('sin', (x)=>Math.cos(x));
     // graph3.constructGeometry({'color':'purple'});
     // graph3.generateIndices();

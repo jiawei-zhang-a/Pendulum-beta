@@ -358,7 +358,7 @@ class StatementControl {
         // ec.parser = new Parser();
         this.mathquill = MQ.MathField(this.statementField, {
             autoSubscriptNumerals: true,
-            autoCommands:'mathbf partial',
+            autoCommands:'mathbf partial vec pi',
             handlers: {
                 edit: this.onEdit.bind(this),
                 enter: () => {

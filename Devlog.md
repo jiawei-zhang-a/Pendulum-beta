@@ -148,3 +148,17 @@ function-parenthesis collapse for expressions like `\sin\left(x\right)` in syPar
 minor changes in operator associativity. Now nested parameterized variables are fully functioning. Experiment with
 orthographic camera.
 ![img.png](images/2022-01-23-1.png)
+
+#### 05/25/22
+Design conventions for vector and array variables, including syntax and operation overloading. 
+Plan out implementation strategies in core and parser.
+
+#### 05/26/22
+Implement vector variable labeling. `\vec{x}` now ges parsed into '$' typed token with content ">x". 
+![img.png](images/2022-05-26-1.png)
+
+#### 05/27/22
+Discuss the necessity for dynamic typing in quantities. 
+Specify in further detail implementation decisions and algorithms for achieving space and time efficiency 
+in vector computations. Devised recycling system for dealing with large number of intermediate 
+containers required for vector and array operations.

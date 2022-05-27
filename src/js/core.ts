@@ -4,6 +4,8 @@ import {stat} from "fs";
 
 const aAscii = 'a'.charCodeAt(0);
 const contextID = function(letter: string){
+    if(letter[0] == '>')
+        return alphabet(letter[1])+26;
     return alphabet(letter[0]);
 }
 const alphabet = function(letter: string){
@@ -94,7 +96,7 @@ class Core {
                 throw e;
         }
         console.log(label);
-        if(this.isEquation(statement)&&label.type=='$'||label.type=='$func'
+        if(this.isEquation(statement)&&label.type=='$'||label.type=='func$'
             &&!this.containsLabel(label.content, leaves))
             throw new ResolutionError("Invalid label override");
         let variable = this.defineEqnVariable(label, statement);
@@ -118,7 +120,7 @@ class Core {
             return this.readExplicitDefinition(label.content, label, statement);
         let lhs = statement.children[0];
         let rhs = statement.children[1];
-        // Explicit definition. Left hand side is a singleton of a variable
+        // Explicit definition. Left-hand side is a singleton of a variable
         if(lhs.type == '$' || lhs.type == 'func$'){
             let rhsLeaves = statement.children[1].getLeaves();
             if(!this.containsLabel(lhs.content, rhsLeaves))
@@ -271,8 +273,10 @@ class Core {
      * @param operator
      */
     convertAlias(operator: string): string{
-        if(operator == 'invisdot' || operator == 'dot')
-            return 'a.mul';
+        if(operator == 'invisdot')
+            return 'a.invisDot';
+        if(operator == 'dot')
+            return 'a.dot';
         if(operator == 'frac')
             return 'a.div';
         if(operator == 'neg')
@@ -309,8 +313,32 @@ class Arithmetics {
         return a - b;
     }
 
-    static mul(a:number, b:number): number {
-        return a * b;
+    static invisDot(a:Number, b:Number): Number {
+        if(a instanceof Quantity && b instanceof Quantity){
+
+        }else{
+            return a.valueOf()*b.valueOf();
+        }
+    }
+
+    static cross(a: Number, b: Number): Number{
+        // if(u.length<3||v.length<3)
+        //     throw new ArithmeticError("Vector dimensions less than three");
+        // let [a,b,c] = u;
+        // let [x,y,z] = v;
+        // holder[0] = b*z-c*y;
+        // holder[1] = c*x-a*z;
+        // holder[2] = a*y-b*x;
+        // return holder;
+        if(a instanceof Quantity && b instanceof Quantity){
+            switch(a.type){
+                case 4:
+
+                    break;
+            }
+        }else{
+            return +a*+b;
+        }
     }
 
     static div(a:number, b:number): number {
@@ -340,24 +368,6 @@ class Arithmetics {
     }
 
     /**
-     * Cross product for three-element vectors
-     * @param u first vector
-     * @param v second vector
-     * @param holder passed in as a container for the computation result to avoid
-     *  repeated instantiation of arrays, creates a new array of length 3 by default
-     */
-    static cross(u: number[], v: number[], holder: number[] = new Array(3)):number[]{
-        if(u.length<3||v.length<3)
-            throw new ArithmeticError("Vector dimensions less than three");
-        let [a,b,c] = u;
-        let [x,y,z] = v;
-        holder[0] = b*z-c*y;
-        holder[1] = c*x-a*z;
-        holder[2] = a*y-b*x;
-        return holder;
-    }
-
-    /**
      * Cross prodcut for two element vectors, returns the area as a number
      * @param u first vector
      * @param v second vector
@@ -376,8 +386,8 @@ class Arithmetics {
  */
 abstract class Evaluable {
     target: Variable;
-    evaluate: (a:Arithmetics, c:number[][], p:number[])=>number;
-    context: number[][];
+    evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number;
+    context: Number[][];
     public constructor(target: Variable) {
         this.target = target;
         this.evaluate = target.evaluate;
@@ -385,13 +395,32 @@ abstract class Evaluable {
         for(let i = 0; i<26; i++){
             this.context[i] = [];
         }
+        for(let i = 26; i<52; i++){
+            this.context[i] = [new Quantity(4)];
+        }
     }
 
     /**
      *
      * @param param sparse array of ID-based parameters
      */
-    abstract compute(...param: number[]): number;
+    abstract compute(...param: Number[]): Number;
+}
+
+class Quantity extends Number{
+    /**
+     * 1. real
+     * 2. complex
+     * 3. array (data matrix)
+     * 4. vector (matrix)
+     */
+    type: number;
+    data: number | Quantity[] | number[];
+    size: number;
+    constructor(type: number) {
+        super();
+        this.type = type;
+    }
 }
 
 class Variable {
@@ -438,14 +467,14 @@ class Variable {
     /**
      * Contains references of structure [type, parameter1, parameter2, ...]
      */
-    referenceList:(number|Function)[][];
+    referenceList:(Number|Function)[][];
     /**
      * A mapping from local variable names to the index of that
      * local variable inside the reference list
      */
     rlMapping: { [varLabel: string]: number };
     /**
-     * A mapping from reference list indicies
+     * A mapping from reference list indices
      */
     inverseRlMapping: { [rlIndex: number]: string };
     /**
@@ -465,14 +494,14 @@ class Variable {
      */
     protected compute: Function;
     /**
-     * Wraps around evaluate to create local field accessibility. Takes parameters
+     * Wraps around compute to create local field accessibility. Takes parameters
      * a: Arithmetics, c: context, p: parameters
      *
      * Initialized to default value access
      */
-    evaluate: (a:Arithmetics, c:number[][], p:number[])=>number
-        = (a:Arithmetics, c:number[][], p: number[])=>c[this.contextID][0];
-    get = (rlID:number, context: number[][])=>{
+    evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number
+        = (a:Arithmetics, c:Number[][], p: Number[])=>c[this.contextID][0];
+    get = (rlID:number, context: Number[][])=>{
         let reference = this.referenceList[rlID];
         switch (reference[0]){
             case 1: return reference[1];
@@ -507,8 +536,8 @@ class Variable {
         let compute = this.compute;
         let parameterMapping = this.parameterMapping;
         let get = this.get.bind(this);
-        this.evaluate = function(Arithmetics: Object, context: number[][], parameters: number[]){
-            return compute(Arithmetics, context, parameters, parameterMapping, get)
+        this.evaluate = function(Arithmetics: Object, context: Number[][], parameters: Number[]){
+            return compute(Arithmetics, context, parameters, parameterMapping, get);
         };
     }
 
@@ -523,7 +552,8 @@ class Variable {
      */
     loadVisualization(pendulum: Pendulum){
         let algebraics = this.getAlgebraics();
-        return pendulum.updateGraph(this.name, this.evalHandle.compute.bind(this.evalHandle));
+        return pendulum.updateGraph(this.name,
+            (x,y)=>this.evalHandle.compute(Number(x),Number(y)).valueOf());
     }
     /**
      * Instantiates a new evaluation handle for the variable. The type
@@ -535,24 +565,29 @@ class Variable {
         switch (this.type){
             case 1:
                 Anonymous = class extends Evaluable{
-                    compute(...param: number[]): number {
+                    compute(...param: number[]): Number {
                         return this.evaluate(Arithmetics, this.context, []);
                     }
                 };
                 break;
             case 2: //Parameterized functions are capable of
                 //autonomously overriding the context
+                let xID = contextID('x');
+                let yID = contextID('y');
                 if(this.parameterized)
                     Anonymous = class extends Evaluable{
-                        compute(...param: number[]): number {
+                        compute(...param: number[]): Number {
+                            //Supply positional arguments into x & y by default,
+                            //Parameters clause will then override x & y values
+                            //if they occupy the same name space. eg. f(y,x)
+                            this.context[xID][0] = param[0];
+                            this.context[yID][0] = (param.length>1)?param[1]:0;
                             return this.evaluate(Arithmetics, this.context, param);
                         }
                     };
                 else {
-                    let xID = contextID('x');
-                    let yID = contextID('y');
                     Anonymous = class extends Evaluable {
-                        compute(...param: number[]): number {
+                        compute(...param: number[]): Number {
                             this.context[xID][0] = param[0];
                             this.context[yID][0] = (param.length>1)?param[1]:0;
                             return this.evaluate(Arithmetics, this.context, []);
@@ -626,8 +661,8 @@ class Variable {
                 if(depVar.parameterized)
                     reference[1] = depVar.evaluate;
                 else
-                    reference[1] = (a:Object,c:number[][],p: number[])=>{//Special dealing with func$ type
-                        return depVar.evaluate(a,c,[])*((p.length!=0)?p[0]:1);
+                    reference[1] = (a:Arithmetics,c:Number[][],p: Number[])=>{//Special dealing with func$ type
+                        return Arithmetics.invisDot(depVar.evaluate(a,c,[]), (p.length!=0)?p[0]:1);
                     }
                 break;
             case 3:
