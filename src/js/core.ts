@@ -275,14 +275,10 @@ class Core {
     convertAlias(operator: string): string{
         if(operator == 'invisdot')
             return 'a.invisDot';
-        if(operator == 'dot')
-            return 'a.dot';
         if(operator == 'frac')
             return 'a.div';
-        if(operator == 'neg')
-            return '-';
         if(operator == 'ln')
-            return 'Math.log';
+            return 'a.log';
         if(operator == 'cos'||operator == 'sin'||operator=='tan' ||operator == 'sqrt')
             return 'Math.'+operator;
         if(operator == 'cot')
@@ -303,25 +299,228 @@ class ResolutionError extends Error {
     }
 }
 
-class Arithmetics {
-     
-    static add(a:number, b:number): number {
-        return a + b;
+class Quantity extends Number{
+    rc: RecycleCenter;
+    /**
+     * 1. real
+     * 2. complex
+     * 3. array (data matrix)
+     * 4. vector (matrix)
+     */
+    type: number;
+    data: Number[];
+    size: number;
+    locked: boolean;
+    constructor(type: number, rc:RecycleCenter,
+                dataContainer: Number[]) {
+        super();
+        this.type = type;
+        this.locked = false;
+        this.data = dataContainer;
+        this.rc = rc;
     }
 
-    static sub(a:number, b:number): number {
-        return a - b;
+    recycle(){
+        let rc =this.rc;
+        if(this.type == 2){
+            rc.sc.push(this);
+            return;
+        }
+        if(this.type == 3 || this.type == 4){
+            if(this.size<=3)
+                rc.s0.push(this);
+            else
+                rc.s1[rc.getLogIndex(this.size/3)].push(this);
+        }
     }
+}
 
-    static invisDot(a:Number, b:Number): Number {
-        if(a instanceof Quantity && b instanceof Quantity){
-
-        }else{
-            return a.valueOf()*b.valueOf();
+class RecycleCenter{
+    /**
+     * Array / vector stack 0
+     */
+    s0: Quantity[];
+    /**
+     * Array vector stack 1
+     */
+    s1: Quantity[][];
+    /**
+     * Complex variable stack
+     */
+    sc: Quantity[];
+    constructor() {
+        this.s0 = [];
+        this.s1 = [];
+        this.sc = [];
+    }
+    getQuantity(type: number, dim: number):Quantity{
+        if(type == 2){
+            if(this.sc.length!=0) {
+                return this.sc.pop();
+            }
+            else{
+                return  new Quantity(type, this, [0,0]);
+            }
+        }
+        if(dim<=3){
+            if(this.s0.length!=0) {
+                let q = this.s0.pop();
+                q.type = type;
+                return q;
+            }
+            else{
+                return  new Quantity(type, this, new Array(dim).fill(0));
+            }
+        }
+        else {
+            let index = this.getLogIndex(dim/3);
+            if (this.s1[index].length != 0) {
+                let q = this.s1[index].pop();
+                q.type = type;
+                return q;
+            }
+            else {
+                return new Quantity(type, this, new Array(dim).fill(0));
+            }
         }
     }
 
-    static cross(a: Number, b: Number): Number{
+    /**
+     * Take discrete binary log of the input
+     * @param r
+     */
+    getLogIndex(r: number){
+        let i = 0;
+        while(r!=0){
+            r=r>>1;
+            i++;
+        }
+        return i-1;
+    }
+}
+
+class Arithmetics {
+    rc: RecycleCenter;
+    add(a:Number, b:Number): Number {
+        if(a instanceof Quantity) {
+            if(b instanceof Quantity){
+                if(a.type!=b.type||a.size != b.size)
+                    throw new ArithmeticError("Incompatible quantity type for addition");
+                let dim = a.size;
+                let c = this.rc.getQuantity(a.type, dim);
+                for(let i = 0; i<dim; i++){
+                    c.data[i] = this.add(a.data[i],b.data[i]);
+                }
+                a.recycle();
+                b.recycle();
+                return c;
+
+            }else
+                throw new ArithmeticError("Incompatible quantity type for addition");
+        }else{
+            //@ts-ignore
+            return a+b;
+        }
+    }
+
+    sub(a:Number, b:Number): Number {
+        if(a instanceof Quantity) {
+            if(b instanceof Quantity){
+                if(a.type!=b.type||a.size != b.size)
+                    throw new ArithmeticError("Incompatible quantity type for subtraction");
+                let dim = a.size;
+                let c = this.rc.getQuantity(a.type, dim);
+                for(let i = 0; i<dim; i++){
+                    c.data[i] = this.sub(a.data[i],b.data[i]);
+                }
+                a.recycle();
+                b.recycle();
+                return c;
+            }else
+                throw new ArithmeticError("Incompatible quantity type for addition");
+        }else{
+            //@ts-ignore
+            return a-b;
+        }
+    }
+
+    invisDot(a:Number, b:Number): Number {
+        switch (Arithmetics.getType(b)) {
+            case 4:
+                if(Arithmetics.getType(a) <=2) {//Field invisDot a vector or matrix
+                    let c = this.rc.getQuantity(4, (<Quantity>b).size);
+                    for (let i = 0; i < (<Quantity>b).size; i++) {
+                        c.data[i] = this.invisDot(a, (<Quantity>b).data[i]);
+                    }
+                    Arithmetics.recycle(a);
+                    Arithmetics.recycle(b);
+                    return c;
+                }else if(Arithmetics.getType(a) == 3){
+                    let c = this.rc.getQuantity(3, (<Quantity>a).size);
+                    for (let i = 0; i < (<Quantity> a).size; i++){
+                        c.data[i] = this.invisDot((<Quantity> a).data[i], b);
+                    }
+                    Arithmetics.recycle(a);
+                    Arithmetics.recycle(b);
+                    return c;
+                }
+                throw new ArithmeticError("");
+            }
+    }
+
+    private static getType(q: Number){
+        if(q instanceof Quantity)
+            return q.type;
+        else
+            return 1;
+    }
+
+    private static recycle(q: Number){
+        if(q instanceof Quantity)
+            q.recycle();
+    }
+    /**
+     * Accepts only real or complex quantities, otherwise return 0
+     * @param a real or complex
+     * @param b real or complex
+     * @private
+     */
+    private multiply(a: Number, b:Number): Number{
+        //Broadcast both quantities to complex numbers
+        if(!(a instanceof Quantity)){
+            a = this.extend(+a, 2, 2);
+        }
+        if(!(b instanceof Quantity)){
+            b = this.extend(+b, 2, 2);
+        }
+        let c = this.rc.getQuantity(2, 2);
+        if(a instanceof Quantity && b instanceof Quantity
+            && a.type == 2 && b.type == 2){
+            //@ts-ignore
+            c.data[0] = a.data[0]*b.data[0] -a.data[1]*b.data[1];
+            //@ts-ignore
+            c.data[1] = a.data[0]*b.data[1] +a.data[1]*b.data[0];
+            a.recycle();
+            b.recycle();
+            return c;
+        }else
+            throw new ArithmeticError("multiply can only act on fields");
+    }
+
+    /**
+     * Extends a number into a broader quantity
+     * @private
+     */
+    private extend(a: number, targetType: number, targetDim: number): Quantity{
+        let q = this.rc.getQuantity(targetType, targetDim);
+        for(let i = 0; i<targetDim; i++){
+            q.data[i] = 0;
+        }
+        q.data[0] = a;
+        return q;
+    }
+
+    cross(a: Number, b: Number): Number{
         // if(u.length<3||v.length<3)
         //     throw new ArithmeticError("Vector dimensions less than three");
         // let [a,b,c] = u;
@@ -337,34 +536,36 @@ class Arithmetics {
                     break;
             }
         }else{
-            return +a*+b;
+            //@ts-ignore
+            return a*b;
         }
     }
 
-    static div(a:number, b:number): number {
+    div(a:number, b:number): number {
         return a / b;
     }
 
-    static pow(a:number, b:number): number {
+    pow(a:Number, b:Number): Number {
+        //@ts-ignore
         return a ** b;
     }
 
-    static sum(v:Array<number>): number {
+    sum(v:Array<number>): number {
         let summed = 0;
         for (let i = 0; i < v.length; i++)
             summed += v[i];
         return summed
     }
 
-    static pairMult(v:Array<number>, w:Array<number>): Array<number> {
+    pairMult(v:Array<number>, w:Array<number>): Array<number> {
         let prod = new Array<number>(v.length);
         for (let i = 0; i < prod.length; i++)
             prod[i] = v[i] * w[i];
         return prod
     }
 
-    static dot(v:Array<number>, w:Array<number>): number {
-        return Arithmetics.sum(Arithmetics.pairMult(v, w));       
+    dot(v:Array<number>, w:Array<number>): number {
+        return this.sum(this.pairMult(v, w));
     }
 
     /**
@@ -372,7 +573,7 @@ class Arithmetics {
      * @param u first vector
      * @param v second vector
      */
-    static twoCross(u: number[], v: number[]) {
+    twoCross(u: number[], v: number[]) {
         if (u.length < 2 || v.length < 2)
             throw new ArithmeticError("Vector dimensions less than two");
         return u[0]*v[1]-u[1]*v[0];
@@ -396,7 +597,7 @@ abstract class Evaluable {
             this.context[i] = [];
         }
         for(let i = 26; i<52; i++){
-            this.context[i] = [new Quantity(4)];
+            this.context[i] = [];
         }
     }
 
@@ -405,22 +606,6 @@ abstract class Evaluable {
      * @param param sparse array of ID-based parameters
      */
     abstract compute(...param: Number[]): Number;
-}
-
-class Quantity extends Number{
-    /**
-     * 1. real
-     * 2. complex
-     * 3. array (data matrix)
-     * 4. vector (matrix)
-     */
-    type: number;
-    data: number | Quantity[] | number[];
-    size: number;
-    constructor(type: number) {
-        super();
-        this.type = type;
-    }
 }
 
 class Variable {
@@ -443,7 +628,10 @@ class Variable {
      * Inner class implemented evaluation handle.
      */
     evalHandle: Evaluable;
-
+    /**
+     * Each variable should store an arithmetics instance
+     */
+    arithmetics: Arithmetics;
     /**
      * References of variables that this variable depends for its definition.
      * Actively managed.
@@ -526,6 +714,7 @@ class Variable {
         this.dependants = {};
         this.dependencies = {};
         this.functionAccess = {};
+        this.arithmetics = new Arithmetics();
     }
 
     setPiScript(piScript:string){
@@ -536,8 +725,8 @@ class Variable {
         let compute = this.compute;
         let parameterMapping = this.parameterMapping;
         let get = this.get.bind(this);
-        this.evaluate = function(Arithmetics: Object, context: Number[][], parameters: Number[]){
-            return compute(Arithmetics, context, parameters, parameterMapping, get);
+        this.evaluate = function(a: Arithmetics, context: Number[][], parameters: Number[]){
+            return compute(a, context, parameters, parameterMapping, get);
         };
     }
 
@@ -562,11 +751,12 @@ class Variable {
      */
     createEvalHandle(){
         let Anonymous;
+        let a = this.arithmetics;
         switch (this.type){
             case 1:
                 Anonymous = class extends Evaluable{
                     compute(...param: number[]): Number {
-                        return this.evaluate(Arithmetics, this.context, []);
+                        return this.evaluate(a, this.context, []);
                     }
                 };
                 break;
@@ -582,7 +772,7 @@ class Variable {
                             //if they occupy the same name space. eg. f(y,x)
                             this.context[xID][0] = param[0];
                             this.context[yID][0] = (param.length>1)?param[1]:0;
-                            return this.evaluate(Arithmetics, this.context, param);
+                            return this.evaluate(a, this.context, param);
                         }
                     };
                 else {
@@ -590,7 +780,7 @@ class Variable {
                         compute(...param: number[]): Number {
                             this.context[xID][0] = param[0];
                             this.context[yID][0] = (param.length>1)?param[1]:0;
-                            return this.evaluate(Arithmetics, this.context, []);
+                            return this.evaluate(a, this.context, []);
                         }
                     };
                 }
@@ -655,14 +845,14 @@ class Variable {
         reference[0] = (accessStyle!=undefined)?2:depVar.type;
         switch (reference[0]) {
             case 1:
-                reference[1] = depVar.evaluate(Arithmetics,[],[]);
+                reference[1] = depVar.evaluate(this.arithmetics,[],[]);
                 break;
             case 2:
                 if(depVar.parameterized)
                     reference[1] = depVar.evaluate;
                 else
                     reference[1] = (a:Arithmetics,c:Number[][],p: Number[])=>{//Special dealing with func$ type
-                        return Arithmetics.invisDot(depVar.evaluate(a,c,[]), (p.length!=0)?p[0]:1);
+                        return a.invisDot(depVar.evaluate(a,c,[]), (p.length!=0)?p[0]:1);
                     }
                 break;
             case 3:

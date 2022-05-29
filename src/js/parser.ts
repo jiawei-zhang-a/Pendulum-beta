@@ -146,7 +146,8 @@ let macros:MStruct = {
         't': {
             'a': {
                 'n': ['tan', 'function', 1]
-            }
+            },
+            'i': {'m': {'e': {'s': ['cross', 'operator', 0]}}}
         },
         'v': {
             'e': {
