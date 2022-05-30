@@ -401,6 +401,9 @@ class RecycleCenter{
 
 class Arithmetics {
     rc: RecycleCenter;
+    constructor() {
+        this.rc = new RecycleCenter();
+    }
     add(a:Number, b:Number): Number {
         if(a instanceof Quantity) {
             if(b instanceof Quantity){
@@ -465,12 +468,75 @@ class Arithmetics {
                     return c;
                 }
                 throw new ArithmeticError("");
-            }
+            case 3:
+                switch (Arithmetics.getType(a)) {
+                    case 4:
+                        return this.invisDot(b, a);
+                    case 3:
+                        if((<Quantity>a).size == (<Quantity>b).size){
+                            let size = (<Quantity>a).size;
+                            let c = this.rc.getQuantity(3, size);
+                            for(let i = 0; i < size; i++){
+                                //@ts-ignore
+                                c.data[i] = this.invisDot(a.data[i], b.data[i]);
+                            }
+                            Arithmetics.recycle(a);
+                            Arithmetics.recycle(b);
+                            return c;
+                        }else
+                            throw new ArithmeticError("Incompatible operand size");
+                    case 2:
+                    case 1:
+                        let size = (<Quantity>b).size;
+                        let c = this.rc.getQuantity(3, size);
+                        for(let i = 0; i < size; i++)
+                            c.data[i] = this.invisDot(a, (<Quantity>b).data[i]);
+                        Arithmetics.recycle(b);
+                        return c;
+                }
+                throw new ArithmeticError("this shouldn't be possible to reach");
+            case 2:
+                if(Arithmetics.getType(a) <=2){
+                    return this.multiply(a, b);
+                }else
+                    return this.invisDot(b, a);
+            case 1:
+                if(!(a instanceof Quantity))
+                    //@ts-ignore here a and b must be instances of Number
+                    return a*b;
+                else return this.invisDot(b, a);
+        }
+
     }
+
+    dot(a:Number, b:Number): Number {
+        if(a instanceof Quantity && b instanceof Quantity)
+            if(a.type==4&&b.type==4){
+                if(a.size==b.size && a.size>0){
+                    let c = this.dot(a.data[0], b.data[0]);
+                    for(let i = 1; i < a.size ;i++){
+                        c = this.add(c, this.dot(a.data[0], b.data[0]));
+                    }
+                    Arithmetics.recycle(a);
+                    Arithmetics.recycle(b);
+                    return c;
+                }else
+                    throw new ArithmeticError("Cannot dot product vectors of different dimensions");
+            }
+        return this.invisDot(a, b);
+    }
+
 
     private static getType(q: Number){
         if(q instanceof Quantity)
             return q.type;
+        else
+            return 1;
+    }
+
+    private static getSize(q: Number){
+        if(q instanceof Quantity)
+            return q.size;
         else
             return 1;
     }
@@ -521,33 +587,93 @@ class Arithmetics {
     }
 
     cross(a: Number, b: Number): Number{
-        // if(u.length<3||v.length<3)
-        //     throw new ArithmeticError("Vector dimensions less than three");
-        // let [a,b,c] = u;
-        // let [x,y,z] = v;
-        // holder[0] = b*z-c*y;
-        // holder[1] = c*x-a*z;
-        // holder[2] = a*y-b*x;
-        // return holder;
-        if(a instanceof Quantity && b instanceof Quantity){
-            switch(a.type){
-                case 4:
-
-                    break;
+        if(a instanceof Quantity && b instanceof Quantity) {
+            if (a.type == 4 && b.type == 4) {
+                if (a.size == b.size && a.size == 3) {
+                    let c = this.rc.getQuantity(4, 3);
+                    let [u, v, w] = a.data;
+                    let [x, y, z] = b.data;
+                    let holder = c.data;
+                    holder[0] = this.sub(this.multiply(v,z),this.multiply(w,y));
+                    holder[1] = this.sub(this.multiply(w,x),this.multiply(u,z));
+                    holder[2] = this.sub(this.multiply(u,y),this.multiply(v,x));
+                    Arithmetics.recycle(a);
+                    Arithmetics.recycle(b);
+                    return c;
+                } else
+                    throw new ArithmeticError("Cannot cross product vectors of dimension not equal to 3");
             }
-        }else{
-            //@ts-ignore
-            return a*b;
+            if(a.type==3&&b.type==3){//Cartesian product
+                if(a.size==b.size && a.size==3){
+                    let c = this.rc.getQuantity(3, a.size*b.size);
+                    for(let i = 0; i<a.size; i++)
+                        for(let j = 0; j<b.size; j++){
+                            let x = a.data[i];
+                            let y = b.data[j];
+                            let z = this.rc.getQuantity(4,
+                                Arithmetics.getSize(x)+Arithmetics.getSize(y));
+                            if(x instanceof Quantity && x.type==4)//Concatenate
+                                z.data.push(...x.data);
+                            else
+                                z.data.push(x);
+
+                            if(y instanceof Quantity && y.type==4)
+                                z.data.push(...y.data);
+                            else
+                                z.data.push(y);
+                            Arithmetics.recycle(x);
+                            Arithmetics.recycle(y);
+                            c.data[i*b.size+j] = z;
+                        }
+                    a.recycle();
+                    b.recycle();
+                    return c;
+                }
+            }
         }
+        return this.invisDot(a, b);
     }
 
-    div(a:number, b:number): number {
-        return a / b;
+    div(a:Number, b:Number): Number {
+        if(Arithmetics.getType(b)<=3){
+            return this.invisDot(this.invert(b), a);
+        }else
+            throw new ArithmeticError("Can not divide by vectors");
+    }
+
+    /**
+     * Takes inverse of a complex or real number
+     * @param a
+     * @private
+     */
+    private invert (a: Number): Number{
+        if(!(a instanceof Quantity))
+            return 1/+a;
+        else switch (a.type) {
+            case 2:
+                let c = this.rc.getQuantity(2, 2);
+                let modeSq = (+a.data[0])**2+(+a.data[1])**2;
+                //Take conjugate of a and divide
+                // by mode squared yields complex inverse
+                c.data[0] = +a.data[0]/modeSq;
+                c.data[1] = -a.data[1]/modeSq;
+                a.recycle();
+                return c;
+            case 3:
+                let d = this.rc.getQuantity(3, a.size);
+                for(let i = 0; i< a.size; i++){
+                    d.data[i] = this.invert(a.data[i]);
+                }
+                a.recycle();
+                return d;
+        }
+        throw new ArithmeticError("Invert should only act on real or complex numbers or arrays");
     }
 
     pow(a:Number, b:Number): Number {
-        //@ts-ignore
-        return a ** b;
+        if(!(a instanceof Quantity)&&!(b instanceof Quantity))
+            return (+a)**(+b);
+        return 0;
     }
 
     sum(v:Array<number>): number {
@@ -555,17 +681,6 @@ class Arithmetics {
         for (let i = 0; i < v.length; i++)
             summed += v[i];
         return summed
-    }
-
-    pairMult(v:Array<number>, w:Array<number>): Array<number> {
-        let prod = new Array<number>(v.length);
-        for (let i = 0; i < prod.length; i++)
-            prod[i] = v[i] * w[i];
-        return prod
-    }
-
-    dot(v:Array<number>, w:Array<number>): number {
-        return this.sum(this.pairMult(v, w));
     }
 
     /**

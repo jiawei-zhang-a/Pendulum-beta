@@ -511,4 +511,86 @@ class Vector3D extends Graph{
     }
 }
 
-export {Graph, CartesianGraph, CartesianGraph2D, Vector3D, colors};
+class ParametricLine extends Graph{
+    geometry:THREE.BufferGeometry;
+    mesh: THREE.Line;
+    //Create vertex overheads >3721*3
+    vertices:THREE.Vector3[] = [];
+    //Create index overheads >3721*6
+    indices:number[] = [];
+    dataInterface: (x: number) => Vec;
+    uCount = 1000;
+    vCount = 1000;
+
+    /**
+     * @param name name of the graph, needs to be unique
+     * @param dataInterface the cartesian function being passed
+     */
+    constructor(name: string ,dataInterface: (x: number) => Vec, uCount = 1000) {
+        super(name);
+        this.geometry = new THREE.BufferGeometry();
+        this.dataInterface = dataInterface;
+        this.uCount = uCount;
+    }
+    constructGeometry(param:{[key:string]:string}=
+                          {'material': "standard", 'color': "blue"}): void {
+        this.geometry = new THREE.BufferGeometry();
+        this.material = createMaterial('line',
+            (param['color'])?param['color']:'blue');
+        this.mesh = new THREE.Line( this.geometry, this.material );
+        this.mesh.name = this.name;
+    }
+
+    /**
+     * Generate indices for mesh creation
+     * @param uCount # of vertices + 1 in the u direction
+     * @param vCount # of vertices + 1 in the v direction
+     */
+    generateIndices(uCount = this.uCount, vCount = this.vCount){
+        this.indices.length=0;
+        // /*
+        //  * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
+        //  * namely uCount corresponds to the # of edges in the u direction, and vCount
+        //  * # of edges in v, so that there will be exactly 2*uCount*vCount triangular mesh formed.
+        //  */
+        for(let i = 0; i < uCount; i++){
+            this.indices.push(i, i+1);
+        }
+        this.geometry.setIndex(this.indices);
+    }
+
+    /**
+     *
+     * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
+     * namely uCount corresponds to the # of edges in the u direction, and vCount
+     * # of edges along v.
+     * @param mapping a mapping for the vertex generation, used to serve refined mesh generation
+     * @param uCount # of vertices + 1 in the u direction
+     * @param vCount # of vertices + 1 in the v direction
+     */
+    populate(mapping = (u:number)=>u, uCount = this.uCount, vCount = this.vCount): void {
+
+        for(let i = 0; i <= uCount; i++){
+            let u = i/uCount;
+            let x = mapping(u);
+            let vec = this.dataInterface(x);
+            this.vertices[i] = new THREE.Vector3(vec.x, vec.y, vec.z);
+        }
+        this.geometry.setFromPoints(this.vertices);
+        this.geometry.attributes.position.needsUpdate = true;
+    }
+
+    update(): void {
+        this.geometry.computeVertexNormals();
+    }
+
+    dispose(){
+        this.geometry.dispose();
+        this.material.dispose();
+    }
+
+    updateOrientation(): void {
+    }
+}
+
+export {Graph, CartesianGraph, CartesianGraph2D, Vector3D, ParametricLine, colors};

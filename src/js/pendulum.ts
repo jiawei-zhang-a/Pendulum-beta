@@ -1,5 +1,5 @@
 import * as UI from './ui';
-import './experiment';
+import './benchmarks.ts';
 import {init, Canvas, Graph, CartesianGraph} from './graphics';
 import * as THREE from 'three';
 import {Vector3} from "three";
