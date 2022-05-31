@@ -163,7 +163,7 @@ Specify in further detail implementation decisions and algorithms for achieving 
 in vector computations. Devised recycling system for dealing with large number of intermediate 
 containers required for vector and array operations.
 
-#### 05/30/22
+#### 05/31/22
 Implement major functions and operators in Arithmetics for typed quantities. Add parsing of imaginary
 constant i into the parser. Configure visualization for complex quantities. Now Pendulum (almost) fully
 supports computation and visualization of functions with complex values.
