@@ -162,3 +162,13 @@ Discuss the necessity for dynamic typing in quantities.
 Specify in further detail implementation decisions and algorithms for achieving space and time efficiency 
 in vector computations. Devised recycling system for dealing with large number of intermediate 
 containers required for vector and array operations.
+
+#### 05/30/22
+Implement major functions and operators in Arithmetics for typed quantities. Add parsing of imaginary
+constant i into the parser. Configure visualization for complex quantities. Now Pendulum (almost) fully
+supports computation and visualization of functions with complex values.
+
+![img.png](images/2022-05-31-1.png)
+![img.png](images/2022-05-31-2.png)
+
+

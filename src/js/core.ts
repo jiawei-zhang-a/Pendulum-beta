@@ -19,6 +19,10 @@ class Core {
 
     environment: Environment = new Environment();
 
+    constructor(){
+        //@ts-ignore expose environment to global for debugging
+        document.environment = this.environment;
+    }
     /**
      * Methods for resolving types of inputted statements (in string) to native representations.
      */
@@ -248,7 +252,12 @@ class Core {
             case '#':
                 return node.content;
             case 'constant':
-                return 'Math.'+node.content.toUpperCase();
+                switch (node.content) {
+                    case 'i':
+                        return 'a.I';
+                    default:
+                        return 'Math.'+node.content.toUpperCase();
+                }
             case 'operator':
             case 'function':
                 for(let subTree of node.children){
@@ -310,17 +319,20 @@ class Quantity extends Number{
     type: number;
     data: Number[];
     size: number;
-    locked: boolean;
-    constructor(type: number, rc:RecycleCenter,
+    private locked: boolean;
+    constructor(type: number, size: number, rc:RecycleCenter,
                 dataContainer: Number[]) {
         super();
         this.type = type;
+        this.size = size;
         this.locked = false;
         this.data = dataContainer;
         this.rc = rc;
     }
 
     recycle(){
+        if(this.locked)
+            return;
         let rc =this.rc;
         if(this.type == 2){
             rc.sc.push(this);
@@ -332,6 +344,25 @@ class Quantity extends Number{
             else
                 rc.s1[rc.getLogIndex(this.size/3)].push(this);
         }
+    }
+
+    lock(){
+        this.locked = true;
+    }
+
+    release(){
+        this.locked = false;
+    }
+
+    valueOf(): number {
+        return this.data[0].valueOf();
+    }
+    toString(): string {
+        switch (this.type) {
+            case 2:
+                return this.data[0]+'+'+this.data[1]+'i';
+        }
+        return '';
     }
 }
 
@@ -359,7 +390,7 @@ class RecycleCenter{
                 return this.sc.pop();
             }
             else{
-                return  new Quantity(type, this, [0,0]);
+                return  new Quantity(type, dim, this, [0,0]);
             }
         }
         if(dim<=3){
@@ -369,7 +400,7 @@ class RecycleCenter{
                 return q;
             }
             else{
-                return  new Quantity(type, this, new Array(dim).fill(0));
+                return  new Quantity(type, dim, this, new Array(dim).fill(0));
             }
         }
         else {
@@ -380,7 +411,7 @@ class RecycleCenter{
                 return q;
             }
             else {
-                return new Quantity(type, this, new Array(dim).fill(0));
+                return new Quantity(type, dim, this, new Array(dim).fill(0));
             }
         }
     }
@@ -401,10 +432,27 @@ class RecycleCenter{
 
 class Arithmetics {
     rc: RecycleCenter;
+    //Imaginary unit
+    I: Quantity;
     constructor() {
         this.rc = new RecycleCenter();
+        this.I = new Quantity(2, 2, undefined, [0, 1]);
+        this.I.lock();
     }
+
     add(a:Number, b:Number): Number {
+        if(!(a instanceof Quantity)&&!(b instanceof Quantity)){
+            //@ts-ignore
+            return a+b;
+        }
+        //Broadcast reals into complex representations
+        if(!(a instanceof Quantity)&&(b instanceof Quantity)&&b.type == 2){
+            a = this.extend(+a, 2, 2);
+        }
+        //Broadcast reals into complex representations
+        if(!(b instanceof Quantity)&&(a instanceof Quantity)&&a.type == 2){
+            b = this.extend(+b, 2, 2);
+        }
         if(a instanceof Quantity) {
             if(b instanceof Quantity){
                 if(a.type!=b.type||a.size != b.size)
@@ -420,13 +468,33 @@ class Arithmetics {
 
             }else
                 throw new ArithmeticError("Incompatible quantity type for addition");
-        }else{
-            //@ts-ignore
-            return a+b;
-        }
+        }else
+            throw new ArithmeticError("Operation not yet supported");
     }
-
+    neg(a: Number): Number{
+        if(a instanceof Quantity){
+            let c = this.rc.getQuantity(a.type, a.size);
+            for(let i = 0; i < a.size; i++){
+                c.data[i] = -a.data[i];
+            }
+            Arithmetics.recycle(a);
+            return c;
+        }
+        return -a;
+    }
     sub(a:Number, b:Number): Number {
+        if(!(a instanceof Quantity)&&!(b instanceof Quantity)){
+            //@ts-ignore
+            return a-b;
+        }
+        //Broadcast reals into complex representations
+        if(!(a instanceof Quantity)&&(b instanceof Quantity)&&b.type == 2){
+            a = this.extend(+a, 2, 2);
+        }
+        //Broadcast reals into complex representations
+        if(!(b instanceof Quantity)&&(a instanceof Quantity)&&a.type == 2){
+            b = this.extend(+b, 2, 2);
+        }
         if(a instanceof Quantity) {
             if(b instanceof Quantity){
                 if(a.type!=b.type||a.size != b.size)
@@ -441,10 +509,8 @@ class Arithmetics {
                 return c;
             }else
                 throw new ArithmeticError("Incompatible quantity type for addition");
-        }else{
-            //@ts-ignore
-            return a-b;
-        }
+        }else
+            throw new ArithmeticError("Operation not yet supported");
     }
 
     invisDot(a:Number, b:Number): Number {
@@ -669,10 +735,120 @@ class Arithmetics {
         }
         throw new ArithmeticError("Invert should only act on real or complex numbers or arrays");
     }
-
+    //In the future this controls the branch number taken when doing log or power
+    branchNumber = 0;
+    /**
+     * Accepts complex and real number as parameters,
+     * when either a or b
+     * @param a
+     * @param b
+     */
     pow(a:Number, b:Number): Number {
         if(!(a instanceof Quantity)&&!(b instanceof Quantity))
             return (+a)**(+b);
+        if((b instanceof Quantity)&&b.type==2){
+            if(!(a instanceof Quantity)){
+                let x = b.data[0];
+                let y = b.data[1];
+                let c = this.rc.getQuantity(2, 2);
+                c.data[0] = ((+a)**+x)*Math.cos(Math.log(+a)*+y);
+                c.data[1] = ((+a)**+x)*Math.sin(Math.log(+a)*+y);
+                Arithmetics.recycle(a);
+                Arithmetics.recycle(b);
+                return c;
+            }
+        }
+        if(a instanceof Quantity){
+            if(a.type==2&&Arithmetics.getType(b)<=2){//Complex to complex power
+                let c = this.rc.getQuantity(2, 2);
+                //@ts-ignore
+                let r = Math.sqrt(a.data[0]*a.data[0]+a.data[1]*a.data[1]);
+                let theta = Math.acos((+a.data[0])/r);
+                c.data[0] = Math.log(r);
+                c.data[1] = (a.data[1]<0)?(this.branchNumber*2*Math.PI-theta)
+                    :this.branchNumber*2*Math.PI+theta;
+                // console.log(c.data[1]);
+                Arithmetics.recycle(a);
+                return this.pow(Math.E, this.multiply(c, b));
+            }
+        }
+       return this.arrayOperate(a, b, this.pow);
+    }
+    log(a: Number): Number{
+        switch (Arithmetics.getType(a)) {
+            case 1:
+                return Math.log(+a);
+            case 2:
+                let c = this.rc.getQuantity(2, 2);
+                //@ts-ignore
+                let r = Math.sqrt(a.data[0]*a.data[0]+a.data[1]*a.data[1]);
+                //@ts-ignore
+                let theta = Math.acos((+a.data[0])/r);
+                c.data[0] = Math.log(r);
+                //@ts-ignore
+                c.data[1] = (a.data[1]<0)?(this.branchNumber*2*Math.PI-theta)
+                    :this.branchNumber*2*Math.PI+theta;
+                Arithmetics.recycle(a);
+                return c;
+            default:
+                return this.arrayFunc(<Quantity> a, this.log);
+        }
+    }
+
+    /**
+     * Operates on arrays or vectors with a given unary function iteratively.
+     * Returns a quantity of the same type and dimension.
+     * @param a
+     * @param func
+     * @private
+     */
+    private arrayFunc(a: Quantity, func: (a: Number)=>Number): Number{
+        let c = this.rc.getQuantity(a.type, a.size);
+        for(let i = 0; i < a.size; i++){
+            c.data[i] = func(a.data[i]);
+        }
+        Arithmetics.recycle(a);
+        return c;
+    }
+
+    /**
+     * Operates on arrays with a given binary operator,
+     * broadcasts a if b is an array and vice versa. Termwise
+     * operate if a and b are arrays with matching dimensions.
+     * @param a
+     * @param b
+     * @param operator
+     * @private
+     */
+    private arrayOperate(a: Number, b: Number, operator: (a: Number, b: Number)=>Number){
+        if(Arithmetics.getType(a)<=2 && b instanceof Quantity && b.type == 3){
+            let c = this.rc.getQuantity(3, b.size);
+            for(let i = 0; i < b.size; i++){
+                c.data[i]=operator(a, b.data[i]);
+            }
+            Arithmetics.recycle(a);
+            Arithmetics.recycle(b);
+            return c;
+        }
+        if(Arithmetics.getType(b)<=2 && a instanceof Quantity && a.type == 3){
+            let c = this.rc.getQuantity(3, a.size);
+            for(let i = 0; i < a.size; i++){
+                c.data[i]=operator(a.data[i], b);
+            }
+            Arithmetics.recycle(a);
+            Arithmetics.recycle(b);
+            return c;
+        }
+        if(a instanceof Quantity && b instanceof Quantity
+            &&a.type == 3 && b.type==a.type){
+            let c = this.rc.getQuantity(3, a.type);
+            for(let i = 0; i < a.size; i++){
+                c.data[i]=operator(a.data[i], b.data[i]);
+            }
+            Arithmetics.recycle(a);
+            Arithmetics.recycle(b);
+            return c;
+        }
         return 0;
     }
 
@@ -709,7 +885,7 @@ abstract class Evaluable {
         this.evaluate = target.evaluate;
         this.context = new Array(26);
         for(let i = 0; i<26; i++){
-            this.context[i] = [];
+            this.context[i] = [NaN];
         }
         for(let i = 26; i<52; i++){
             this.context[i] = [];
@@ -806,7 +982,7 @@ class Variable {
         = (a:Arithmetics, c:Number[][], p: Number[])=>c[this.contextID][0];
     get = (rlID:number, context: Number[][])=>{
         let reference = this.referenceList[rlID];
-        switch (reference[0]){
+        switch (reference[0]){//Depends on type
             case 1: return reference[1];
             case 2: return reference[1];
             case 3: return context[<number>reference[1]][<number>reference[2]];

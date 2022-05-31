@@ -1,5 +1,6 @@
 const addInvisibleDots = true;
 const convertE = true;
+const convertI = true;
 //Parsing constants
 const zerocode = '0'.charCodeAt(0);
 const ninecode = '9'.charCodeAt(0);
@@ -21,6 +22,12 @@ const Zcode = 'Z'.charCodeAt(0);
  */
 function getCharType(c:string) {
     let code = c.charCodeAt(0);
+    if(convertI&&c=='i'){
+        return "symbol";
+    }
+    if(convertE&&c=='e'){
+        return "symbol";
+    }
     if (code <= ninecode && code >= zerocode)
         return "digit";
     else if (c === '.')
@@ -36,6 +43,8 @@ function getCharType(c:string) {
 type MStruct = {[key:string]:MStruct | [string, string, number]};
 // Item structure: [name, type, sub-clause count]
 let macros:MStruct = {
+    'i': ['i', 'constant', 0],
+    'e': ['e', 'constant', 0],
     '{': ['{', 'openstruct', 0],
     '}': ['}', 'closestruct', 0],
     '(': ['(', 'openstruct', 0],
@@ -251,9 +260,6 @@ class Token{
                         case '.':
                         case 'digit':
                         case 'letter':
-                            if(convertE&&this.content == 'e'){
-                                this.type = "constant";
-                            }
                             terminating = true;
                             break;
                         case 'symbol':
@@ -442,7 +448,7 @@ class Token{
      */
     checkNegation(previousType: string){
         if(this.content=='sub'){
-            if(previousType==undefined||previousType=='none'||previousType=='operator'||previousType=='openStruct'){
+            if(previousType==undefined||previousType=='none'||previousType=='operator'||previousType=='openstruct'){
                 this.content = 'neg';
             }
         }
