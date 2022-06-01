@@ -171,4 +171,9 @@ supports computation and visualization of functions with complex values.
 ![img.png](images/2022-05-31-1.png)
 ![img.png](images/2022-05-31-2.png)
 
+Modify parameterized variable access implementation to accommodate for occurrences of the same variable
+in an expression with non parameterized access style.
 
+Redesign logic of parameterized variable accesses and specify its implementations. Reconsider context usage
+in light of parameterized function calls and vectorized quantities. Recognized the need for quantities
+to be locked by count instead of by boolean. 

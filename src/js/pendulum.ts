@@ -116,17 +116,17 @@ $(()=>{
     let axesHelper = new THREE.AxesHelper(7);
     canvas.scene.add(axesHelper);
 
-    let vector = new Vector3D("example", [1,0,0], [1,1,2]);
-    vector.constructGeometry({'color': 'lightgray'});
-    vector.generateIndices();
-    vector.populate();
-    canvas.addGraph(vector);
-
-    let vector1 = new Vector3D("example", [1,2,3], [-1,-1,-2]);
-    vector1.constructGeometry({'color': 'blue'});
-    vector1.generateIndices();
-    vector1.populate();
-    canvas.addGraph(vector1);
+    // let vector = new Vector3D("example", [1,0,0], [1,1,2]);
+    // vector.constructGeometry({'color': 'lightgray'});
+    // vector.generateIndices();
+    // vector.populate();
+    // canvas.addGraph(vector);
+    //
+    // let vector1 = new Vector3D("example", [1,2,3], [-1,-1,-2]);
+    // vector1.constructGeometry({'color': 'blue'});
+    // vector1.generateIndices();
+    // vector1.populate();
+    // canvas.addGraph(vector1);
 
     p = new Pendulum(canvas);
     UI.load(p);

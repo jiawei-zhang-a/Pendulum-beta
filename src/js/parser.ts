@@ -470,21 +470,21 @@ class SymNode {
     /**
      * Retrieves all leaf nodes underlying this statement tree.
      */
-    getLeaves(): {[varName: string]: SymNode} {
-        let leaves: {[varName: string]: SymNode} = {};
+    getLeaves(): SymNode[] {
+        let leaves: SymNode[] = [];
         for(let clause of this.subClauses) {
             if(clause == undefined)
                 throw new ReferenceError("incomplete expression");
-            leaves = {...leaves, ...clause.getLeaves()};
+            leaves = [...clause.getLeaves()];
         }
         if(this.children.length == 0) {
-            leaves[this.content] = this;
+            leaves.push(this);
             return leaves;
         }
         for(let child of this.children) {
             if(child == undefined)
                 throw new ReferenceError("incomplete expression");
-            leaves = {...leaves, ...child.getLeaves()};
+            leaves.push( ...child.getLeaves());
         }
         return leaves;
     }

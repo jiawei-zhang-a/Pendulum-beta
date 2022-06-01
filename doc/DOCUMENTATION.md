@@ -452,7 +452,8 @@ dynamic programming for non-parameterized functions can be achieved.
 - Function namings that don't follow the algebraic variable naming will not be available for dynamic programming.
 
 ### Vector Processing
-Besides scalars, Pendulum also needs to support algebraic operations of vector and array typed quantities, as well as complex numbers. We start by specifying the set of conventions
+Besides scalars, Pendulum also needs to support algebraic operations of vector and array typed quantities, 
+as well as complex numbers. We start by specifying the set of conventions
 governing i/o and operations of vector & array typed quantities.
 
 #### Parsing Conventions
@@ -506,10 +507,10 @@ class Quantity extends Number{
   ![img_34.png](img_34.png)
   so there are no ambiguity as to how to handle the data of the Quantity.
 * Allowed types: real, complex, array, vector
-#### Variable typing
+#### Expression typing
 * We shall distinguish between the type of a variable and the type of the quantity that its expression yields.
 * Variable types are independent of the type of quantities that underlies.
-  * Variable types themselves don't carry type information, regardless of being algebraic, constant, or function.
+  * Variable types themselves don't carry quantity type information, regardless of being algebraic, constant, or function.
 * In terms of determining the quantity type of the output of an expression, there is ultimately one 
 solution which is evaluation. This makes it necessarily so that variables are **dynamically typed**, since it takes
 as much effort to compute the quantity type transitions in an expression, like that `dot(\vec{a},\vec{b})` should
@@ -615,6 +616,7 @@ the first `A.add`. To solve this problem we add a lock mechanism on quantities. 
 times in piScript, it is locked until the whole piScript has completed it operation. When a quantity is locked, it 
 refuses to go into the recycle bin when `.recycle()` is called, so that its data will not be modified. It can also 
 be released from the lock state by invoking `.release()`. 
+
 ![img_36.png](img_36.png)
 But how would Core know which quantities to lock, and when to release them? 
 Let's start by examining an arbitrary expression, written in laTeX `$a=b-c\cdot (d\cross b)$`. Here only `b` runs
@@ -633,6 +635,18 @@ the best practice is to lock the quantities tha are fed into the context. Furthe
 situations like populating vertices, the usage of context follows a certain determined pattern, and the type of the 
 quantities is not assumed to change. Hence, we can just keep the same set of quantities in corresponding positions in
 the context matrix, and feed their data iteratively without ever releasing their memory.
+
+```typescript
+class Quantity extends Number {
+    locked: boolean;
+    type: string; /*enum*/
+    data: number | Quantity[] | number[];
+    size: number;
+    lock:()=>void;
+    release:()=>void;
+    recycle:()=>void;
+}
+```
 #### More on recycle bin of quantities
 Programmatically, this is a tactic to bypass garbage collection and object creation by keeping instantiated memories in 
 a queue, and putting them into use whenever needed. However, this doesn't mean any trouble if we stopped using an
@@ -679,6 +693,213 @@ this then is by making implementing the recycle center into the Arithmetics clas
 statically accessed, we can make it instance accessed, simultaneously avoiding issues of synchronization. 
 The time efficiency cost will be negligible: 
 [instance access vs static access in js](https://stackoverflow.com/questions/30403241/javascript-static-methods-vs-prototypal-instatiated-methods-on-performance#:~:text=The%20static%20version%20is%20faster,t%20have%20any%20substantial%20difference).
+
+
+### Parameterized Variables
+Sometimes we run into an expression with syntax like `a(x)`, where we cannot be sure if the invocation of `(x)` should
+be treated as parameters to `a` or should they be a simple multiplication clause, namely that the computed result
+should be `a*x`. This pattern is not restricted to parenthesis enclosing a single variable. Consider statement
+`f(x+y-2x)`, where the entire clause `(x+y-2x)` can be considered as a parameter, or a necessary way of manipulating
+operation precedence to make additions precede the invisible multiplication.
+
+In these cases to deploy parsing conventions such as making letter `f` a parameterized function and letter `a`
+correspond to a standalone multiplication variable, it will not only seem arbitrary but also cause great limitations
+and perhaps inconsistencies in the user inputs. Neither should we treat differently the case where `(x)` show up
+enclosing a single variable versus that enclosing an entire expression, as it is common for parameterized functions
+`f(x)` to take a complex expression in place of its parameter, in order to simplify its written form.
+
+Thus, the only logical way to determine the behavior of such a syntax, e.g `f(x)`, which we call the parameterized
+variable clause, is by leveraging core to **first retrieve** (or update) **the definition of `f`**, and upon
+seeing whether it is a parameterized function, or a standalone variable, and then treat it accordingly.
+
+The job of the parser becomes much more simplified. It simply needs to recognize the pattern `v(...)`, where
+we use `v` to denote variable names, and instead of assuming an invisible multiplication between the `v` and
+the `(...)`, it should collapse the `(...)` clause under `v`, and change type of `v` from `$` to `func$`.
+Type `func$` is our unique denotation of **_parameterized variables_** (as opposed to variables `$`),
+and it is up to the core to treat them as parameterized functions or variable multiplications.
+
+#### Core resolution
+The challenge with core generating the `piScript` of such a clause is in that, `piScript` is not supposed to be
+rewritten once it is generated, even if its underlying dependency changes. This is crucial for the expandability
+and time efficiency of the language (Pendulum system), so no exceptions will be made here. What can be changed
+then, is the result that the `get(i, c)` calls in piScript yield. However, if we were to generate a piScript like
+```typescript
+//the expression is $\sin(x)f(x)$,
+let f = get(0, c);
+if(f instanceof Function){
+    return a.invisDot(a.sin(get(1,c)), f(a, c, [get(1, c)], pm));
+}else
+    return a.invisDot(a.sin(get(1,c)), a.invisDot(f, get(1,c)));
+```
+such a pattern is neither efficient in terms of generated code complexity (each `func$` clause costs 2 times
+branching complexity), nor in terms of consistency (bad readability and reliability of heavily branched statements).
+
+Thus, we want to adopt only one branch in the piScript and hope that it has the flexibility to change behavior
+according to the case of `f(...)` being a _variable multiplication_ or a _parameterized function_ invocation.
+Obviously here the most general statement is:
+```typescript
+ let f = get(0, c);
+ return a.invisDot(a.sin(get(1,c)), f(a, c, [get(1, c)], pm));
+```
+where the yielded result of `get` is consistently a function, only that when `f` is a constant or an
+algebraic variable, `get(0, c)(get, c, [get(1,c)], pm)` executes `this.value * p[0]` and returns the result of
+multiplication, instead of actually evaluating the piScript of `f`, taking p as a parameter. The code segment
+`this.value * p[0]` is a predefined routine hardcoded into the reference list upon reference list configuration,
+where `this.value` is pseudocode for retrieving the value of `this` variable, whether through running the piScript,
+looking up in the constant reference list, or looking up the context.
+Previous implementation of reference list configuration:
+```typescript
+ function configureRl(varName: string){
+        let reference = this.referenceList[this.rlMapping[varName]];
+        let depVar = this.dependencies[varName];
+        let accessStyle = this.functionAccess[varName];
+        //Information access style, style 1 and style 2 are equivalent for local Algebraics,
+        //except style 2 is slower but permits parameter as multiplicative clause
+        reference[0] = (accessStyle!=undefined)?2:depVar.type;
+        switch (reference[0]) {
+            case 1://...
+            case 2:
+                if(depVar.parameterized)
+                    reference[1] = depVar.evaluate;
+                else
+                    reference[1] = (a:Arithmetics,c:Number[][],p: Number[])=>{//Special dealing with func$ type
+                        return a.invisDot(depVar.evaluate(a,c,[]), (p.length!=0)?p[0]:1);
+                    }  
+                break;
+            case 3://...
+        }
+}
+```
+you can see the code `reference[1] = (a:Arithmetics,c:Number[][],p: Number[])=>{//Special dealing with func$ type
+return a.invisDot(depVar.evaluate(a,c,[]), (p.length!=0)?p[0]:1);
+}` serves to assign a predefined function for evaluating multiplication. This is called the pseudo-evaluation
+(or pseudo-multiplication) clause.
+
+#### Multiple access parameterized variable
+The logic behind this implementation is sound, with one exception to be made. Here ` let accessStyle = this.functionAccess[varName];`
+is accessing the access style information, namely whether the dependent variable is a parameterized variable,
+that was determined during the stage of statement tree analysis. This allows for only one access style
+assigned to each unique variable. If a dependent variable ever shows up in the expression as `a()`, it is marked as
+parameterized access in the hosting variable, and all of its other occurrences will yield an evaluation function
+as the result of `get`, even when piScript is in fact expecting a `Quantity`. Consider expression `a+a(12y+x)`,
+where the first `a` is supposed to be accessed variable style, but due to the denotation of `a` as parameterized
+style, piScript `a.add(get(0,c), get(0,c)(get, c, [a.add(...)], pm)` will no longer operate correctly (since
+`get(0, c)` yields a function).
+
+Considering the situation, it means that `get` needs to inform whether the dependent variable access is expecting
+a quantity, or a parameter accessed evaluation function. For consistency reasons, we incorporate
+it as an optional parameter, changing the signature of get to:
+```typescript
+get:(i:number, c: Number[][], s = 0)=>Number
+```
+where the third parameter s decides that get should return an evaluation function when
+it is set to 1. In the reference list, we adjust the configurations of each reference to
+simultaneously hold the variable accessed quantity and the parameter accessed
+function.
+1. Constant
+```
+let reference  = [type: number, value: Quantity, eval: Function]
+```
+2. Function
+```
+let reference  = [type: number, eval: Function]
+```
+3. Algebraic
+```
+let reference  = [type: number, varIndex: number, 
+      subIndex: number, eval: Function]
+```
+#### Parameter passing & vector processing
+1. For a parameterized function access `f(x)`, we notice that the value passed into the piScript of 
+`f` is a Quantity inside the parameter list `p:Number[]`. Then in piScript, the value of this
+parameter overrides the corresponding context value of `x`. Now to ensure that in case of `x`
+being a Quantity and showing up in multiple parts of an expression (e.g. `f(x) = x^2 +x`), its value
+is not overwritten by the recycling mechanism, we simply need to **lock its value when entering
+it into context**.
+
+2. For an expression like `f(a,b,c)`, it is also recognized as a `func$` clause. But in addition to 
+the possibility of it being a multivariable function access clause, it can also be representing the
+variable `f` invisibly dotted into the vector constructor `(a,b,c)`. In this case we make a tweak
+to the **pseudo-multiplication** clause and load the parameters sequentially into a quantity holder
+of vector type, and perform invisDot between the preceding `f` and the quantity. 
+We don't lock the quantity in this case.
+
+3. Let's consider the possibility of multiple parameterized function calls, with a stacked structure:
+```
+f(x) = \sin(x)+x
+z = f(x^2)+x
+```
+Now starting with the top level hierarchy, `x` is populated by the evaluation handle to be of a certain
+value say `2`. Then `x^2` is passed down to f as a parameter. `f` then overrides the namespace `x` inside context
+by the value `x^2 = 4`. Then upon the return of the evaluation of `f`, context now holds `x` with value `4`
+instead of the original value `2`, and it is used to perform the addition, yielding, `z = f(2^2) + 4`, which
+is obviously incorrect. This leads us to consider a stack structure for context in the next section.
+### Context revisited
+We want nested parameterized function calls to override the context variables corresponding to the parameters
+specified, but we also want the value of those context namespaces to be restored before the parameterized
+function returns. Now instead of setting aside storage to store the original value of the context namespaces,
+we can simply make each namespace to host a stack, and any overriding values by parameters are pushed onto and
+accessed from the stack top. Before the function returns, pop the overriding values by parameters from
+the context namespaces, and we will be left with an "unchanged" context.
+
+As an example with `c, p, pm` as context, parameter, parameter mapping respectively: 
+![img_38.png](img_38.png)
+Combining with the fact that we also need to lock quantities before passing them into the
+context, and releasing them and recycling them after the parameterized call routine is complete, we shall
+turn context from a 2D matrix into a class and use field methods to streamline these operations.
+```typescript
+class Context{
+    /**
+     * 2D array of namespace enclosing stacks
+     * of Number
+     */
+    context: Number[][][];
+    /**
+     * Locks value if instance of quantity, pushes value
+     * into the corresponding stack
+     */
+    push:(index: number, subindex: number, value: Number)=>Number;
+    /**
+     * Returns the top of the corresponding namespace
+     * without modifying it
+     */
+    access:(index: number, subindex: number)=>Number;
+    /**
+     * Pops value from the corresponding namespace, releases
+     * it and makes an attempt to release it
+     */
+    pop:(index: number, subindex: number)=>void;
+}
+```
+#### Quantity lock revisited
+From the above mechanism of parameter overriding, you might have noticed something subtle,
+if the parameters passed in were quantities that are originally locked, the parameterized function
+will unlock it after execution regardless and recycle it. This deviates from the **transparency** of 
+parameterized function calls to the quantities. Namely, if a quantity was initially **locked**, it does
+**not know and should not care whether it gets passed into a parameterized function as a parameter**,
+until the source of its lock decides to release it. All functions of the Arithmetics behave this way,
+namely that they respect the lock that was placed on a variable, and does not alter its state or
+recycle it.
+
+This should also be the case with parameterized function calls. That is even though in parameterized function
+calls values popped from contexts in the end are unlocked, those that are locked at the time when they were
+passed in should remain locked and preserved from recycling at the time the function call exists. To achieve
+this, **one needs to count the times locks are placed**, and **decrement** that count everytime release are called.
+This way **locks placed for different purposes** are **differentiated**, and only **when all the creators of these
+locks** think that the variable is released, namely when the lock count is decreased to 0, can the variable be
+recycled.
+
+```typescript
+class Quantity extends Number {
+    lockCount: number;
+    type: string; /*enum*/
+    data: number | Quantity[] | number[];
+    size: number;
+    lock:()=>void;
+    release:()=>void;
+    recycle:()=>void;
+}
+```
 
 ### Statement resolution
 Statement resolution is the process that Core goes through to identify which variable a TeX statement is meaning to define. 

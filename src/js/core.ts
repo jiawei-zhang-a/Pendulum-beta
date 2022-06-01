@@ -144,9 +144,9 @@ class Core {
      * @param label
      * @param leaves
      */
-    containsLabel(label: string, leaves: {[p: string]: SymNode}){
-        for(let key in leaves){
-            if(key==label)
+    containsLabel(label: string, leaves: SymNode[]){
+        for(let leaf of leaves){
+            if(leaf.content==label)
                 return true;
         }
         return false;
@@ -184,12 +184,11 @@ class Core {
         /*
             First top-down traversal to generate variables and establish dependencies.
          */
-        let leaves: {[varName: string]: SymNode} = definition.getLeaves();
+        let leaves: SymNode[] = definition.getLeaves();
 
-        for (let varName in leaves) {
-            let leaf = leaves[varName];
+        for (let leaf of leaves) {
             //Consider only symbols representing functions or algebraics
-            if (leaf.type == '#')
+            if (leaf.type == '#' || leaf.type == 'constant')
                 continue;
             // Build reference list.
             // Name of this dependency.
@@ -1137,6 +1136,8 @@ class Variable {
         switch (reference[0]) {
             case 1:
                 reference[1] = depVar.evaluate(this.arithmetics,[],[]);
+                if(reference[1] instanceof Quantity)
+                    reference[1].lock();
                 break;
             case 2:
                 if(depVar.parameterized)
