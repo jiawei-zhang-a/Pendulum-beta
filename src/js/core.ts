@@ -231,14 +231,32 @@ class Core {
     }
 
     getPiScript(statement: SymNode, variable: Variable): string{
-        let piScript: string = "";
-        if(variable.parameterized){//Append parameter override clause
-            piScript+=
-                "for(let index in pm){\n" +
-                " c[pm[index]][0] = p[index];\n" +
-                "}\n";
+        let piScript: string = "//owned by: "+variable.name;
+        let preScript = `
+for(let index in pm){
+    let q = p[index];
+    p.push(c[pm[index]][0]);
+    c[pm[index]][0] = q;
+    if(q.type!=undefined)
+        q.lock();
+}\n`;
+        let postScript = `
+for(let index in pm){
+    let q = p[index];
+    c[pm[index]][0] = p.pop();
+    if(q.type!=undefined){
+        q.release();
+        q.recycle();
+    }
+}\n`;
+        if(variable.parameterized&&variable.type!=1){//Append parameter override clause
+            piScript+=preScript;
+            piScript+="let r = "+this.parseTree(statement,variable)+";";
+            piScript+=postScript;
+            piScript+="return r;";
         }
-        piScript+="return "+this.parseTree(statement, variable)+';';
+        else
+            piScript+="\nreturn "+this.parseTree(statement, variable)+';';
         return piScript;
     }
 
@@ -268,8 +286,8 @@ class Core {
                 for(let subTree of node.subClauses){
                     concatenated+=this.parseTree(subTree, variable)+",";
                 }
-                return "get("+variable.rlMapping[nodeLabel]+", c)"+"(a, c, "
-                        +"["+ concatenated.substring(0, concatenated.length-1) +"]"+")";
+                return "get("+variable.rlMapping[nodeLabel]+", c, 1)"+"(a, c, "
+                        +"["+ concatenated.substring(0, concatenated.length-1) +"])";
 
         }
         return "";
@@ -318,19 +336,19 @@ class Quantity extends Number{
     type: number;
     data: Number[];
     size: number;
-    private locked: boolean;
+    private lockNumber: number;
     constructor(type: number, size: number, rc:RecycleCenter,
                 dataContainer: Number[]) {
         super();
         this.type = type;
         this.size = size;
-        this.locked = false;
+        this.lockNumber = 0;
         this.data = dataContainer;
         this.rc = rc;
     }
 
     recycle(){
-        if(this.locked)
+        if(this.lockNumber!==0)
             return;
         let rc =this.rc;
         if(this.type == 2){
@@ -346,11 +364,12 @@ class Quantity extends Number{
     }
 
     lock(){
-        this.locked = true;
+        this.lockNumber++;
     }
 
     release(){
-        this.locked = false;
+        if(this.lockNumber!==0)
+            this.lockNumber--;
     }
 
     valueOf(): number {
@@ -763,6 +782,8 @@ class Arithmetics {
                 //@ts-ignore
                 let r = Math.sqrt(a.data[0]*a.data[0]+a.data[1]*a.data[1]);
                 let theta = Math.acos((+a.data[0])/r);
+                if(r==0)
+                    return 0;
                 c.data[0] = Math.log(r);
                 c.data[1] = (a.data[1]<0)?(this.branchNumber*2*Math.PI-theta)
                     :this.branchNumber*2*Math.PI+theta;
@@ -893,9 +914,10 @@ abstract class Evaluable {
 
     /**
      *
+     * @param t
      * @param param sparse array of ID-based parameters
      */
-    abstract compute(...param: Number[]): Number;
+    abstract compute(t: number, ...param: Number[]): Number;
 }
 
 class Variable {
@@ -979,8 +1001,15 @@ class Variable {
      */
     evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number
         = (a:Arithmetics, c:Number[][], p: Number[])=>c[this.contextID][0];
-    get = (rlID:number, context: Number[][])=>{
+    get = (rlID:number, context: Number[][], s = 0)=>{
         let reference = this.referenceList[rlID];
+        if(s!==0){
+            switch (reference[0]) {
+                case 1: return reference[2];
+                case 2: return reference[1];
+                case 3: return reference[3];
+            }
+        }
         switch (reference[0]){//Depends on type
             case 1: return reference[1];
             case 2: return reference[1];
@@ -1032,7 +1061,8 @@ class Variable {
     loadVisualization(pendulum: Pendulum){
         let algebraics = this.getAlgebraics();
         return pendulum.updateGraph(this.name,
-            (x,y)=>this.evalHandle.compute(Number(x),Number(y)).valueOf());
+            (x,y)=>
+                this.evalHandle.compute(pendulum.canvas.time,Number(x),Number(y)).valueOf());
     }
     /**
      * Instantiates a new evaluation handle for the variable. The type
@@ -1045,7 +1075,7 @@ class Variable {
         switch (this.type){
             case 1:
                 Anonymous = class extends Evaluable{
-                    compute(...param: number[]): Number {
+                    compute(t:number, ...param: number[]): Number {
                         return this.evaluate(a, this.context, []);
                     }
                 };
@@ -1054,22 +1084,25 @@ class Variable {
                 //autonomously overriding the context
                 let xID = contextID('x');
                 let yID = contextID('y');
+                let tID = contextID('t');
                 if(this.parameterized)
                     Anonymous = class extends Evaluable{
-                        compute(...param: number[]): Number {
+                        compute(t: number, ...param: number[]): Number {
                             //Supply positional arguments into x & y by default,
                             //Parameters clause will then override x & y values
                             //if they occupy the same name space. eg. f(y,x)
                             this.context[xID][0] = param[0];
                             this.context[yID][0] = (param.length>1)?param[1]:0;
+                            this.context[tID][0] = t;
                             return this.evaluate(a, this.context, param);
                         }
                     };
                 else {
                     Anonymous = class extends Evaluable {
-                        compute(...param: number[]): Number {
+                        compute(t:number, ...param: number[]): Number {
                             this.context[xID][0] = param[0];
                             this.context[yID][0] = (param.length>1)?param[1]:0;
+                            this.context[tID][0] = t;
                             return this.evaluate(a, this.context, []);
                         }
                     };
@@ -1132,12 +1165,26 @@ class Variable {
         let accessStyle = this.functionAccess[varName];
         //Information access style, style 1 and style 2 are equivalent for local Algebraics,
         //except style 2 is slower but permits parameter as multiplicative clause
-        reference[0] = (accessStyle!=undefined)?2:depVar.type;
+        reference[0] = depVar.type;
+        console.log("Configuring "+varName+" for "+this.name);
         switch (reference[0]) {
             case 1:
-                reference[1] = depVar.evaluate(this.arithmetics,[],[]);
-                if(reference[1] instanceof Quantity)
-                    reference[1].lock();
+                let quantity = depVar.evaluate(this.arithmetics,undefined,[]);
+                if(quantity instanceof Quantity)
+                   quantity.lock();
+                reference[1] = quantity;
+                if(accessStyle){
+                    reference[2] = (a:Arithmetics,c:Number[][],p: Number[])=>{
+                        if(p.length===0)
+                            return quantity;
+                        let b = (p.length === 1)? p[0]: a.rc.getQuantity(4, p.length);
+                        if(b instanceof Quantity)
+                            for(let i = 0; i<b.size; i++){
+                                b.data[i] = p[i];
+                            }
+                        return a.invisDot(quantity, b);
+                    }
+                }
                 break;
             case 2:
                 if(depVar.parameterized)
@@ -1150,6 +1197,19 @@ class Variable {
             case 3:
                 reference[1] = contextID(depVar.name);
                 reference[2] = 0;
+                if(accessStyle){
+                    reference[3] = (a:Arithmetics,c:Number[][],p: Number[])=>{
+                        let r = c[<number>reference[1]][<number>reference[2]];
+                        if(p.length===0)
+                            return r;
+                        let b = (p.length === 1)? p[0]: a.rc.getQuantity(4, p.length);
+                        if(b instanceof Quantity)
+                            for(let i = 0; i<b.size; i++){
+                                b.data[i] = p[i];
+                            }
+                        return a.invisDot(r, b);
+                    }
+                }
                 break;
         }
     }
