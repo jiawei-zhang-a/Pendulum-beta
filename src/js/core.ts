@@ -233,17 +233,17 @@ class Core {
     getPiScript(statement: SymNode, variable: Variable): string{
         let piScript: string = "//owned by: "+variable.name;
         let preScript = `
-for(let index in pm){
+for(let index = 0; index<pm.length; index++){
     let q = p[index];
-    p.push(c[pm[index]][0]);
+    p[index]=c[pm[index]][0];
     c[pm[index]][0] = q;
     if(q.type!=undefined)
         q.lock();
 }\n`;
         let postScript = `
-for(let index in pm){
-    let q = p[index];
-    c[pm[index]][0] = p.pop();
+for(let index = 0; index<pm.length; index++){
+    let q = c[pm[index]][0];
+    c[pm[index]][0] = p[index];
     if(q.type!=undefined){
         q.release();
         q.recycle();

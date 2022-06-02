@@ -475,7 +475,7 @@ class SymNode {
         for(let clause of this.subClauses) {
             if(clause == undefined)
                 throw new ReferenceError("incomplete expression");
-            leaves = [...clause.getLeaves()];
+            leaves.push(...clause.getLeaves());
         }
         if(this.children.length == 0) {
             leaves.push(this);
