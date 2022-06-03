@@ -237,14 +237,14 @@ for(let index = 0; index<pm.length; index++){
     let q = p[index];
     p[index]=c[pm[index]][0];
     c[pm[index]][0] = q;
-    if(q.type!=undefined)
+    if(q!=undefined&&q.type!=undefined)
         q.lock();
 }\n`;
         let postScript = `
 for(let index = 0; index<pm.length; index++){
     let q = c[pm[index]][0];
     c[pm[index]][0] = p[index];
-    if(q.type!=undefined){
+    if(q!=undefined&&q.type!=undefined){
         q.release();
         q.recycle();
     }
@@ -903,7 +903,7 @@ abstract class Evaluable {
     public constructor(target: Variable) {
         this.target = target;
         this.evaluate = target.evaluate;
-        this.context = new Array(26);
+        this.context = new Array(52);
         for(let i = 0; i<26; i++){
             this.context[i] = [NaN];
         }
@@ -1178,9 +1178,9 @@ class Variable {
                         if(p.length===0)
                             return quantity;
                         let b = (p.length === 1)? p[0]: a.rc.getQuantity(4, p.length);
-                        if(b instanceof Quantity)
-                            for(let i = 0; i<b.size; i++){
-                                b.data[i] = p[i];
+                        if(p.length>1)
+                            for(let i = 0; i<(<Quantity>b).size; i++){
+                                (<Quantity>b).data[i] = p[i];
                             }
                         return a.invisDot(quantity, b);
                     }
@@ -1203,9 +1203,9 @@ class Variable {
                         if(p.length===0)
                             return r;
                         let b = (p.length === 1)? p[0]: a.rc.getQuantity(4, p.length);
-                        if(b instanceof Quantity)
-                            for(let i = 0; i<b.size; i++){
-                                b.data[i] = p[i];
+                        if(p.length > 1)
+                            for(let i = 0; i<(<Quantity>b).size; i++){
+                                (<Quantity>b).data[i] = p[i];
                             }
                         return a.invisDot(r, b);
                     }

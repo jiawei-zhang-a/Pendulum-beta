@@ -569,7 +569,7 @@ class Parser{
                     break;
             }
             if(addInvisibleDots){
-                if((['closestruct', '$', '#', 'constant'].indexOf(previousToken.type)!=-1)&&
+                if((['closestruct', '$', '#', 'constant', 'func$'].indexOf(previousToken.type)!=-1)&&
                     (['$', 'function', 'func$', '#', 'constant'].indexOf(token.type)!=-1||token.content=='(')){
                     let invisDot = new Token();
                     invisDot.type = 'operator';
