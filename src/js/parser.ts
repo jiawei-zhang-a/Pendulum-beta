@@ -49,7 +49,7 @@ let macros:MStruct = {
     '}': ['}', 'closestruct', 0],
     '(': ['(', 'openstruct', 0],
     ')': ['(', 'closestruct', 0],
-    ',': [',', 'closestruct', 0],
+    ',': [',', 'optstruct', 0],
     '$': ['$', 'closestruct', 0],
     '+': ['add', 'operator', 0],
     '-': ['sub', 'operator', 0],
@@ -97,6 +97,7 @@ let macros:MStruct = {
                         '(': ['(', 'openstruct', 0],
                         '|': ['|', 'openstruct', 1],
                         '{': ['{', 'openstruct', 0],
+                        '[': ['[', 'openstruct', 0],
                     }
                 }
             }
@@ -134,6 +135,7 @@ let macros:MStruct = {
                             ')': [')', 'closestruct', 0],
                             '|': ['|', 'closestruct', 0],
                             '}': ['}', 'closestruct', 0],
+                            ']': [']', 'closestruct', 0],
                         }
                     }
                 }
@@ -177,6 +179,8 @@ class Token{
     clauseCount = 0;
     subClauses: Token[][];
     parentClause: Token[];
+    //For temporary storage of SymNodes in vector parsing
+    subNodes: SymNode[];
 
     /**
      * Parses the content of the tex string starting at specified positions to
@@ -426,7 +430,7 @@ class Token{
         if(tex.charAt(start)=='{'){
             let parser = new Parser();
             let openStruct = new Token();
-            openStruct.type = 'openStruct';
+            openStruct.type = 'openstruct';
             openStruct.content = '{';
             openStruct.start = start;
             openStruct.end = start+1;
@@ -448,7 +452,8 @@ class Token{
      */
     checkNegation(previousType: string){
         if(this.content=='sub'){
-            if(previousType==undefined||previousType=='none'||previousType=='operator'||previousType=='openstruct'){
+            if(previousType==undefined||previousType=='none'||previousType=='operator'||previousType=='openstruct'
+            ||previousType=='optstruct'){
                 this.content = 'neg';
             }
         }
@@ -498,7 +503,8 @@ class SymNode {
 let formats:{[key:string]:string} = {
     '(':')',
     '{':'}',
-    '$':'$'
+    '$':'$',
+    '[':']',
 }
 
 //Class for items in the parse stack, representing structure typed tokens
@@ -590,6 +596,13 @@ class Parser{
                 else throw new SyntaxError('Mismatched closures between '+
                                 this.parseStack[0].destination.content+' and '+token.content);
             }
+            //Optional structure, breaks this parse when matched to closure identifiers,
+            //otherwise converted to structure
+            if(token.type == 'optstruct'){
+                if(this.parseStack[this.parseStack.length-1].identifier.indexOf(token.content)!=-1){
+                    this.parseStack.pop();
+                }
+            }
             previousToken = token;
             i = token.end;
         }
@@ -613,6 +626,7 @@ class Parser{
                 tray.push(node);
             }else if(token.type == 'function' ||token.type == 'operator'){
                 while(shuntingYard.length!=0&&shuntingYard[shuntingYard.length-1].type!='openstruct'
+                    &&shuntingYard[shuntingYard.length-1].type!='vec'
                     &&this.compareAssociativity(shuntingYard[shuntingYard.length-1], token)) {
                     let operator = shuntingYard.pop();
                     this.collapseOperator(operator, tray);
@@ -625,10 +639,30 @@ class Parser{
                 let operator;
                 while(shuntingYard.length!= 0 && formats[(operator=shuntingYard.pop()).content]!=token.content){
                     this.collapseOperator(operator, tray);
-                }//After parenthesis, check one element down the parse stack
-                if(token.content==')'&&shuntingYard[shuntingYard.length-1]!=undefined
+                }
+                //After parenthesis, check one element down the parse stack for function invocation
+                if(operator!=undefined&&operator.type=='openstruct'&&
+                    token.content==')'&&shuntingYard[shuntingYard.length-1]!=undefined
                     &&shuntingYard[shuntingYard.length-1].type=='function'){
                     this.collapseOperator(shuntingYard.pop(), tray);
+                }
+                if(operator!=undefined&&operator.type=='vec'){
+                    operator.subNodes.push(tray.pop());
+                    let node = new SymNode();
+                    node.children = operator.subNodes;
+                    node.token = operator;
+                    node.content = '$Q';
+                    switch (token.content){
+                        case ')':
+                            node.type = 'vector';
+                            break;
+                        case ']':
+                            node.type = 'array';
+                            break;
+                        default:
+                            throw new SyntaxError("Unimplemented vector clause: "+token.content);
+                    }
+                    tray.push(node);
                 }
                 if(token.content=='diff'){
                     let node  = new SymNode();
@@ -638,6 +672,18 @@ class Parser{
                     if(tray.length==0)
                         tray.push(node);
                 }
+            }else if(token.type == 'optstruct'&& token.content == ','){//Vector parsing
+                let operator;
+                //Pop till the closest container
+                while(shuntingYard.length!= 0 && formats[(operator=shuntingYard.pop()).content]==undefined) {
+                    this.collapseOperator(operator, tray);
+                }
+                if(operator!=undefined&&operator.type!='vec'){
+                    operator.type = 'vec';//Identify the openstruct as a vector container
+                    operator.subNodes = [];
+                }
+                operator.subNodes.push(tray.pop());//Store the clause
+                shuntingYard.push(operator);
             }
         }
         console.log(tray);
@@ -700,6 +746,7 @@ class Parser{
         'mul': [3, 2, 2],
         'invisdot': [3, 2, 2],
         'dot': [3, 2, 2],
+        'cross': [3, 2, 2],
         'div': [3, 2, 2],
         'frac': [8, 7, 2],
         'pow': [4, 5, 2],

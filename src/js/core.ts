@@ -14,6 +14,14 @@ const alphabet = function(letter: string){
         return -1;
     return index;
 }
+const xID = contextID('x');
+const yID = contextID('y');
+const zID = contextID('z');
+const tID = contextID('t');
+const rID = contextID('r');
+const uID = contextID('u');
+const vID = contextID('v');
+const vecRID = contextID('>r');
 
 class Core {
 
@@ -106,7 +114,7 @@ class Core {
         let variable = this.defineEqnVariable(label, statement);
         console.log(variable);
         this.environment.variables[label.content] = variable;
-        variable.pulseDependents();
+        variable.pulseDependants();
         variable.createEvalHandle();
         return 0;
     }
@@ -169,7 +177,7 @@ class Core {
             newVar.inverseRlMapping = {};
             newVar.parameterMapping = [];
         } else {
-            newVar = new Variable(label);
+            newVar = new Variable(label, this.environment);
         }
         newVar.parameterized = defined.type=='func$';
         if(newVar.parameterized){//Initialize parameter mapping for parameterized functions
@@ -199,7 +207,7 @@ class Core {
             let depVar = this.environment.variables[depVarLabel];
             // Create dependent variable not present in the current environment.
             if (depVar == undefined) {
-                depVar = new Variable(depVarLabel);
+                depVar = new Variable(depVarLabel, this.environment);
                 this.environment.variables[depVarLabel] = depVar;
             }
             //Idempotent dependency construction
@@ -233,6 +241,12 @@ class Core {
     getPiScript(statement: SymNode, variable: Variable): string{
         let piScript: string = "//owned by: "+variable.name;
         let preScript = `
+//The default behavior is parameter extension for vector typed quantities        
+if(p.length == 1 && 
+    p[0] instanceof Quantity && p[0].size == pm.length
+    && p.type == 4){
+    p = p[0].data;
+}        
 for(let index = 0; index<pm.length; index++){
     let q = p[index];
     p[index]=c[pm[index]][0];
@@ -288,7 +302,16 @@ for(let index = 0; index<pm.length; index++){
                 }
                 return "get("+variable.rlMapping[nodeLabel]+", c, 1)"+"(a, c, "
                         +"["+ concatenated.substring(0, concatenated.length-1) +"])";
-
+            case 'vector':
+                for(let subTree of node.children){
+                    concatenated+=this.parseTree(subTree, variable)+',';
+                }
+                return `a.getQuantity(4,${concatenated})`;
+            case 'array':
+                for(let subTree of node.children){
+                    concatenated+=this.parseTree(subTree, variable)+',';
+                }
+                return `a.getQuantity(3,${concatenated})`;
         }
         return "";
     }
@@ -310,6 +333,23 @@ for(let index = 0; index<pm.length; index++){
         if(operator == 'cot')
             return '1/Math.tan';
         return 'a.'+operator;
+    }
+
+    deleteDefinition(label: string){
+        let variable = this.environment.variables[label];
+        if(variable == undefined)
+            return;
+        variable.type = 3;
+        variable.referenceList.length = 0;
+        variable.removeDependencies();
+        variable.rlMapping = {};
+        variable.inverseRlMapping = {};
+        variable.parameterMapping = [];
+        variable.evaluate = variable.default;
+        variable.pulseDependants();
+        if(Object.keys(variable.dependants).length==0){
+            delete this.environment.variables[label];
+        }
     }
 }
 
@@ -365,11 +405,17 @@ class Quantity extends Number{
 
     lock(){
         this.lockNumber++;
+        for(let q of this.data)
+            if(q instanceof Quantity)
+                q.lock();
     }
 
     release(){
         if(this.lockNumber!==0)
             this.lockNumber--;
+        for(let q of this.data)
+            if(q instanceof Quantity)
+                q.release();
     }
 
     valueOf(): number {
@@ -415,6 +461,7 @@ class RecycleCenter{
             if(this.s0.length!=0) {
                 let q = this.s0.pop();
                 q.type = type;
+                q.size = dim;
                 return q;
             }
             else{
@@ -423,9 +470,12 @@ class RecycleCenter{
         }
         else {
             let index = this.getLogIndex(dim/3);
+            if(this.s1[index]==undefined)
+                this.s1[index] = [];
             if (this.s1[index].length != 0) {
                 let q = this.s1[index].pop();
                 q.type = type;
+                q.size = dim;
                 return q;
             }
             else {
@@ -457,28 +507,36 @@ class Arithmetics {
         this.I = new Quantity(2, 2, undefined, [0, 1]);
         this.I.lock();
     }
+    getQuantity(type: number, ...entries: Number[]):Quantity{
+        let q = this.rc.getQuantity(type, entries.length);
+        q.data = entries;
+        return q;
+        // return new Quantity(type, entries.length, undefined, entries)
+    }
 
     add(a:Number, b:Number): Number {
         if(!(a instanceof Quantity)&&!(b instanceof Quantity)){
             //@ts-ignore
             return a+b;
         }
-        //Broadcast reals into complex representations
-        if(!(a instanceof Quantity)&&(b instanceof Quantity)&&b.type == 2){
-            a = this.extend(+a, 2, 2);
+        let ar = this.extensionRank(a);
+        let br = this.extensionRank(b);
+        if(br>ar){
+            a = this.extend(a, (<Quantity>b).type, (<Quantity>b).size);
         }
-        //Broadcast reals into complex representations
-        if(!(b instanceof Quantity)&&(a instanceof Quantity)&&a.type == 2){
-            b = this.extend(+b, 2, 2);
+        else if(ar>br){
+            b = this.extend(b, (<Quantity>a).type, (<Quantity>a).size);
         }
         if(a instanceof Quantity) {
             if(b instanceof Quantity){
-                if(a.type!=b.type||a.size != b.size)
+                if(a.type!=b.type)
                     throw new ArithmeticError("Incompatible quantity type for addition");
-                let dim = a.size;
+                let dim = Math.max(a.size, b.size);
                 let c = this.rc.getQuantity(a.type, dim);
                 for(let i = 0; i<dim; i++){
-                    c.data[i] = this.add(a.data[i],b.data[i]);
+                    let ai = (i>a.size-1)?0:a.data[i];
+                    let bi = (i>b.size-1)?0:b.data[i];
+                    c.data[i] = this.add(ai,bi);
                 }
                 a.recycle();
                 b.recycle();
@@ -493,34 +551,53 @@ class Arithmetics {
         if(a instanceof Quantity){
             let c = this.rc.getQuantity(a.type, a.size);
             for(let i = 0; i < a.size; i++){
-                c.data[i] = -a.data[i];
+                c.data[i] = this.neg(a.data[i]);
             }
             Arithmetics.recycle(a);
             return c;
         }
         return -a;
     }
+
+    /**
+     * Retrieves the extension rank of a,
+     * the order is real -> complex -> vector -> array
+     * @param a
+     * @private
+     */
+    private extensionRank(a: Number): number{
+        if(a instanceof Quantity){
+            if(a.type == 3)
+                return 4;
+            if(a.type == 4)
+                return 3;
+            return a.type;
+        }
+        return 1;
+    }
     sub(a:Number, b:Number): Number {
         if(!(a instanceof Quantity)&&!(b instanceof Quantity)){
             //@ts-ignore
             return a-b;
         }
-        //Broadcast reals into complex representations
-        if(!(a instanceof Quantity)&&(b instanceof Quantity)&&b.type == 2){
-            a = this.extend(+a, 2, 2);
+        let ar = this.extensionRank(a);
+        let br = this.extensionRank(b);
+        if(br>ar){
+            a = this.extend(a, (<Quantity>b).type, (<Quantity>b).size);
         }
-        //Broadcast reals into complex representations
-        if(!(b instanceof Quantity)&&(a instanceof Quantity)&&a.type == 2){
-            b = this.extend(+b, 2, 2);
+        else if(ar>br){
+            b = this.extend(b, (<Quantity>a).type, (<Quantity>a).size);
         }
         if(a instanceof Quantity) {
             if(b instanceof Quantity){
                 if(a.type!=b.type||a.size != b.size)
                     throw new ArithmeticError("Incompatible quantity type for subtraction");
-                let dim = a.size;
+                let dim = Math.max(a.size, b.size);
                 let c = this.rc.getQuantity(a.type, dim);
                 for(let i = 0; i<dim; i++){
-                    c.data[i] = this.sub(a.data[i],b.data[i]);
+                    let ai = (i>a.size-1)?0:a.data[i];
+                    let bi = (i>b.size-1)?0:b.data[i];
+                    c.data[i] = this.add(ai,bi);
                 }
                 a.recycle();
                 b.recycle();
@@ -536,9 +613,13 @@ class Arithmetics {
             case 4:
                 if(Arithmetics.getType(a) <=2) {//Field invisDot a vector or matrix
                     let c = this.rc.getQuantity(4, (<Quantity>b).size);
+                    if(a instanceof Quantity)
+                        a.lock();
                     for (let i = 0; i < (<Quantity>b).size; i++) {
                         c.data[i] = this.invisDot(a, (<Quantity>b).data[i]);
                     }
+                    if(a instanceof Quantity)
+                        a.release();
                     Arithmetics.recycle(a);
                     Arithmetics.recycle(b);
                     return c;
@@ -661,13 +742,37 @@ class Arithmetics {
      * Extends a number into a broader quantity
      * @private
      */
-    private extend(a: number, targetType: number, targetDim: number): Quantity{
+    private extend(a: Number, targetType: number, targetDim: number): Quantity{
         let q = this.rc.getQuantity(targetType, targetDim);
-        for(let i = 0; i<targetDim; i++){
-            q.data[i] = 0;
+        if(targetType ==3){
+            for(let i = 0; i<targetDim; i++){
+                q.data[i] = this.clone(a);
+            }
         }
-        q.data[0] = a;
+        else{
+            for(let i = 0; i<targetDim; i++){
+                q.data[i] = 0;
+            }
+            q.data[0] = a;
+        }
         return q;
+    }
+
+    clone(a: Number){
+        if(a instanceof Quantity){
+            let q = this.rc.getQuantity(a.type, a.size);
+            q.data = [...a.data];
+            return q;
+        }else
+            return a;
+    }
+
+    private isComplex(a: Number) {
+        return a instanceof Quantity && a.type === 2;
+    }
+
+    private isField(a: Number){
+        return this.isComplex(a)||!(a instanceof Quantity);
     }
 
     cross(a: Number, b: Number): Number{
@@ -688,7 +793,6 @@ class Arithmetics {
                     throw new ArithmeticError("Cannot cross product vectors of dimension not equal to 3");
             }
             if(a.type==3&&b.type==3){//Cartesian product
-                if(a.size==b.size && a.size==3){
                     let c = this.rc.getQuantity(3, a.size*b.size);
                     for(let i = 0; i<a.size; i++)
                         for(let j = 0; j<b.size; j++){
@@ -696,24 +800,26 @@ class Arithmetics {
                             let y = b.data[j];
                             let z = this.rc.getQuantity(4,
                                 Arithmetics.getSize(x)+Arithmetics.getSize(y));
+                            z.data.length = 0;
                             if(x instanceof Quantity && x.type==4)//Concatenate
                                 z.data.push(...x.data);
                             else
                                 z.data.push(x);
-
                             if(y instanceof Quantity && y.type==4)
                                 z.data.push(...y.data);
                             else
                                 z.data.push(y);
-                            Arithmetics.recycle(x);
-                            Arithmetics.recycle(y);
                             c.data[i*b.size+j] = z;
                         }
+                    for(let i = 0; i<a.size; i++)
+                        Arithmetics.recycle(a.data[i]);
+                    for(let j = 0; j<b.size; j++){
+                        Arithmetics.recycle(b.data[j]);
+                    }
                     a.recycle();
                     b.recycle();
                     return c;
                 }
-            }
         }
         return this.invisDot(a, b);
     }
@@ -900,6 +1006,10 @@ abstract class Evaluable {
     target: Variable;
     evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number;
     context: Number[][];
+    visType = 'none';
+    //This list is populated when visType is group
+    subEvaluables: Evaluable[] = [];
+    timeDependent: boolean = false;
     public constructor(target: Variable) {
         this.target = target;
         this.evaluate = target.evaluate;
@@ -910,6 +1020,7 @@ abstract class Evaluable {
         for(let i = 26; i<52; i++){
             this.context[i] = [];
         }
+        this.populateContext.bind(this);
     }
 
     /**
@@ -918,6 +1029,32 @@ abstract class Evaluable {
      * @param param sparse array of ID-based parameters
      */
     abstract compute(t: number, ...param: Number[]): Number;
+
+    populateContext(t: number, param: number[], vecR: Quantity) {
+        //Supply positional arguments into x & y by default,
+        //Parameters clause will then override x & y values
+        //if they occupy the same name space. eg. f(y,x)
+        this.context[xID][0] = param[0];
+        this.context[yID][0] = (param.length>1)?param[1]:0;
+        this.context[zID][0] = (param.length>2)?param[2]:0;
+        this.context[rID][0] = Math.sqrt(param[0]*param[0]+param[1]*param[1]+param[2]*param[2]);
+        this.context[tID][0] = t;
+        vecR.data[0] = param[0];
+        vecR.data[1] = (param.length>1)?param[1]:0;
+        vecR.data[2] = (param.length>2)?param[2]:0;
+        this.context[vecRID][0] = vecR;
+    }
+
+    listener: Function = undefined;
+
+    onUpdate(callBack: () => void) {
+        this.listener = callBack;
+    }
+
+    update(){
+        if(this.listener!=undefined)
+            this.listener();
+    }
 }
 
 class Variable {
@@ -993,6 +1130,14 @@ class Variable {
      * @protected
      */
     protected compute: Function;
+    environment: Environment;
+    /**
+     * Default evaluation clause
+     * @param a
+     * @param c
+     * @param p
+     */
+    default = (a:Arithmetics, c:Number[][], p: Number[])=>c[this.contextID][0];
     /**
      * Wraps around compute to create local field accessibility. Takes parameters
      * a: Arithmetics, c: context, p: parameters
@@ -1000,7 +1145,7 @@ class Variable {
      * Initialized to default value access
      */
     evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number
-        = (a:Arithmetics, c:Number[][], p: Number[])=>c[this.contextID][0];
+        = this.default;
     get = (rlID:number, context: Number[][], s = 0)=>{
         let reference = this.referenceList[rlID];
         if(s!==0){
@@ -1012,7 +1157,7 @@ class Variable {
         }
         switch (reference[0]){//Depends on type
             case 1: return reference[1];
-            case 2: return reference[1];
+            case 2: return (<Function>reference[1])(this.arithmetics, context, []);
             case 3: return context[<number>reference[1]][<number>reference[2]];
         }
         return undefined;
@@ -1024,8 +1169,9 @@ class Variable {
     /**
      * Default constructors with no initialization.
      */
-    public constructor(name:string) {
+    public constructor(name:string, environment: Environment) {
         this.name = name;
+        this.environment = environment;
         this.contextID = contextID(name);
         this.rlMapping = {};
         this.referenceList = [];
@@ -1050,19 +1196,11 @@ class Variable {
     }
 
     /**
-     * Determines how the evaluation handle should be used
-     */
-    visType = 'none';
-
-    /**
      * Configures the type of visualizations that should be applied to this,
      * based on the name of the dependent variable, the type of this, and so on
      */
     loadVisualization(pendulum: Pendulum){
-        let algebraics = this.getAlgebraics();
-        return pendulum.updateGraph(this.name,
-            (x,y)=>
-                this.evalHandle.compute(pendulum.canvas.time,Number(x),Number(y)).valueOf());
+        return pendulum.updateGraph(this.name,this.evalHandle);
     }
     /**
      * Instantiates a new evaluation handle for the variable. The type
@@ -1082,27 +1220,19 @@ class Variable {
                 break;
             case 2: //Parameterized functions are capable of
                 //autonomously overriding the context
-                let xID = contextID('x');
-                let yID = contextID('y');
-                let tID = contextID('t');
+                let vecR = new Quantity(4, 3, undefined, [NaN, NaN, NaN]);
+                vecR.lock();
                 if(this.parameterized)
                     Anonymous = class extends Evaluable{
                         compute(t: number, ...param: number[]): Number {
-                            //Supply positional arguments into x & y by default,
-                            //Parameters clause will then override x & y values
-                            //if they occupy the same name space. eg. f(y,x)
-                            this.context[xID][0] = param[0];
-                            this.context[yID][0] = (param.length>1)?param[1]:0;
-                            this.context[tID][0] = t;
+                            this.populateContext(t, param, vecR);
                             return this.evaluate(a, this.context, param);
                         }
                     };
                 else {
                     Anonymous = class extends Evaluable {
                         compute(t:number, ...param: number[]): Number {
-                            this.context[xID][0] = param[0];
-                            this.context[yID][0] = (param.length>1)?param[1]:0;
-                            this.context[tID][0] = t;
+                            this.populateContext(t, param, vecR);
                             return this.evaluate(a, this.context, []);
                         }
                     };
@@ -1112,8 +1242,97 @@ class Variable {
                 throw new ResolutionError("Attempting to create handle for undefined variable");
         }
         this.evalHandle = new Anonymous(this);
+        this.getVisType(this.evalHandle);
     }
 
+    /**
+     * Get the visualization type of this by testing the output
+     * quantity of this. Array typed evalHandles get recursively
+     * computed
+     */
+    getVisType(evalHandle: Evaluable){
+        let q = evalHandle.compute(0, 0,0,0);
+        evalHandle.subEvaluables.length=0;
+        if(this.containsVariables('t')&&this.environment.variables['t'].type==3)
+            evalHandle.timeDependent = true;
+        if(!(q instanceof Quantity))
+            evalHandle.visType = 'cartesian';
+        else switch (q.type) {
+            case 2:
+                evalHandle.visType = 'cartesian';
+                break;
+            case 4:
+                if(this.containsVariables('u')&&
+                    this.containsVariables('v')
+                    &&this.environment.variables['u'].type == 3&&
+                this.environment.variables['v'].type==3) {
+                    evalHandle.visType = 'parametricSurface';
+                    evalHandle.populateContext = (t, param, vecR)=>{
+                        //Supply positional arguments into x & y by default,
+                        //Parameters clause will then override x & y values
+                        //if they occupy the same name space. eg. f(y,x)
+                        evalHandle.context[uID][0] = param[0];
+                        evalHandle.context[vID][0] = (param.length>1)?param[1]:0;
+                        evalHandle.context[tID][0] = t;
+                    };
+                    evalHandle.populateContext.bind(evalHandle);
+                }
+                else if(this.containsVariables('xyzr')||this.dependencies['>r']!=undefined)
+                    evalHandle.visType = 'vecField';
+                else
+                    evalHandle.visType = 'vector';
+                break;
+            case 3:
+                evalHandle.visType = 'group';
+                for(let i = 0; i<q.size; i++){
+                    let Anonymous = class extends Evaluable{
+                        compute(t: number, ...param: Number[]): Number {
+                            return (<Quantity> evalHandle.compute(t, ...param)).data[i];
+                        }
+                    }
+                    let subHandle = new Anonymous(this);
+                    evalHandle.subEvaluables.push(subHandle);
+                    console.log(evalHandle);
+                    this.getVisType(subHandle);
+                }
+                if(evalHandle.subEvaluables.length!=0
+                    &&evalHandle.subEvaluables[0].visType=='parametricSurface'){
+                    evalHandle.populateContext = (t, param, vecR)=>{
+                        //Supply positional arguments into x & y by default,
+                        //Parameters clause will then override x & y values
+                        //if they occupy the same name space. eg. f(y,x)
+                        evalHandle.context[uID][0] = param[0];
+                        evalHandle.context[vID][0] = (param.length>1)?param[1]:0;
+                        evalHandle.context[tID][0] = t;
+                    };
+                    evalHandle.populateContext.bind(evalHandle);
+                }
+                break;
+        }
+        for(let key in this.dependants){
+            let dependant = this.dependants[key];
+            dependant.getVisType(dependant.evalHandle);
+        }
+        evalHandle.update();
+    }
+
+    /**
+     * Checks if the dependencies of this contains the specified keys
+     * @private
+     */
+    private containsVariables(keys: string): boolean{
+        let r = false;
+        for(let c of keys){
+            if(this.dependencies[c]!=undefined)
+                return true;
+        }
+        for(let key in this.dependencies) {
+            let dependent = this.dependencies[key];
+            if (dependent.containsVariables(keys))
+                return true;
+        }
+        return false;
+    }
     /**
      * Creates a list of local algebraic references
      */
@@ -1142,7 +1361,7 @@ class Variable {
      * When internal states of this are unchanged, pulseDependents
      * should be idempotent.
      */
-    pulseDependents(){
+    pulseDependants(){
         for(let key in this.dependants){
             let dependant = this.dependants[key];
             dependant.configureReference(this.name);
@@ -1187,7 +1406,7 @@ class Variable {
                 }
                 break;
             case 2:
-                if(depVar.parameterized)
+                if(depVar.parameterized||!accessStyle)
                     reference[1] = depVar.evaluate;
                 else
                     reference[1] = (a:Arithmetics,c:Number[][],p: Number[])=>{//Special dealing with func$ type
@@ -1215,4 +1434,4 @@ class Variable {
     }
 }
 
-export {Variable, Core, ResolutionError};
+export {Variable, Core, ResolutionError, Evaluable, Quantity};

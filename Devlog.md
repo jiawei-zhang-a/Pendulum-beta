@@ -177,3 +177,27 @@ in an expression with non parameterized access style.
 Redesign logic of parameterized variable accesses and specify its implementations. Reconsider context usage
 in light of parameterized function calls and vectorized quantities. Recognized the need for quantities
 to be locked by count instead of by boolean. 
+
+#### 06/02/22-06/9/22
+Implement vector, vector field visualizations. Minor restructuring of core. Implement
+visualization type analysis methods and designate Evaluable as the visualization command object.
+![img.png](images/2022-06-10-1.png) Implement
+parametric visualization, group visualization of arrays of cartesian graphs.
+![img.png](images/2022-06-10.png)
+Design and implement function 
+visibility toggle. Performance optimization through core restructuring and time
+dependence information of graphs. Quantity lock and release are now recursive, as necessarily demanded by
+the logic of vector-typed evaluations. As of right now, `t` serves as the monotone increasing
+time dependent variable for establishing time dependency and animation of visualization targets.
+
+
+
+#### 06/10/22
+Implement grouped visualization for arrays of parametric functions and arrays of vectors. Improve logic
+for type broadcasting in additions and subtractions within Arithmetics. Now one can add and subtract quantities of any
+two types in an expression.
+
+![img.png](images/2022-06-10-3.png)
+
+![img.png](images/2022-06-10-4.png)
+

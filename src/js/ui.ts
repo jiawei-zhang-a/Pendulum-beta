@@ -217,6 +217,7 @@ class DefControl{
             this.next.previous = this.previous;
         this.labelControl.removeHTML();
         this.statementControl.removeHTML();
+        pendulum.deleteDefinition(this.labelControl.label);
     }
     focusNext() {
         this.statementControl.mathquill.blur();
@@ -233,8 +234,9 @@ class DefControl{
      * Label control and statement control should all be fully initialized at this point
      */
     updateDefinition(){
+        let oldLabel = this.labelControl.label;
         this.labelControl.setHint(pendulum.getHint(this.statementControl.statement));
-        pendulum.updateDefinition(this.labelControl.label, this.statementControl.statement);
+        pendulum.updateDefinition(oldLabel, this.labelControl.label, this.statementControl.statement);
         this.statementControl.setColor(pendulum.queryColor(this.labelControl.label));
     }
     getLast():DefControl{
@@ -321,6 +323,12 @@ class LabelControl {
         this.labelContainer.parentNode.insertBefore(html[0], this.labelContainer.nextSibling);
     }
 }
+const invisibleBackground = `repeating-linear-gradient(
+    45deg,
+    #dadada,
+    #dadada 5px,
+    #c6c6c6 5px,
+    #c6c6c6 10px)`;
 
 class StatementControl {
     parent: DefControl;
@@ -378,6 +386,11 @@ class StatementControl {
         this.statement = this.parser.toStatementTree(this.mathquill.latex());
         this.statementContainer.addEventListener('focusin', this.onFocus.bind(this));
         this.statementContainer.addEventListener('focusout', this.onFocusExit.bind(this));
+        this.colorBox.addEventListener('click', this.toggleVisibility.bind(this));
+    }
+    toggleVisibility(){
+        pendulum.toggleVisibility(this.labelControl.label);
+        this.setColor(pendulum.queryColor(this.labelControl.label));
     }
     loadStatement(){
         this.statement = this.parser.toStatementTree(this.mathquill.latex());
@@ -406,14 +419,15 @@ class StatementControl {
                 </div>`);
         mathPanel.insertBefore(html[0], this.statementContainer.nextSibling);
     }
-    setColor(color: number) {
 
+    setColor(color: number) {
         if(color>=0){
             let b = color & 0xFF,
                 g = (color & 0xFF00) >>> 8,
                 r = (color & 0xFF0000) >>> 16;
-            this.colorBox.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-        }
+            this.colorBox.style.background = `rgb(${r}, ${g}, ${b})`;
+        }else
+            this.colorBox.style.background = invisibleBackground;
     }
 
 }

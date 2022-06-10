@@ -288,7 +288,12 @@ body {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
-    background-color: #66aaee;
+    background: repeating-linear-gradient(
+    45deg,
+    #dadada,
+    #dadada 5px,
+    #c6c6c6 5px,
+    #c6c6c6 10px);
     border-radius: 2.5px;
 }
 

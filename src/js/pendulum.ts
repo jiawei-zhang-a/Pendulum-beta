@@ -1,12 +1,18 @@
 import * as UI from './ui';
-import './benchmarks.ts';
 import {init, Canvas, Graph, CartesianGraph} from './graphics';
 import * as THREE from 'three';
-import {Vector3} from "three";
-import {CartesianGraph2D, Vector3D, colors} from "./graph";
-import {Core, ResolutionError} from "./core";
+import {
+    CartesianGraph2D,
+    CartesianGroup,
+    Vector3D,
+    colors,
+    VecField3D,
+    GroupGraph,
+    ParametricSurface,
+    Vector3DGroup, ParametricGroup
+} from "./graph";
+import {Core, Evaluable, Quantity, ResolutionError} from "./core";
 import {SymNode} from "./parser";
-// import {init} from "./helloworld";
 
 // Coordinator of all actions of sub-modules
 class Pendulum{
@@ -17,6 +23,8 @@ class Pendulum{
         this.canvas = canvas;
         this.core = new Core();
         this.colorNames = Object.keys(colors);
+        //@ts-ignore
+        window.Pendulum = this;
     }
     colorIndex = 0;
     rotateColor(){
@@ -25,23 +33,163 @@ class Pendulum{
         this.colorIndex++;
         return colorName;
     }
-    updateGraph(label: string, dataInterface: (x: number, y: number) => number){
+    updateGraph(label: string, evalHandle: Evaluable){
         let graph = this.canvas.graphs[label];
-        if(graph==undefined){
-            graph = new CartesianGraph(label,dataInterface);
-            graph.constructGeometry({'material':'standard', 'color':this.rotateColor()});
-            graph.generateIndices();
+        let compute = evalHandle.compute.bind(evalHandle);
+        let color = this.rotateColor();
+        let dataInterface;
+        switch (evalHandle.visType){
+            case 'cartesian':
+                dataInterface = (x:number,y:number)=> compute(this.canvas.time,x,y).valueOf();
+                if(!(graph instanceof CartesianGraph)){
+                    let deleted = this.canvas.removeGraph(label);
+                    if(deleted!=undefined)
+                        color = deleted.color;
+                }
+                if(this.canvas.graphs[label]==undefined){
+                    graph = new CartesianGraph(label, dataInterface);
+                    graph.constructGeometry({'material':'standard', 'color':color});
+                    graph.generateIndices();
+                    graph.populate();
+                    this.canvas.addGraph(graph);
+                }else{
+                    if(graph instanceof CartesianGraph){
+                        graph.showMesh();
+                        graph.dataInterface = dataInterface;
+                        graph.populate();
+                        graph.update();
+                    }
+                }
+                break;
+            case 'vector':
+                let vecInterface = (x:number,y:number,z:number)=>{
+                    // @ts-ignore
+                    let result = <Number[]>compute(this.canvas.time, x, y, z).data;
+                    let l = result.length;
+                    return [(l>0)?+result[0]:0, (l>1)?+result[1]:0, (l>2)?+result[2]:0];
+                };
+                if(!(graph instanceof Vector3D)){
+                    let deleted = this.canvas.removeGraph(label);
+                    if(deleted!=undefined)
+                        color = deleted.color;
+                }
+                if(this.canvas.graphs[label] == undefined){
+                    graph = new Vector3D(label, vecInterface, ()=>[0,0,0]);
+                    graph.constructGeometry({'material':'standard', 'color':color});
+                    graph.populate();
+                    this.canvas.addGraph(graph);
+                }else{
+                    if(graph instanceof Vector3D){
+                        graph.showMesh();
+                        graph.vector = vecInterface;
+                        graph.populate();
+                        graph.update();
+                    }
+                }
+                break;
+            case 'vecField':
+                dataInterface = (x:number,y:number,z:number)=>{
+                    // @ts-ignore
+                    let result = <Number[]>compute(this.canvas.time, x, y, z).data;
+                    let l = result.length;
+                    return [(l>0)?+result[0]:0, (l>1)?+result[1]:0, (l>2)?+result[2]:0];
+                };
+                if(!(graph instanceof VecField3D)){
+                    let deleted = this.canvas.removeGraph(label);
+                    if(deleted!=undefined)
+                        color = deleted.color;
+                }
+                if(this.canvas.graphs[label] == undefined){
+                    graph = new VecField3D(label, dataInterface);
+                    graph.constructGeometry({'material':'standard', 'color':color});
+                    graph.populate();
+                    this.canvas.addGraph(graph);
+                }else{
+                    if(graph instanceof VecField3D){
+                        graph.showMesh();
+                        graph.vecFunc = dataInterface;
+                        graph.updateVecFunc(dataInterface);
+                        graph.populate();
+                        graph.update();
+                    }
+                }
+                break;
+            case 'parametricSurface':
+                dataInterface = (u:number,v:number)=>{
+                    // @ts-ignore
+                    let result = <Number[]>compute(this.canvas.time, u, v).data;
+                    let l = result.length;
+                    return [(l>0)?+result[0]:0, (l>1)?+result[1]:0, (l>2)?+result[2]:0];
+                };
+                if(!(graph instanceof ParametricSurface)){
+                    let deleted = this.canvas.removeGraph(label);
+                    if(deleted!=undefined)
+                        color = deleted.color;
+                }
+                if(this.canvas.graphs[label] == undefined){
+                    graph = new ParametricSurface(label, dataInterface);
+                    graph.constructGeometry({'material':'standard', 'color':color});
+                    graph.generateIndices();
+                    graph.populate();
+                    this.canvas.addGraph(graph);
+                }else{
+                    if(graph instanceof ParametricSurface){
+                        graph.showMesh();
+                        graph.dataInterface = dataInterface;
+                        graph.populate();
+                        graph.update();
+                    }
+                }
+                break;
+            case 'group':
+                if(evalHandle.subEvaluables.length!=0)
+                   switch(evalHandle.subEvaluables[0].visType){
+                       case 'cartesian':
+                           graph = this.groupGraph(label, CartesianGroup, graph, color,
+                               evalHandle,
+                               (x:number,y:number)=>
+                                   (<Quantity>evalHandle.compute(this.canvas.time, x, y)).data);
+                           break;
+                       case 'vector':
+                           graph = this.groupGraph(label, Vector3DGroup, graph, color, evalHandle,
+                               (x:number,y:number)=>
+                                   (<Quantity>evalHandle.compute(this.canvas.time, x, y)).data);
+                           break;
+                       case 'parametricSurface':
+                           graph = this.groupGraph(label, ParametricGroup, graph, color, evalHandle,
+                               (x:number,y:number)=>
+                                   (<Quantity>evalHandle.compute(this.canvas.time, x, y)).data);
+                           break;
+                   }
+        }
+        graph.timeDependent = evalHandle.timeDependent;
+        evalHandle.onUpdate(()=>graph.timeDependent = evalHandle.timeDependent);
+    }
+
+    groupGraph(label: string, A: { new(label: string, evalHandle: Evaluable, dataInteface: Function): GroupGraph },
+               graph: Graph, color: string, evalHandle: Evaluable,
+               dataInterface: Function):Graph{
+        if(!(graph instanceof A)){
+            let deleted = this.canvas.removeGraph(label);
+            if(deleted!=undefined)
+                color = deleted.color;
+        }
+        if(this.canvas.graphs[label] == undefined){
+            graph = new A(label, evalHandle, dataInterface);
+            graph.constructGeometry({'material':'standard', 'color':color});
             graph.populate();
             this.canvas.addGraph(graph);
         }else{
-            if(graph instanceof CartesianGraph){
-                graph.mesh.visible = true;
+            if(graph instanceof A){
+                graph.showMesh();
                 graph.dataInterface = dataInterface;
+                graph.updateGroupSize(evalHandle);
                 graph.populate();
+                graph.update();
             }
         }
+        return graph;
     }
-
     /**
      * Wipes the graph with the corresponding label
      * @param label
@@ -49,7 +197,7 @@ class Pendulum{
     wipeGraph(label: string){
         let graph = this.canvas.graphs[label];
         if(graph!=undefined){
-            graph.mesh.visible = false;
+            graph.hideMesh();
         }
     }
 
@@ -64,19 +212,37 @@ class Pendulum{
     getHint(statement: SymNode) {
         return this.core.guessLabel(statement);
     }
-    updateDefinition(label: SymNode, definition: SymNode){
+    updateDefinition(oldLabel: SymNode, label: SymNode, definition: SymNode){
         try{
-            if(label == undefined)
+            if(label == undefined) {
+                if (oldLabel != undefined)
+                    this.deleteDefinition(oldLabel);
                 return;
+            }
+            if(oldLabel!=undefined &&oldLabel.content!=label.content){
+                this.deleteDefinition(oldLabel);
+            }
+            this.wipeGraph(label.content);
             this.core.resolveEquation(label, definition);
             let variable = this.core.environment.variables[label.content];
-            variable.loadVisualization(this);
+            this.updateGraph(variable.name,variable.evalHandle);
         }catch (e) {
             console.log(e);
-            this.wipeGraph(label.content);
         }
     }
-
+    deleteDefinition(label: SymNode){
+        this.core.deleteDefinition(label.content);
+        this.deleteGraph(label.content);
+    }
+    toggleVisibility(label: SymNode){
+        let graph = this.canvas.graphs[label.content];
+        if(graph!=undefined){
+            if(graph.mesh.visible)
+                graph.hideMesh();
+            else
+                graph.showMesh();
+        }
+    }
     /**
      * Queries for the color of a particular graph with
      * specified label
@@ -143,6 +309,7 @@ $(()=>{
     // graph3.generateIndices();
     // graph3.populate();
     // canvas.addGraph(graph3)
+    // field(canvas);
 })
 
 export {Pendulum}
