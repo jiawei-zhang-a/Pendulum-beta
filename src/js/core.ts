@@ -238,15 +238,31 @@ class Core {
         throw new ResolutionError("not yet implemented");
     }
 
+    /**
+     * Retrieves the variable name of the varied quantity of a large
+     * operator
+     * @param lowerClause
+     * @private
+     */
+    private splitLowerClause(lowerClause: SymNode):{variableName: string, lowerClause: SymNode}{
+        if(lowerClause.content==='equal'){
+            let lhs = lowerClause.children[0];
+            let rhs = lowerClause.children[1];
+            if(lhs.type == '$')
+                return {variableName:lhs.content, lowerClause: rhs};
+        }
+        return undefined;
+    }
+
     getPiScript(statement: SymNode, variable: Variable): string{
         let piScript: string = "//owned by: "+variable.name;
         let preScript = `
 //The default behavior is parameter extension for vector typed quantities        
 if(p.length == 1 && 
-    p[0] instanceof Quantity && p[0].size == pm.length
+    p[0].type!=undefined && p[0].size == pm.length
     && p.type == 4){
     p = p[0].data;
-}        
+}
 for(let index = 0; index<pm.length; index++){
     let q = p[index];
     p[index]=c[pm[index]][0];
@@ -290,6 +306,9 @@ for(let index = 0; index<pm.length; index++){
                         return 'Math.'+node.content.toUpperCase();
                 }
             case 'operator':
+                if(node.content=='sum'){
+                    return this.parseLargeOperator(node, variable);
+                }
             case 'function':
                 for(let subTree of node.children){
                     concatenated+=this.parseTree(subTree, variable)+",";
@@ -314,6 +333,23 @@ for(let index = 0; index<pm.length; index++){
                 return `a.getQuantity(3,${concatenated})`;
         }
         return "";
+    }
+
+    parseLargeOperator(node: SymNode, variable: Variable): string{
+        let nodeLabel = node.content;
+        let exprContent = this.parseTree(node.children[0], variable);
+        let {variableName, lowerClause} = this.splitLowerClause(node.subClauses[0]);
+        let upperClause = node.subClauses[1];
+        let nID = contextID(variableName);
+        let expr = `(n)=>{
+    let store = c[${nID}][0];
+    c[${nID}][0]=n;
+    let r = ${exprContent};
+    c[${nID}][0] = store;
+    return r;
+}`;
+        return `${this.convertAlias(node.content)}(${this.parseTree(lowerClause, variable)},
+    ${this.parseTree(upperClause, variable)},${expr})`;
     }
 
     /**
@@ -382,7 +418,7 @@ class Quantity extends Number{
         super();
         this.type = type;
         this.size = size;
-        this.lockNumber = 0;
+        this.lockNumber = 1;
         this.data = dataContainer;
         this.rc = rc;
     }
@@ -507,6 +543,7 @@ class Arithmetics {
         this.I = new Quantity(2, 2, undefined, [0, 1]);
         this.I.lock();
     }
+
     getQuantity(type: number, ...entries: Number[]):Quantity{
         let q = this.rc.getQuantity(type, entries.length);
         q.data = entries;
@@ -597,7 +634,7 @@ class Arithmetics {
                 for(let i = 0; i<dim; i++){
                     let ai = (i>a.size-1)?0:a.data[i];
                     let bi = (i>b.size-1)?0:b.data[i];
-                    c.data[i] = this.add(ai,bi);
+                    c.data[i] = this.sub(ai,bi);
                 }
                 a.recycle();
                 b.recycle();
@@ -888,8 +925,13 @@ class Arithmetics {
                 //@ts-ignore
                 let r = Math.sqrt(a.data[0]*a.data[0]+a.data[1]*a.data[1]);
                 let theta = Math.acos((+a.data[0])/r);
-                if(r==0)
+                //@ts-ignore
+                if(Arithmetics.len(b)==0){
+                    return 1;
+                }
+                if(r==0) {
                     return 0;
+                }
                 c.data[0] = Math.log(r);
                 c.data[1] = (a.data[1]<0)?(this.branchNumber*2*Math.PI-theta)
                     :this.branchNumber*2*Math.PI+theta;
@@ -899,6 +941,15 @@ class Arithmetics {
             }
         }
        return this.arrayOperate(a, b, this.pow);
+    }
+    static len(a: Number): number{
+        switch (this.getType(a)) {
+            case 1:
+                return +a;
+            case 2:
+                //@ts-ignore
+                return a.data[0]*a.data[0]+a.data[1]*a.data[2];
+        }
     }
     log(a: Number): Number{
         switch (Arithmetics.getType(a)) {
@@ -978,13 +1029,6 @@ class Arithmetics {
         return 0;
     }
 
-    sum(v:Array<number>): number {
-        let summed = 0;
-        for (let i = 0; i < v.length; i++)
-            summed += v[i];
-        return summed
-    }
-
     /**
      * Cross prodcut for two element vectors, returns the area as a number
      * @param u first vector
@@ -994,6 +1038,67 @@ class Arithmetics {
         if (u.length < 2 || v.length < 2)
             throw new ArithmeticError("Vector dimensions less than two");
         return u[0]*v[1]-u[1]*v[0];
+    }
+
+    /**
+     * Takes the factorial of a number
+     * @param n
+     */
+    factorial(n: number):number{
+        if(n<=0)
+            return 1;
+        return n*this.factorial(n-1);
+    }
+
+    /**
+     * Adds b into a and recycles b instead of recycling both. When
+     * a is extended from a number into a Quantity, reference might change
+     * @param a
+     * @param b
+     */
+    collapsingAdd(a:Number, b:Number): Number {
+        if(!(a instanceof Quantity)&&!(b instanceof Quantity)){
+            //@ts-ignore
+            return a+b;
+        }
+        let ar = this.extensionRank(a);
+        let br = this.extensionRank(b);
+        if(br>ar){
+            a = this.extend(a, (<Quantity>b).type, (<Quantity>b).size);
+        }
+        else if(ar>br){
+            b = this.extend(b, (<Quantity>a).type, (<Quantity>a).size);
+        }
+        if(a instanceof Quantity) {
+            if(b instanceof Quantity){
+                if(a.type!=b.type)
+                    throw new ArithmeticError("Incompatible quantity type for addition");
+                let dim = Math.max(a.size, b.size);
+                for(let i = 0; i<dim; i++){
+                    let ai = (i>a.size-1)?0:a.data[i];
+                    let bi = (i>b.size-1)?0:b.data[i];
+                    a.data[i] = this.add(ai,bi);
+                }
+                b.recycle();
+                return a;
+
+            }else
+                throw new ArithmeticError("Incompatible quantity type for addition");
+        }else
+            throw new ArithmeticError("Operation not yet supported");
+    }
+    /**
+     * Sums up the expression from range n0 to n1
+     * @param n0
+     * @param n1
+     * @param expr
+     */
+    sum(n0: number, n1: number, expr:(n:number)=>Number):Number{
+        let sum = expr(n0);
+        for(let n = n0+1; n <= n1; n++){
+            sum = this.collapsingAdd(sum, expr(n));
+        }
+        return sum;
     }
 }
 

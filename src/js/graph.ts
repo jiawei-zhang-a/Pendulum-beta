@@ -172,16 +172,16 @@ class CartesianGraph extends Graph {
     vertices = new Float32Array(36000);
     //Create index overheads >3721*6
     indices: number[] = [];
-    dataInterface: (x: number, y: number) => number;
+    dataInterface: (x: number, y: number) => Number;
     uCount = 100;
     vCount = 100;
-    private mapping = (u: number, v: number) => [-5 + v * 10, 5 - u * 10];
+    protected mapping = (u: number, v: number) => [-5 + v * 10, 5 - u * 10];
 
     /**
      * @param name name of the graph, needs to be unique
      * @param dataInterface the cartesian function being passed
      */
-    constructor(name: string, dataInterface: (x: number, y: number) => number) {
+    constructor(name: string, dataInterface: (x: number, y: number) => Number) {
         super(name);
         this.geometry = new THREE.BufferGeometry();
         this.dataInterface = dataInterface;
@@ -241,7 +241,7 @@ class CartesianGraph extends Graph {
                 let k = 3 * (i * (vCount + 1) + j);
                 this.vertices[k] = x;
                 this.vertices[k + 1] = y;
-                this.vertices[k + 2] = this.dataInterface(x, y);
+                this.vertices[k + 2] = +this.dataInterface(x, y);
             }
         }
         this.geometry.attributes.position.needsUpdate = true;
@@ -300,6 +300,53 @@ class CartesianGraph extends Graph {
     dispose() {
         this.geometry.dispose();
         this.material.dispose();
+    }
+}
+
+class ComplexCartesianGraph extends CartesianGraph {
+    geometry: THREE.BufferGeometry;
+    mesh: THREE.Mesh;
+    //Create vertex overheads >3721*3
+    vertices = new Float32Array(36000);
+    //Create index overheads >3721*6
+    indices: number[] = [];
+    dataInterface: (x: number, y: number) => Number;
+    uCount = 100;
+    vCount = 100;
+
+    /**
+     * @param name name of the graph, needs to be unique
+     * @param dataInterface the cartesian function being passed
+     */
+    constructor(name: string, dataInterface: (x: number, y: number) => Number) {
+        super(name, dataInterface);
+        this.geometry = new THREE.BufferGeometry();
+        this.dataInterface = dataInterface;
+    }
+
+    /**
+     *
+     * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
+     * namely uCount corresponds to the # of edges in the u direction, and vCount
+     * # of edges along v.
+     * @param mapping a mapping for the vertex generation, used to serve refined mesh generation
+     * @param uCount # of vertices + 1 in the u direction
+     * @param vCount # of vertices + 1 in the v direction
+     */
+    populate(mapping = this.mapping, uCount = this.uCount, vCount = this.vCount): void {
+
+        for (let i = 0; i <= uCount; i++) {
+            for (let j = 0; j <= vCount; j++) {
+                let u = i / uCount, v = j / uCount;
+                let [x, y] = mapping(u, v);
+                let k = 3 * (i * (vCount + 1) + j);
+                this.vertices[k] = x;
+                let val = this.dataInterface(x, y);
+                this.vertices[k + 1] = y+((val instanceof Quantity)?+val.data[1]:0);
+                this.vertices[k + 2] = (val instanceof Quantity)?+val.data[0]:+val;
+            }
+        }
+        this.geometry.attributes.position.needsUpdate = true;
     }
 }
 
@@ -1063,5 +1110,5 @@ class ParametricGroup extends GroupGraph {
 
 export {
     Graph, GroupGraph, CartesianGraph, CartesianGraph2D, CartesianGroup, Vector3D, Vector3DGroup, VecField3D,
-    ParametricSurface, ParametricGroup, ParametricLine, colors
+    ParametricSurface, ParametricGroup, ParametricLine, ComplexCartesianGraph, colors
 };

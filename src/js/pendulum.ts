@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import {
     CartesianGraph2D,
     CartesianGroup,
+    ComplexCartesianGraph,
     Vector3D,
     colors,
     VecField3D,
@@ -13,6 +14,7 @@ import {
 } from "./graph";
 import {Core, Evaluable, Quantity, ResolutionError} from "./core";
 import {SymNode} from "./parser";
+import {cylindricalSteppedPressure} from "./program";
 
 // Coordinator of all actions of sub-modules
 class Pendulum{
@@ -40,7 +42,7 @@ class Pendulum{
         let dataInterface;
         switch (evalHandle.visType){
             case 'cartesian':
-                dataInterface = (x:number,y:number)=> compute(this.canvas.time,x,y).valueOf();
+                dataInterface = (x:number,y:number)=> compute(this.canvas.time,x,y);
                 if(!(graph instanceof CartesianGraph)){
                     let deleted = this.canvas.removeGraph(label);
                     if(deleted!=undefined)
@@ -309,7 +311,7 @@ $(()=>{
     // graph3.generateIndices();
     // graph3.populate();
     // canvas.addGraph(graph3)
-    // field(canvas);
+    // cylindricalSteppedPressure(canvas);
 })
 
 export {Pendulum}

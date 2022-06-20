@@ -42,7 +42,7 @@ class Canvas{
     }
 
     animation( time: number ) {
-        this.time = time/200;
+        this.time = time/1000;
         for(let key in this.graphs){
             let graph: Graph = this.graphs[key];
             graph.updateTime();

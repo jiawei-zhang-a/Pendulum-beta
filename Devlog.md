@@ -201,3 +201,5 @@ two types in an expression.
 
 ![img.png](images/2022-06-10-4.png)
 
+#### 06/19/22
+Implement summation clause
