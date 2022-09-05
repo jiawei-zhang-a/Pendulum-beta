@@ -29,8 +29,8 @@ gulp.task(
             entries: ["src/js/pendulum.ts"],
             cache: {},
             packageCache: {},
-        })
-            .plugin(tsify, {extensions:['js','ts']})
+        }).plugin(tsify, {target: 'es6'})
+            .transform(babelify.configure({extensions: [".ts",".js"]}))
             .bundle()
             .pipe(source("index.js"))
             .pipe(buffer())

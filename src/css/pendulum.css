@@ -20,7 +20,7 @@ body {
 #root {
     --blue: #3abdff;
     --blueShadow: #007fbe;
-    --mainHighlight: #2b579a;
+    --mainHighlight: #00126BF0;
     /*0a4e9c*/
     /*285280*/
     --yellow: #fbff00;
@@ -255,12 +255,13 @@ body {
 
 .expression-container {
     margin: 0px;
-    display: flex;
     /*height: stretch;*/
     min-height: 50px;
     border-width: 0px 0px 1px 0px;
     border-style: solid;
     border-color: var(--grayShadow);
+    display: grid;
+    grid-template-columns: 1fr 50px;
 }
 
 .expression-container:focus-within {
@@ -276,14 +277,14 @@ body {
     border: none;
     box-shadow: none;
     align-self: center;
+    grid-column: 1 / span 1;
 }
 
 .expression-container .color-box{
-    position: relative;
-    right: 15px;
     box-sizing: content-box;
-    justify-self: center;
+    grid-column: 2 / span 1;
     align-self: center;
+    margin-right: 15px;
     margin-left: 15px;
     width: 20px;
     height: 20px;
@@ -299,6 +300,14 @@ body {
 
 .expression-container:focus-within .color-box{
     right: 13px;
+}
+
+.expression-container .slider{
+    grid-row: 2 / span 1;
+    grid-column: 1 / span 2;
+    width: 90%;
+    margin: 0 5px;
+    display: flex;
 }
 
 /* width */

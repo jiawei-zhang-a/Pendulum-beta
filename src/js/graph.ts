@@ -2,15 +2,20 @@ import * as THREE from "three";
 import {
     BufferGeometry,
     ConeGeometry,
-    CylinderGeometry, Group,
-    LineBasicMaterial, Mesh,
+    CylinderGeometry, Group, Mesh,
     Vector3
 } from "three";
-import {Geometry} from "three/examples/jsm/deprecated/Geometry";
 import {Vec} from "./diffEqn";
-import {cssNumber, data} from "jquery";
 import {Evaluable, Quantity} from "./core";
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import {Line2} from "three/examples/jsm/lines/Line2.js";
 
+let renderer:THREE.WebGLRenderer;
+
+function loadRenderer(r: THREE.WebGLRenderer){
+    renderer = r;
+}
 const colors: { [key: string]: number } = {
     orange: 0xfb6500,
     blue: 0x0065fb,
@@ -36,7 +41,7 @@ function createMaterial(type: string, color: string, clipOverflow = true, clipDi
             break;
         case "light":
             material = new THREE.MeshPhongMaterial({
-                opacity: 0.6,
+                opacity: 0.5,
                 transparent: true,
                 side: THREE.DoubleSide,
                 color: colors[color]
@@ -51,10 +56,31 @@ function createMaterial(type: string, color: string, clipOverflow = true, clipDi
             });
             break;
         case "line":
+            //@ts-ignore
             material = new THREE.LineBasicMaterial({
                 color: colors[color],
-                opacity: 0.8,
-                side: THREE.DoubleSide,
+                opacity: 1,
+                linewidth: 1
+            });
+            break;
+        case "line2":
+            let resolution = new THREE.Vector2();
+            renderer.getSize(resolution);
+            material = new LineMaterial( {
+
+                color: colors[color],
+                linewidth: 7, // in world units with size attenuation, pixels otherwise
+                vertexColors: false,
+                resolution: resolution,
+                //resolution:  // to be set by renderer, eventually
+                dashed: true,
+                gapSize: 0.2,
+                dashSize:0.4,
+                alphaToCoverage: false,
+
+                polygonOffset: true,
+                polygonOffsetFactor: 0,
+                polygonOffsetUnits: -40
             });
             break;
         case "opaque":
@@ -103,10 +129,33 @@ abstract class Graph {
     }
 
     /**
+     * The visual bounds here specify the ranges on which the functions
+     * are evaluated. This is to supplied when the camera gets updated
+     */
+    bounds = [[-5, 5], [-5, 5], [-5, 5]];
+
+    /**
      * Returns the effective bounds of visualization for this graph
      */
     getBounds(): number[][] {
-        return [[-5, 5], [-5, 5], [-5, 5]];
+        return this.bounds;
+    }
+
+    /**
+     * Called by the graphics module when camera location is updated
+     * based on which the inheriting class should update the populate
+     * mapping. Also updates the clipping planes
+     * @param bounds
+     */
+    setBounds(bounds: number[][]){
+        this.bounds = bounds;
+        // this.material.clippingPlanes[0]
+        for(let i = 0; i<3;i++){
+            this.material.clippingPlanes[i].constant = 1.2*bounds[i][1];
+        }
+        for(let i = 0; i<3;i++){
+            this.material.clippingPlanes[i+3].constant = -1.2*bounds[i][0];
+        }
     }
 
     /**
@@ -274,18 +323,20 @@ class CartesianGraph extends Graph {
         if (orientation != this.orientation) {
             let mapping;
             this.orientation = orientation;
+            let xi = this.bounds[0][0], xf = this.bounds[0][1],
+                yi = this.bounds[1][0], yf = this.bounds[1][1];
             switch (orientation) {
                 case 0:
-                    mapping = (u: number, v: number) => [-5 + v * 10, 5 - u * 10];
+                    mapping = (u: number, v: number) => [xi + v * (xf-xi), yf - u * (yf-yi)];
                     break;
                 case 1:
-                    mapping = (u: number, v: number) => [5 - v * 10, -5 + u * 10];
+                    mapping = (u: number, v: number) => [xf - v * (xf-xi), yi + u * (yf-yi)];
                     break;
                 case 2:
-                    mapping = (u: number, v: number) => [5 - u * 10, -5 + v * 10];
+                    mapping = (u: number, v: number) => [xf - u * (xf-xi), yi + v * (yf-yi)];
                     break;
                 case 3:
-                    mapping = (u: number, v: number) => [-5 + u * 10, 5 - v * 10];
+                    mapping = (u: number, v: number) => [xi + u * (xf-xi), yf - v * (yf-yi)];
                     break;
             }
             this.mapping = mapping;
@@ -294,12 +345,89 @@ class CartesianGraph extends Graph {
         }
     }
 
+    setBounds(bounds: number[][]){
+        super.setBounds(bounds);
+        let xi = bounds[0][0], xf = bounds[0][1],
+            yi = bounds[1][0], yf = bounds[1][1];
+        this.mapping = (u,v)=> [xi+(xf-xi)*u, yi+(yf-yi)*v];
+    }
 
     timeDependent: boolean = true;
 
     dispose() {
         this.geometry.dispose();
         this.material.dispose();
+    }
+}
+
+/**
+ * Accepts asynchronous inputs for functions
+ */
+class CartesianAsyncGraph extends CartesianGraph{
+    asyncInterface: (x: number, y: number)=>Promise<number|Number>;
+    /**
+     * @param name name of the graph, needs to be unique
+     * @param asyncInterface the asynchronous cartesian function being passed
+     */
+    constructor(name: string,asyncInterface: (x: number, y: number)=>Promise<number|Number>) {
+        super(name, undefined);
+        this.geometry = new THREE.BufferGeometry();
+        this.asyncInterface = asyncInterface;
+        this.timeDependent = false;
+    }
+
+    /**
+     * Time threshold
+     */
+    threshold = 100;
+    timeLeft = 0;
+    pending = false;
+
+    /**
+     * The amount of time populate can be called per second is limited by a time threshold
+     * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
+     * namely uCount corresponds to the # of edges in the u direction, and vCount
+     * # of edges along v.
+     * @param mapping a mapping for the vertex generation, used to serve refined mesh generation
+     * @param uCount # of vertices + 1 in the u direction
+     * @param vCount # of vertices + 1 in the v direction
+     */
+    async populate(mapping = this.mapping, uCount = this.uCount, vCount = this.vCount) {
+       if(!this.pending){
+           this.pending = true;
+           let wait = ()=>{
+               if(this.timeLeft>0){
+                   this.timeLeft--;
+                   setTimeout(wait, 1);
+               }else{
+                   this.timeLeft = this.threshold;
+                   console.log("populating, time out in: "+this.timeLeft);
+                   this.proxyPopulate(mapping, uCount, vCount);
+                   this.pending = false;
+               }
+           }
+           wait();
+       }else{
+           this.timeLeft = this.threshold;
+       }
+    }
+    proxyPopulate(mapping = this.mapping, uCount = this.uCount, vCount = this.vCount){
+        for (let i = 0; i <= uCount; i++) {
+            for (let j = 0; j <= vCount; j++) {
+                let u = i / uCount, v = j / uCount;
+                let [x, y] = mapping(u, v);
+                let k = 3 * (i * (vCount + 1) + j);
+                this.vertices[k] = x;
+                this.vertices[k + 1] = y;
+                this.asyncInterface(x,y).then((val)=>{
+                    this.vertices[k + 2] = +val;
+                    if(i==uCount&&j==vCount){
+                        this.geometry.attributes.position.needsUpdate = true;
+                        this.update();
+                    }
+                });
+            }
+        }
     }
 }
 
@@ -435,6 +563,7 @@ class VecField3D extends Graph {
     vecFunc: (...baseVec: number[]) => number[];
     style: { [p: string]: (length: number) => number } = {};
     vector3Ds: Vector3D[] = [];
+    traces: LineTrace[] = [];
 
     /**
      *
@@ -466,13 +595,27 @@ class VecField3D extends Graph {
                 }
             }
         }
+
+        for(let x0 = -5; x0<=5; x0+=1.25){
+            for(let z0 = -5; z0<=5; z0+=1.25){
+                let v0 = [x0, 0, z0];
+                this.traces.push(new LineTrace(v0.toString(), this.vecFunc, v0));
+                let v01 = [0, x0, z0];
+                this.traces.push(new LineTrace(v01.toString(), this.vecFunc, v01));
+            }
+        }
         this.mesh = new THREE.Group();
-        for (let v of vs) {
-            let vec3d = new Vector3D(v.toString(), this.vecFunc,
-                () => v);
-            vectors.push(vec3d);
-            vec3d.constructGeometry({'color': 'orange'});
-            this.mesh.add(vec3d.mesh);
+        // for (let v of vs) {
+        //     let vec3d = new Vector3D(v.toString(), this.vecFunc,
+        //         () => v);
+        //     vectors.push(vec3d);
+        //     vec3d.constructGeometry(param);
+        //     this.mesh.add(vec3d.mesh);
+        // }
+        for(let trace of this.traces){
+            trace.constructGeometry(param);
+            trace.generateIndices();
+            this.mesh.add(trace.mesh);
         }
     }
 
@@ -481,7 +624,11 @@ class VecField3D extends Graph {
 
     populate(): void {
         for (let vector3D of this.vector3Ds) {
-            vector3D.populate();
+            // vector3D.populate();
+        }
+
+        for (let trace of this.traces) {
+            trace.populate();
         }
     }
 
@@ -495,6 +642,9 @@ class VecField3D extends Graph {
         this.vecFunc = vecFunc;
         for (let vector3d of this.vector3Ds) {
             vector3d.vector = this.vecFunc;
+        }
+        for(let trace of this.traces){
+            trace.dataInterface = this.vecFunc;
         }
     }
 }
@@ -606,7 +756,7 @@ class Vector3D extends Graph {
     }
 
     transform() {
-        let length = this.rv.length();
+        let length = Math.sqrt(this.rv.length());
         this.cylinderMesh.scale.set(length, length, length);
         this.coneMesh.scale.set(length, length, length);
         //@ts-ignore
@@ -773,7 +923,6 @@ class ParametricSurface extends Graph {
     updateOrientation(): void {
     }
 
-
     timeDependent: boolean = true;
 
     dispose() {
@@ -783,13 +932,13 @@ class ParametricSurface extends Graph {
 }
 
 class ParametricLine extends Graph {
-    geometry: THREE.BufferGeometry;
-    mesh: THREE.Line;
+    geometry: LineGeometry;
+    mesh: Line2;
     //Create vertex overheads >3721*3
-    vertices: THREE.Vector3[] = [];
+    positions: number[] = [];
     //Create index overheads >3721*6
     indices: number[] = [];
-    dataInterface: (x: number) => Vec;
+    dataInterface: (x: number) => Number[];
     uCount = 1000;
     vCount = 1000;
 
@@ -797,15 +946,126 @@ class ParametricLine extends Graph {
      * @param name name of the graph, needs to be unique
      * @param dataInterface the cartesian function being passed
      */
-    constructor(name: string, dataInterface: (x: number) => Vec, uCount = 1000) {
+    constructor(name: string, dataInterface: (x: number) => Number[], uCount = 1000) {
         super(name);
-        this.geometry = new THREE.BufferGeometry();
         this.dataInterface = dataInterface;
         this.uCount = uCount;
     }
 
     constructGeometry(param: { [key: string]: string } =
                           {'material': "standard", 'color': "blue"}): void {
+        this.geometry = new LineGeometry();
+        this.material = createMaterial('line2',
+            (param['color']) ? param['color'] : 'blue');
+        this.mesh = new Line2(this.geometry, <LineMaterial> this.material);
+        this.mesh.name = this.name;
+    }
+
+    /**
+     * Generate indices for mesh creation
+     * @param uCount # of vertices + 1 in the u direction
+     * @param vCount # of vertices + 1 in the v direction
+     */
+    generateIndices(uCount = this.uCount, vCount = this.vCount) {
+        // this.indices.length = 0;
+        // /*
+        //  * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
+        //  * namely uCount corresponds to the # of edges in the u direction, and vCount
+        //  * # of edges in v, so that there will be exactly 2*uCount*vCount triangular mesh formed.
+        //  */
+        // for (let i = 0; i < uCount; i++) {
+        //     this.indices.push(i, i + 1);
+        // }
+    }
+
+    /**
+     *
+     * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
+     * namely uCount corresponds to the # of edges in the u direction, and vCount
+     * # of edges along v.
+     * @param mapping a mapping for the vertex generation, used to serve refined mesh generation
+     * @param uCount # of vertices + 1 in the u direction
+     * @param vCount # of vertices + 1 in the v direction
+     */
+    populate(mapping = (u: number) => u, uCount = this.uCount, vCount = this.vCount): void {
+        this.positions.length = 0
+        for (let i = 0; i <= uCount; i++) {
+            let u = i / uCount;
+            let x = mapping(u);
+            let vec = this.dataInterface(x);
+            this.positions.push(+vec[0], +vec[1], (vec.length>2)?+vec[2]:0);
+        }
+        this.geometry.setPositions(this.positions);
+        // console.log(this.positions);
+    }
+
+    update(): void {
+        console.log("line distances computed");
+        this.mesh.computeLineDistances();
+        this.mesh.scale.set( 1, 1, 1 );
+    }
+
+    dispose() {
+        this.geometry.dispose();
+        this.material.dispose();
+    }
+
+    updateOrientation(): void {
+    }
+}
+
+class Tracer {
+    t0: number;
+    v0: Vector3;
+    dv: Vector3 = new Vector3();
+
+    trace(t: number, v0: Vector3, dv: (...v: number[]) => number[]) {
+        if (this.t0 == undefined) {
+            this.t0 = t;
+            this.v0 = v0;
+            return this.v0;
+        }
+        this.dv.fromArray(dv(v0.x, v0.y, v0.z));
+        this.v0.add(this.dv.multiplyScalar(t - this.t0));
+        this.t0 = t;
+        return this.v0;
+    }
+}
+
+class LineTrace extends Graph {
+    geometry: THREE.BufferGeometry;
+    mesh: THREE.Line;
+    //Create vertex overheads >3721*3
+    vertices: THREE.Vector3[] = [];
+    //Create index overheads >3721*6
+    indices: number[] = [];
+    dataInterface: (...baseVec: number[]) => number[];
+    vecDataInterface: (t:number, n:Vec[])=>Vec;
+    uCount = 250;
+    vCount = 1000;
+    v0: number[];
+
+    /**
+     * @param name name of the graph, needs to be unique
+     * @param dataInterface the cartesian function being passed
+     * @param v0
+     * @param uCount
+     */
+    constructor(name: string, dataInterface: (...baseVec: number[]) => number[], v0: number[], uCount = 100) {
+        super(name);
+        this.geometry = new THREE.BufferGeometry();
+        this.dataInterface = dataInterface;
+        const holder = new Vec();
+        this.vecDataInterface = (t,n)=>{
+            holder.components = this.dataInterface(...n[0].components);
+            return holder;
+        };
+        this.uCount = uCount;
+        this.v0 = v0;
+    }
+
+    constructGeometry(param: { [key: string]: string } =
+                          {'material': "opaque", 'color': "blue"}): void {
         this.geometry = new THREE.BufferGeometry();
         this.material = createMaterial('line',
             (param['color']) ? param['color'] : 'blue');
@@ -825,10 +1085,9 @@ class ParametricLine extends Graph {
         //  * namely uCount corresponds to the # of edges in the u direction, and vCount
         //  * # of edges in v, so that there will be exactly 2*uCount*vCount triangular mesh formed.
         //  */
-        for (let i = 0; i < uCount; i++) {
+        for (let i = 0; i <= uCount*2+1; i++) {
             this.indices.push(i, i + 1);
         }
-        this.geometry.setIndex(this.indices);
     }
 
     /**
@@ -836,20 +1095,53 @@ class ParametricLine extends Graph {
      * Upon population, there will be (uCount+1)*(vCount+1) vertices created,
      * namely uCount corresponds to the # of edges in the u direction, and vCount
      * # of edges along v.
-     * @param mapping a mapping for the vertex generation, used to serve refined mesh generation
      * @param uCount # of vertices + 1 in the u direction
-     * @param vCount # of vertices + 1 in the v direction
+     * @param dt
      */
-    populate(mapping = (u: number) => u, uCount = this.uCount, vCount = this.vCount): void {
-
+    populate(uCount = this.uCount, dt = 0.01): void {
+        this.vertices.length=0
+        let trace = [...this.v0];
         for (let i = 0; i <= uCount; i++) {
-            let u = i / uCount;
-            let x = mapping(u);
-            let vec = this.dataInterface(x);
-            this.vertices[i] = new THREE.Vector3(vec.x, vec.y, vec.z);
+            this.step(trace, -dt);
+            this.vertices.splice(0,0,new THREE.Vector3(...trace));
+        }
+        trace = [...this.v0];
+        this.vertices.push(new THREE.Vector3(...trace));
+        for (let i = 0; i <= uCount; i++) {
+            this.step(trace,dt);
+            this.vertices.push(new THREE.Vector3(...trace));
         }
         this.geometry.setFromPoints(this.vertices);
         this.geometry.attributes.position.needsUpdate = true;
+    }
+
+    step(trace: number[], dt: number){
+        let k1 = this.dataInterface(...trace);
+        let k2 = this.k2(dt, trace, k1);
+        let k3 = this.k3(dt, trace, k2);
+        let k4 = this.k4(dt, trace, k3);
+        for(let j = 0; j<3; j++){
+            trace[j] += dt*(k1[j]+2*k2[j]+2*k3[j]+k4[j])/6;
+        }
+    }
+    traceHolder = new Array(3);
+    k2(dt: number, trace0: number[], k1: number[]) {
+        for(let j = 0; j<3; j++){
+            this.traceHolder[j]=k1[j]*dt/2+trace0[j];
+        }
+        return this.dataInterface(...this.traceHolder);
+    }
+    k3(dt: number, trace0: number[], k2: number[]) {
+        for(let j = 0; j<3; j++){
+            this.traceHolder[j]=k2[j]*dt/2+trace0[j];
+        }
+        return this.dataInterface(...this.traceHolder);
+    }
+    k4(dt: number, trace0: number[], k3: number[]) {
+        for(let j = 0; j<3; j++){
+            this.traceHolder[j]=k3[j]*dt+trace0[j];
+        }
+        return this.dataInterface(...this.traceHolder);
     }
 
     update(): void {
@@ -950,6 +1242,13 @@ class CartesianGroup extends GroupGraph {
             subGraph.generateIndices(this.uCount, this.vCount);
             this.mesh.add(subGraph.mesh);
             this.subGraphs[i] = subGraph;
+        }
+    }
+
+    setBounds(bounds: number[][]){
+        super.setBounds(bounds);
+        for(let graph of this.subGraphs){
+            graph.setBounds(bounds);
         }
     }
 }
@@ -1109,6 +1408,6 @@ class ParametricGroup extends GroupGraph {
 }
 
 export {
-    Graph, GroupGraph, CartesianGraph, CartesianGraph2D, CartesianGroup, Vector3D, Vector3DGroup, VecField3D,
-    ParametricSurface, ParametricGroup, ParametricLine, ComplexCartesianGraph, colors
+    Graph, GroupGraph, CartesianGraph, CartesianAsyncGraph, CartesianGraph2D, CartesianGroup, Vector3D, Vector3DGroup, VecField3D,
+    ParametricSurface, ParametricGroup, ParametricLine, ComplexCartesianGraph, colors, loadRenderer
 };

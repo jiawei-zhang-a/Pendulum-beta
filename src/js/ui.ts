@@ -26,6 +26,7 @@ function load(pendulum:Pendulum){
     loadDefinitions();
     loadAddBtn();
     loadDefSettingsBtn();
+    return defControls;
 }
 
 let pendulum: Pendulum;
@@ -231,12 +232,49 @@ class DefControl{
     }
 
     /**
+     * Determines the additional visual plugins that this field is displaying, such as
+     * slider, value box, arrow base field, ODE start, etc
+     */
+    fieldPlugins: string[] = [];
+    /**
+     * Adjust field plugins to match the specified configurations
+     * @param plugins
+     */
+    setFieldPlugins(plugins: string[]){
+        for(let currentPlugin of this.fieldPlugins){
+            if(plugins.indexOf(currentPlugin)==-1)
+                this.deleteFieldPlugin(currentPlugin);
+        }
+        for(let plugin of plugins){
+            if(this.fieldPlugins.indexOf(plugin)==-1)
+                this.addFieldPlugin(plugin);
+        }
+        this.fieldPlugins = plugins;
+    }
+    /**
+     * Inserts a field plugin of the corresponding type into the visual box
+     */
+    private addFieldPlugin(plugin: string){
+        switch (plugin){
+            case "slider":
+                this.statementControl.insertSliderHTML();
+                break;
+        }
+    }
+    private deleteFieldPlugin(plugin: string){
+        switch (plugin){
+            case "slider":
+                this.statementControl.deleteSliderHTML();
+                break;
+        }
+    }
+    /**
      * Label control and statement control should all be fully initialized at this point
      */
     updateDefinition(){
         let oldLabel = this.labelControl.label;
         this.labelControl.setHint(pendulum.getHint(this.statementControl.statement));
-        pendulum.updateDefinition(oldLabel, this.labelControl.label, this.statementControl.statement);
+        pendulum.updateDefinition(this.id, oldLabel, this.labelControl.label, this.statementControl.statement);
         this.statementControl.setColor(pendulum.queryColor(this.labelControl.label));
     }
     getLast():DefControl{
@@ -273,6 +311,7 @@ class LabelControl {
             spaceBehavesLikeTab: true,
             autoSubscriptNumerals: true,
             handlers: {
+                edit: this.updateSize.bind(this)
             }
         });
         this.label = this.parser.toStatementTree(this.mathquill.latex());
@@ -307,6 +346,8 @@ class LabelControl {
      * Used to synchronize height between definition container and namefield container
      */
     updateSize() {
+        if(!this.statementControl)
+            return;
         let defField = this.statementControl.statementField;
         let defContainer = this.statementControl.statementContainer;
         $(this.labelContainer).innerHeight($(this.labelField).outerHeight());
@@ -336,11 +377,13 @@ class StatementControl {
     public statementContainer:HTMLElement;
     public statementField:HTMLElement;
     public colorBox: HTMLElement;
+    public sliderNode: HTMLElement;
     public type = ':';
     public labelControl: LabelControl;
     mathquill: any;
     parser: Parser;
     statement: SymNode;
+    pluginVisuals: {plugin: HTMLElement};
     constructor(parent: DefControl, container: HTMLElement, field: HTMLElement, colorBox:HTMLElement) {
         this.parent = parent;
         this.id = parent.id;
@@ -349,6 +392,7 @@ class StatementControl {
         this.statementField = field;
         this.colorBox = colorBox;
         this.initiate();
+        this.updateValue = this.updateValue.bind(this);
     }
     /**
      * Used to synchronize height between definition container and namefield container
@@ -356,10 +400,19 @@ class StatementControl {
     updateSize() {
         let nameField = this.labelControl.labelField;
         let nameContainer = this.labelControl.labelContainer;
-        $(this.statementContainer).innerHeight($(this.statementField).outerHeight());
-        if (this.statementField.offsetHeight > nameField.offsetHeight)
+        $(this.statementContainer).innerHeight(this.getInnerHeight());
+        if ( this.getOffsetHeight()> nameField.offsetHeight)
             $(nameContainer).outerHeight($(this.statementContainer).outerHeight(true),true);
         else $(this.statementContainer).outerHeight($(nameField).outerHeight(true));
+    }
+
+    getInnerHeight(){
+        return $(this.statementField).outerHeight()+
+            ((this.sliderNode!=undefined)?$(this.sliderNode).outerHeight():0);
+    }
+
+    getOffsetHeight(){
+        return this.statementContainer.offsetHeight+((this.sliderNode!=undefined)?this.sliderNode.offsetHeight:0);
     }
 
     initiate() {
@@ -413,13 +466,43 @@ class StatementControl {
     }
     insertStatementHTML(newID: string) {
         let html = $.parseHTML(
-            `<div class=\"expression-container\" id="${newID}-statement" defID="${newID}"> 
+            `<div class=\"expression-container\" id="${newID}-statement" defID="${newID}">
                     <span class = \"expression\"></span>
-                    <div class="color-box"></div> 
+                    <div class="color-box"></div>
                 </div>`);
         mathPanel.insertBefore(html[0], this.statementContainer.nextSibling);
     }
 
+    insertSliderHTML(){
+        let html = $.parseHTML(
+          `<span  class="slider" > -10
+<input type="range" min="0" max="1000" value="500" id = "${this.id}-slider">
+10
+</span>`
+        )[0];
+        this.sliderNode = <HTMLElement> html;
+        this.statementContainer.appendChild(html);
+        this.statementContainer.style.gridTemplateRows="1fr 1fr;"
+        this.sliderNode.addEventListener('input', ((event:Event)=>{
+            // @ts-ignore
+            this.updateValue(event.target.value);
+        }))
+    }
+    updateValue(newValue: number){
+        let tex = "";
+        if(this.statement.content=="equal"){
+            tex=this.statement.children[0].token.TeX+"=";
+        }
+        tex+=newValue*0.02-10;
+        MQ.MathField(this.statementField).latex(tex);
+    }
+    deleteSliderHTML(){
+        if(!this.sliderNode)
+            return;
+        this.statementContainer.removeChild(this.sliderNode);
+        this.statementContainer.style.gridTemplateColumns = "1fr";
+        this.sliderNode = undefined;
+    }
     setColor(color: number) {
         if(color>=0){
             let b = color & 0xFF,
@@ -429,7 +512,6 @@ class StatementControl {
         }else
             this.colorBox.style.background = invisibleBackground;
     }
-
 }
 
 export  {

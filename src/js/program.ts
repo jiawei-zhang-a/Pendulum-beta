@@ -1,9 +1,10 @@
 import {cos, DiffEqn, Euler, RK4, Vec} from "./diffEqn";
-import {CartesianGraph2D, ParametricLine, Vector3D} from "./graph";
+import {CartesianAsyncGraph, CartesianGraph, CartesianGraph2D, ParametricLine, Vector3D} from "./graph";
 import {Canvas} from "./graphics";
 import {Vector3} from "three";
 import 'bessel/bessel';
 import {BufferGeometryUtils} from "three/examples/jsm/utils/BufferGeometryUtils";
+import {Portal} from 'function-link';
 import computeMorphedAttributes = BufferGeometryUtils.computeMorphedAttributes;
 //@ts-ignore
 let BESSEL = document.BESSEL;
@@ -38,7 +39,10 @@ function ode(canvas: Canvas) {
     canvas.addGraph(graph3);
 
     let graph4 = new ParametricLine('parametric domain',
-        (x) => solution(x * 1000, sHolder).multiply(0.1), 10000);
+        (x) => {
+            let vec = solution(x * 1000, sHolder).multiply(0.1);
+            return [vec.x, vec.y, vec.z];
+        }, 10000);
     graph4.constructGeometry({'color': 'blue'});
     graph4.generateIndices();
     graph4.populate();
@@ -130,15 +134,12 @@ class Tracer {
 }
 
 class CylindricalContainment {
-    n = 4;
+    n = 1;
     //n+1 toroidal flux to fully constrain the problem
     //last flux is for the vacuum region
-    pt = [2, -1, 3, -1, 1];
-    pp = [1.2, -1, -1.3, 2];
     l = [1, 2, 2, 2];
-    dp = [1, 1, 1, 1];
     //Wall radius, fixed
-    Rw = 2;
+    Rw = 3;
     R = new Array(this.n + 1); // First entry 0 for origin, indices forward by 1
     k = new Array(this.n);
     d = new Array(this.n);// First entry 0
@@ -161,7 +162,7 @@ class CylindricalContainment {
         this.d[0] = 0;
         for (let i = 0; i < this.n; i++)
             this.R[i + 1] = this.R[i] + Math.abs(params[i]);
-        this.R[this.n+2] = this.Rw;
+        this.R[this.n+1] = this.Rw;
         for (let i = 0; i < this.n; i++)
             this.k[i] = params[i + this.n];
         for (let i = 1; i < this.n; i++)//ommit d[0]
@@ -175,13 +176,13 @@ class CylindricalContainment {
 }
 
 function cylindricalSteppedPressure(canvas: Canvas) {
+    console.log("method called");
     let vs = [];
     let vectors = [];
     let cm = new CylindricalContainment();
-    cm.loadParameters([0.25779695284422416, 2.5528044544669064, 0.12835831270970327, 2.89744292979702, 10.445747864261534, -1.0568060357450244,
-        5.997296076573234, 3.7552793178514605, -7.198437485339354, -2.5936554625092345, 2.868590646295159, 0.011632997087230873, 5.000001520142342E-7, 0.20605244188951416]);
-
-        for(let h = 0; h<cm.n+1; h++){
+    cm.loadParameters([1,2,1,1,1]);
+    let n = 0;
+    for(let h = 0; h<cm.n+1; h++){
         let func = (i: number, phi: number, z: number) => {
             return [z,
                 Math.cos(phi) * (i*cm.R[h+1]+(1-i)*cm.R[h]),
@@ -203,16 +204,35 @@ function cylindricalSteppedPressure(canvas: Canvas) {
         for (let v of vs) {
             let v0 = new Vector3(...v);
             let tracer = new Tracer();
-            let vec3d = new Vector3D(v.toString(),
+            let vec3d = new Vector3D(n.toString(),
                 vec,
                 () => tracer.trace(canvas.time, v0, vec).toArray());
             vectors.push(vec3d);
             vec3d.constructGeometry({'color': 'green'});
             vec3d.generateIndices();
             vec3d.populate();
+            // vec3d.timeDependent = true;
             canvas.addGraph(vec3d);
+            n++;
         }
     }
 }
 
-export {ode, field, cylindricalSteppedPressure};
+function graphCylindrical(canvas: Canvas){
+    let link = Portal.importFunc(8080, 2);
+    let graph = new CartesianAsyncGraph("cylindric error",
+        (x,y)=><Promise<number>>link.get([x,y]));
+    graph.constructGeometry();
+    graph.generateIndices();
+    graph.populate();
+    canvas.addGraph(graph);
+    // link.get([1,1],(value)=>{console.log(value)});
+    console.log(link);
+}
+
+function graphTorus(canvas: Canvas){
+
+}
+
+
+export {ode, field, cylindricalSteppedPressure, graphCylindrical};

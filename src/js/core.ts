@@ -26,10 +26,11 @@ const vecRID = contextID('>r');
 class Core {
 
     environment: Environment = new Environment();
-
-    constructor(){
+    pendulum: Pendulum;
+    constructor(pendulum: Pendulum){
         //@ts-ignore expose environment to global for debugging
-        document.environment = this.environment;
+        window.Core = this;
+        this.pendulum = pendulum;
     }
     /**
      * Methods for resolving types of inputted statements (in string) to native representations.
@@ -87,10 +88,11 @@ class Core {
     /**
      * Resolves the equation by assigning it the proper label
      * @param label the overriding string for label supplied by the user
+     * @param uid
      * @param statement
      * @return parseMessage the message constant that prompts the UI response
      */
-    resolveEquation(label: SymNode, statement: SymNode):number {
+    resolveEquation(label: SymNode, uid: string, statement: SymNode):number {
         // Check if an equation is given.
         if(label == undefined){
             throw new ResolutionError("Unable to guess label");
@@ -112,10 +114,17 @@ class Core {
             &&!this.containsLabel(label.content, leaves))
             throw new ResolutionError("Invalid label override");
         let variable = this.defineEqnVariable(label, statement);
+        variable.uid = uid;
         console.log(variable);
         this.environment.variables[label.content] = variable;
+        this.environment.uidVariables[uid] = variable;
         variable.pulseDependants();
         variable.createEvalHandle();
+        let plugins: string[] = [];
+        if(variable.singleNumber){
+            plugins.push("slider");
+        }
+        this.pendulum.setFieldPlugins(uid, plugins)
         return 0;
     }
 
@@ -125,6 +134,54 @@ class Core {
      */
     isEquation(statement: SymNode){
         return statement.type=='operator'&&statement.content=='=';
+    }
+
+    defineCodeVariable(label: string,
+                       compute:(a: Arithmetics,c:Number[][],p:Number[])=>Number|Promise<Number>, dependencies: string[], async: boolean){
+        let newVar = this.prepareVariable(label, dependencies);
+        newVar.type = 2;
+        newVar.setCompute(compute);
+        newVar.asynchronous = async;
+        return newVar;
+    }
+
+    prepareVariable(label: string, dependencies:string[]){
+
+        let newVar:Variable;
+        // For redefinition, erase the previous dependencies, retain the dependants.
+        if(this.environment.variables[label] != undefined) {
+            newVar = this.environment.variables[label];
+            newVar.referenceList.length = 0;
+            newVar.removeDependencies();
+            newVar.rlMapping = {};
+            newVar.inverseRlMapping = {};
+            newVar.parameterMapping = [];
+        } else {
+            newVar = new Variable(label, this.environment);
+        }
+        for (let depVarLabel of dependencies) {
+            let reference:number[];
+            let rlIndex;
+            // Dependency.
+            let depVar = this.environment.variables[depVarLabel];
+            // Create dependent variable not present in the current environment.
+            if (depVar == undefined) {
+                depVar = new Variable(depVarLabel, this.environment);
+                this.environment.variables[depVarLabel] = depVar;
+            }
+            //Idempotent dependency construction
+            newVar.dependencies[depVarLabel]=depVar;
+            depVar.dependants[newVar.name] = newVar;
+            // Initialize rl cache if needed.
+            if ((rlIndex = newVar.rlMapping[depVarLabel]) == undefined) {
+                reference = [];
+                newVar.rlMapping[depVarLabel] = newVar.referenceList.length;
+                newVar.inverseRlMapping[newVar.referenceList.length] = depVarLabel;
+                newVar.referenceList.push(reference);
+                newVar.configureReference(depVarLabel);
+            }
+        }
+        return newVar;
     }
 
     defineEqnVariable(label: SymNode, statement:SymNode):Variable{
@@ -193,7 +250,13 @@ class Core {
             First top-down traversal to generate variables and establish dependencies.
          */
         let leaves: SymNode[] = definition.getLeaves();
-
+        for(let leaf of leaves){
+            // Name of this dependency.
+            let depVarLabel = leaf.content;
+            //Idempotent parameterized access style specification
+            if(leaf.type == 'func$')
+                newVar.functionAccess[depVarLabel] = true;
+        }
         for (let leaf of leaves) {
             //Consider only symbols representing functions or algebraics
             if (leaf.type == '#' || leaf.type == 'constant')
@@ -213,9 +276,6 @@ class Core {
             //Idempotent dependency construction
             newVar.dependencies[depVarLabel]=depVar;
             depVar.dependants[newVar.name] = newVar;
-            //Idempotent parameterized access style specification
-            if(leaf.type == 'func$')
-                newVar.functionAccess[depVarLabel] = true;
             // Initialize rl cache if needed.
             if ((rlIndex = newVar.rlMapping[depVarLabel]) == undefined) {
                 reference = [];
@@ -228,6 +288,8 @@ class Core {
         //Set type of new var away from constant if it has dependency. As the
         //new variable is reasonably defined by this time, it shouldn't be algebraic
         newVar.type = (Object.keys(newVar.dependencies).length!=0)? 2: 1;
+        newVar.singleNumber = (definition.type == "#" && definition.children.length == 0)||
+            (definition.type == "operator"&&definition.content=='neg'&&definition.children[0].type=='#');
         let piScript = this.getPiScript(definition, newVar);
         console.log("piScript: \n"+piScript);
         newVar.setPiScript(piScript);
@@ -375,6 +437,7 @@ for(let index = 0; index<pm.length; index++){
         let variable = this.environment.variables[label];
         if(variable == undefined)
             return;
+        delete this.environment.uidVariables[variable.uid];
         variable.type = 3;
         variable.referenceList.length = 0;
         variable.removeDependencies();
@@ -387,10 +450,15 @@ for(let index = 0; index<pm.length; index++){
             delete this.environment.variables[label];
         }
     }
+
+    createImportVariable(label: string, URL: string){
+        
+    }
 }
 
 class Environment {
     variables: {[name: string]: Variable} = {};
+    uidVariables: {[uid: string]: Variable} = {};
 }
 
 
@@ -1109,13 +1177,14 @@ class Arithmetics {
  */
 abstract class Evaluable {
     target: Variable;
-    evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number;
+    evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number|Promise<Number>;
     context: Number[][];
     visType = 'none';
+    visible = true;
     //This list is populated when visType is group
     subEvaluables: Evaluable[] = [];
     timeDependent: boolean = false;
-    public constructor(target: Variable) {
+    public constructor(target: Variable, previous: Evaluable) {
         this.target = target;
         this.evaluate = target.evaluate;
         this.context = new Array(52);
@@ -1126,6 +1195,8 @@ abstract class Evaluable {
             this.context[i] = [];
         }
         this.populateContext.bind(this);
+        if(previous!=undefined)
+            this.visible = previous.visible;
     }
 
     /**
@@ -1133,7 +1204,7 @@ abstract class Evaluable {
      * @param t
      * @param param sparse array of ID-based parameters
      */
-    abstract compute(t: number, ...param: Number[]): Number;
+    abstract compute(t: number, ...param: Number[]): Number|Promise<Number>;
 
     populateContext(t: number, param: number[], vecR: Quantity) {
         //Supply positional arguments into x & y by default,
@@ -1209,7 +1280,7 @@ class Variable {
     /**
      * Contains references of structure [type, parameter1, parameter2, ...]
      */
-    referenceList:(Number|Function)[][];
+    referenceList:(Number       |Function)[][];
     /**
      * A mapping from local variable names to the index of that
      * local variable inside the reference list
@@ -1224,6 +1295,14 @@ class Variable {
      */
     parameterized = false;
     /**
+     * Set to true if the variable is specified by a singular number
+     */
+    singleNumber = false;
+    /**
+     * Determines if the evaluation method is asynchronous
+     */
+    asynchronous = false;
+    /**
      * parameter position -> contextID, generated upon instantiation
      */
     parameterMapping: number[] = [];
@@ -1235,6 +1314,7 @@ class Variable {
      * @protected
      */
     protected compute: Function;
+
     environment: Environment;
     /**
      * Default evaluation clause
@@ -1249,8 +1329,9 @@ class Variable {
      *
      * Initialized to default value access
      */
-    evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number
+    evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number|Promise<Number>
         = this.default;
+    evaluateAsync: (a:Arithmetics, c:Number[][], p:Number[], callback: (val: Number)=>void)=>void;
     get = (rlID:number, context: Number[][], s = 0)=>{
         let reference = this.referenceList[rlID];
         if(s!==0){
@@ -1271,6 +1352,10 @@ class Variable {
      * Context ID for default value access
      */
     contextID: number;
+    /**
+     * ID of the user input
+     */
+    uid: string;
     /**
      * Default constructors with no initialization.
      */
@@ -1300,6 +1385,13 @@ class Variable {
         };
     }
 
+    setCompute(compute:(a: Arithmetics,c:Number[][],p:Number[])=>Number|Promise<Number>){
+        this.compute=compute;
+        this.evaluate = function(a: Arithmetics, context: Number[][], parameters: Number[]){
+            return compute(a, context, parameters);
+        };
+    }
+
     /**
      * Configures the type of visualizations that should be applied to this,
      * based on the name of the dependent variable, the type of this, and so on
@@ -1318,7 +1410,7 @@ class Variable {
         switch (this.type){
             case 1:
                 Anonymous = class extends Evaluable{
-                    compute(t:number, ...param: number[]): Number {
+                    compute(t:number, ...param: number[]): Number|Promise<Number> {
                         return this.evaluate(a, this.context, []);
                     }
                 };
@@ -1329,14 +1421,14 @@ class Variable {
                 vecR.lock();
                 if(this.parameterized)
                     Anonymous = class extends Evaluable{
-                        compute(t: number, ...param: number[]): Number {
+                        compute(t: number, ...param: number[]): Number|Promise<Number> {
                             this.populateContext(t, param, vecR);
                             return this.evaluate(a, this.context, param);
                         }
                     };
                 else {
                     Anonymous = class extends Evaluable {
-                        compute(t:number, ...param: number[]): Number {
+                        compute(t:number, ...param: number[]): Number|Promise<Number> {
                             this.populateContext(t, param, vecR);
                             return this.evaluate(a, this.context, []);
                         }
@@ -1346,7 +1438,7 @@ class Variable {
             case 3:
                 throw new ResolutionError("Attempting to create handle for undefined variable");
         }
-        this.evalHandle = new Anonymous(this);
+        this.evalHandle = new Anonymous(this, this.evalHandle);
         this.getVisType(this.evalHandle);
     }
 
@@ -1360,27 +1452,42 @@ class Variable {
         evalHandle.subEvaluables.length=0;
         if(this.containsVariables('t')&&this.environment.variables['t'].type==3)
             evalHandle.timeDependent = true;
-        if(!(q instanceof Quantity))
+        if(!(q instanceof Quantity)) {
             evalHandle.visType = 'cartesian';
+            if(this.asynchronous)
+                evalHandle.visType='cartesianAsync';
+        }
         else switch (q.type) {
             case 2:
                 evalHandle.visType = 'cartesian';
+                if(this.asynchronous)
+                    evalHandle.visType='cartesianAsync';
                 break;
             case 4:
-                if(this.containsVariables('u')&&
-                    this.containsVariables('v')
-                    &&this.environment.variables['u'].type == 3&&
-                this.environment.variables['v'].type==3) {
-                    evalHandle.visType = 'parametricSurface';
-                    evalHandle.populateContext = (t, param, vecR)=>{
-                        //Supply positional arguments into x & y by default,
-                        //Parameters clause will then override x & y values
-                        //if they occupy the same name space. eg. f(y,x)
-                        evalHandle.context[uID][0] = param[0];
-                        evalHandle.context[vID][0] = (param.length>1)?param[1]:0;
-                        evalHandle.context[tID][0] = t;
-                    };
-                    evalHandle.populateContext.bind(evalHandle);
+                if(this.containsVariables('u')
+                    &&this.environment.variables['u'].type == 3){
+                    if(this.containsVariables('v')&&
+                        this.environment.variables['v'].type==3) {
+                        evalHandle.visType = 'parametricSurface';
+                        evalHandle.populateContext = (t, param, vecR)=>{
+                            //Supply positional arguments into x & y by default,
+                            //Parameters clause will then override x & y values
+                            //if they occupy the same name space. eg. f(y,x)
+                            evalHandle.context[uID][0] = param[0];
+                            evalHandle.context[vID][0] = (param.length>1)?param[1]:0;
+                            evalHandle.context[tID][0] = t;
+                        };
+                        evalHandle.populateContext.bind(evalHandle);
+                    }else{
+                        evalHandle.visType = 'parametricCurve';
+                        evalHandle.populateContext = (t, param, vecR)=> {
+                            //Supply positional arguments into x & y by default,
+                            //Parameters clause will then override x & y values
+                            //if they occupy the same name space. eg. f(y,x)
+                            evalHandle.context[uID][0] = param[0];
+                            evalHandle.context[tID][0] = t;
+                        }
+                    }
                 }
                 else if(this.containsVariables('xyzr')||this.dependencies['>r']!=undefined)
                     evalHandle.visType = 'vecField';
@@ -1391,11 +1498,17 @@ class Variable {
                 evalHandle.visType = 'group';
                 for(let i = 0; i<q.size; i++){
                     let Anonymous = class extends Evaluable{
-                        compute(t: number, ...param: Number[]): Number {
-                            return (<Quantity> evalHandle.compute(t, ...param)).data[i];
+                        compute(t: number, ...param: Number[]): Number|Promise<Number> {
+                            let q = evalHandle.compute(t, ...param);
+                            if(q instanceof Promise){
+                                return new Promise((resolve)=>{
+                                    (<Promise<Number>> q).then((val)=>resolve((<Quantity> val).data[i]));
+                                });
+                            }else
+                                return (<Quantity> evalHandle.compute(t, ...param)).data[i];
                         }
                     }
-                    let subHandle = new Anonymous(this);
+                    let subHandle = new Anonymous(this, this.evalHandle);
                     evalHandle.subEvaluables.push(subHandle);
                     console.log(evalHandle);
                     this.getVisType(subHandle);
@@ -1414,6 +1527,7 @@ class Variable {
                 }
                 break;
         }
+        //This is a deep traversal of the evaluation tree, invoked each time eval handle is created
         for(let key in this.dependants){
             let dependant = this.dependants[key];
             dependant.getVisType(dependant.evalHandle);
@@ -1490,13 +1604,12 @@ class Variable {
         //Information access style, style 1 and style 2 are equivalent for local Algebraics,
         //except style 2 is slower but permits parameter as multiplicative clause
         reference[0] = depVar.type;
-        console.log("Configuring "+varName+" for "+this.name);
         switch (reference[0]) {
             case 1:
                 let quantity = depVar.evaluate(this.arithmetics,undefined,[]);
                 if(quantity instanceof Quantity)
                    quantity.lock();
-                reference[1] = quantity;
+                reference[1] = <Quantity> quantity;
                 if(accessStyle){
                     reference[2] = (a:Arithmetics,c:Number[][],p: Number[])=>{
                         if(p.length===0)
@@ -1506,7 +1619,7 @@ class Variable {
                             for(let i = 0; i<(<Quantity>b).size; i++){
                                 (<Quantity>b).data[i] = p[i];
                             }
-                        return a.invisDot(quantity, b);
+                        return a.invisDot(<Quantity> quantity, b);
                     }
                 }
                 break;
@@ -1515,7 +1628,7 @@ class Variable {
                     reference[1] = depVar.evaluate;
                 else
                     reference[1] = (a:Arithmetics,c:Number[][],p: Number[])=>{//Special dealing with func$ type
-                        return a.invisDot(depVar.evaluate(a,c,[]), (p.length!=0)?p[0]:1);
+                        return a.invisDot(<Quantity> depVar.evaluate(a,c,[]), (p.length!=0)?p[0]:1);
                     }
                 break;
             case 3:

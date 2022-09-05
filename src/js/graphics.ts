@@ -7,7 +7,7 @@ import {WebGLRenderer} from "three";
 import "three/examples/js/controls/OrbitControls";
 import {Variable} from './core';
 import './graph';
-import {Graph, CartesianGraph} from "./graph";
+import {Graph, CartesianGraph, loadRenderer} from "./graph";
 
 
 /**
@@ -34,6 +34,7 @@ class Canvas{
         this.config = config;
         htmlElement.appendChild( renderer.domElement );
         window.addEventListener("resize", this.onResize.bind(this));
+        this.attachCameraScaleListener();
         this.onResize();
     }
 
@@ -65,6 +66,10 @@ class Canvas{
         return graph
     }
 
+    onCameraUpdate(e: Event){
+        this.updateCameraOrientation();
+    }
+
     /**
      * Called when orbit control changes the camera orientation;
      */
@@ -92,7 +97,31 @@ class Canvas{
             this.camera.updateProjectionMatrix();
         }
     }
+
+    /**
+     * Listens for camera movements and reapply bounds accordingly
+     */
+    attachCameraScaleListener(){
+        window.addEventListener('wheel', (e)=>{
+            if(!e.ctrlKey)
+                return;
+            let scale = new THREE.Vector3(1,1,1).applyMatrix4(this.camera.projectionMatrixInverse);
+            scale.z = scale.y;
+            scale.x = scale.y;
+            for(let key in this.graphs){
+                let graph = this.graphs[key];
+                graph.setBounds(
+                    [[-scale.x/2, scale.x/2],
+                        [-scale.y/2, scale.y/2],
+                        [-scale.z/2, scale.z/2]]);
+                graph.populate();
+                graph.update();
+            }
+        });
+    }
 }
+
+
 
 function init() {
 
@@ -101,7 +130,7 @@ function init() {
     let dpp = 30;
     let htmlElement = document.getElementById("graphpanel");
     let width = htmlElement.offsetWidth;
-    let height = htmlElement.offsetHeight
+    let height = htmlElement.offsetHeight;
     camera = new THREE.OrthographicCamera(-width/2/dpp, width/2/dpp,
             height/2/dpp, -height/2/dpp, -2000, 2000);
     camera.position.y = -12;
@@ -110,7 +139,6 @@ function init() {
     camera.up.set(0, 0, 1);
     //camera.up.set(0, 1, 0);
 
-
     scene = new THREE.Scene();
 
     renderer = new THREE.WebGLRenderer({
@@ -118,6 +146,8 @@ function init() {
         alpha: true
     });
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setClearColor( 0x000000, 0.0 );
+    loadRenderer(renderer);
     renderer.localClippingEnabled = true;
 
     let canvas = new Canvas(camera, scene, renderer, {perspective: true, dpp: dpp},
@@ -125,7 +155,7 @@ function init() {
 
     // @ts-ignore
     let control = new THREE.OrbitControls(camera, renderer.domElement);
-    control.addEventListener('change', ()=>canvas.updateCameraOrientation());
+    control.addEventListener('change', canvas.onCameraUpdate.bind(canvas));
 
     // new OrbitalControlUpdater(tr, canvas);
     let light1 = new THREE.DirectionalLight(0xffffff, 0.5);

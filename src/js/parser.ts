@@ -158,13 +158,13 @@ let macros:MStruct = {
             'a': {
                 'n': ['tan', 'function', 1]
             },
-            'i': {'m': {'e': {'s': ['cross', 'operator', 0]}}}
+            'i': {'m': {'e': {'s': ['cross', 'operator', 0]}}},
         },
         'v': {
             'e': {
                 'c': ['vector', '$', 1]
             }
-        }
+        },
     }
 };
 
@@ -181,6 +181,7 @@ class Token{
     parentClause: Token[];
     //For temporary storage of SymNodes in vector parsing
     subNodes: SymNode[];
+    TeX: string="";
 
     /**
      * Parses the content of the tex string starting at specified positions to
@@ -327,6 +328,8 @@ class Token{
                 case 'terminating':
                     terminating = true;
             }
+            if(!terminating)
+                this.TeX+=char;
             i++;
         }
         return 0;
@@ -602,6 +605,9 @@ class Parser{
             if(token.type == 'optstruct'){
                 if(this.parseStack[this.parseStack.length-1].identifier.indexOf(token.content)!=-1){
                     this.parseStack.pop();
+                    if(this.parseStack.length==0)//Modify type of trailing optstruct tokens in a token list
+                        //to close structs, as this is the only way they are used
+                        token.type = 'closestruct';
                 }
             }
             previousToken = token;

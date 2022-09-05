@@ -10,11 +10,13 @@ import {
     VecField3D,
     GroupGraph,
     ParametricSurface,
-    Vector3DGroup, ParametricGroup
+    Vector3DGroup, ParametricGroup, CartesianAsyncGraph, ParametricLine
 } from "./graph";
 import {Core, Evaluable, Quantity, ResolutionError} from "./core";
 import {SymNode} from "./parser";
-import {cylindricalSteppedPressure} from "./program";
+import {cylindricalSteppedPressure, graphCylindrical, ode} from "./program";
+// import {Portal} from "function-link";
+
 
 // Coordinator of all actions of sub-modules
 class Pendulum{
@@ -23,10 +25,14 @@ class Pendulum{
     colorNames: string[];
     constructor(canvas: Canvas){
         this.canvas = canvas;
-        this.core = new Core();
+        this.core = new Core(this);
         this.colorNames = Object.keys(colors);
         //@ts-ignore
         window.Pendulum = this;
+        //@ts-ignore
+        window.Canvas = this.canvas;
+        //@ts-ignore
+        window.CartesianAsyncGraph = CartesianAsyncGraph;
     }
     colorIndex = 0;
     rotateColor(){
@@ -37,7 +43,7 @@ class Pendulum{
     }
     updateGraph(label: string, evalHandle: Evaluable){
         let graph = this.canvas.graphs[label];
-        let compute = evalHandle.compute.bind(evalHandle);
+        let compute = <(t: number, ...param: Number[])=>Number>evalHandle.compute.bind(evalHandle);
         let color = this.rotateColor();
         let dataInterface;
         switch (evalHandle.visType){
@@ -56,8 +62,33 @@ class Pendulum{
                     this.canvas.addGraph(graph);
                 }else{
                     if(graph instanceof CartesianGraph){
-                        graph.showMesh();
+                        if(evalHandle.visible)
+                            graph.showMesh();
                         graph.dataInterface = dataInterface;
+                        graph.populate();
+                        graph.update();
+                    }
+                }
+                break;
+            case 'cartesianAsync':
+                let computeAsync = <(t: number, ...param: Number[])=>Promise<Number>>evalHandle.compute;
+                dataInterface = (x:number,y:number)=> computeAsync(this.canvas.time,x,y);
+                if(!(graph instanceof CartesianGraph)){
+                    let deleted = this.canvas.removeGraph(label);
+                    if(deleted!=undefined)
+                        color = deleted.color;
+                }
+                if(this.canvas.graphs[label]==undefined){
+                    graph = new CartesianAsyncGraph(label, dataInterface);
+                    graph.constructGeometry({'material':'standard', 'color':color});
+                    graph.generateIndices();
+                    graph.populate();
+                    this.canvas.addGraph(graph);
+                }else{
+                    if(graph instanceof CartesianAsyncGraph){
+                        if(evalHandle.visible)
+                            graph.showMesh();
+                        graph.asyncInterface = dataInterface;
                         graph.populate();
                         graph.update();
                     }
@@ -82,7 +113,8 @@ class Pendulum{
                     this.canvas.addGraph(graph);
                 }else{
                     if(graph instanceof Vector3D){
-                        graph.showMesh();
+                        if(evalHandle.visible)
+                            graph.showMesh();
                         graph.vector = vecInterface;
                         graph.populate();
                         graph.update();
@@ -108,7 +140,8 @@ class Pendulum{
                     this.canvas.addGraph(graph);
                 }else{
                     if(graph instanceof VecField3D){
-                        graph.showMesh();
+                        if(evalHandle.visible)
+                            graph.showMesh();
                         graph.vecFunc = dataInterface;
                         graph.updateVecFunc(dataInterface);
                         graph.populate();
@@ -130,13 +163,42 @@ class Pendulum{
                 }
                 if(this.canvas.graphs[label] == undefined){
                     graph = new ParametricSurface(label, dataInterface);
-                    graph.constructGeometry({'material':'standard', 'color':color});
+                    graph.constructGeometry({'material':'opaque', 'color':color});
                     graph.generateIndices();
                     graph.populate();
                     this.canvas.addGraph(graph);
                 }else{
                     if(graph instanceof ParametricSurface){
-                        graph.showMesh();
+                        if(evalHandle.visible)
+                            graph.showMesh();
+                        graph.dataInterface = dataInterface;
+                        graph.populate();
+                        graph.update();
+                    }
+                }
+                break;
+            case 'parametricCurve':
+                dataInterface = (u:number)=>{
+                    // @ts-ignore
+                    let result = <Number[]>compute(this.canvas.time, u).data;
+                    let l = result.length;
+                    return [(l>0)?+result[0]:0, (l>1)?+result[1]:0, (l>2)?+result[2]:0];
+                };
+                if(!(graph instanceof ParametricLine)){
+                    let deleted = this.canvas.removeGraph(label);
+                    if(deleted!=undefined)
+                        color = deleted.color;
+                }
+                if(this.canvas.graphs[label] == undefined){
+                    graph = new ParametricLine(label, dataInterface);
+                    graph.constructGeometry({'material':'opaque', 'color':color});
+                    graph.generateIndices();
+                    graph.populate();
+                    this.canvas.addGraph(graph);
+                }else{
+                    if(graph instanceof ParametricLine){
+                        if(evalHandle.visible)
+                            graph.showMesh();
                         graph.dataInterface = dataInterface;
                         graph.populate();
                         graph.update();
@@ -165,10 +227,14 @@ class Pendulum{
                    }
         }
         graph.timeDependent = evalHandle.timeDependent;
-        evalHandle.onUpdate(()=>graph.timeDependent = evalHandle.timeDependent);
+        evalHandle.onUpdate(()=>{
+            graph.timeDependent = evalHandle.timeDependent;
+            graph.populate();
+            graph.update();
+        });
     }
 
-    groupGraph(label: string, A: { new(label: string, evalHandle: Evaluable, dataInteface: Function): GroupGraph },
+    private groupGraph(label: string, A: { new(label: string, evalHandle: Evaluable, dataInteface: Function): GroupGraph },
                graph: Graph, color: string, evalHandle: Evaluable,
                dataInterface: Function):Graph{
         if(!(graph instanceof A)){
@@ -183,7 +249,8 @@ class Pendulum{
             this.canvas.addGraph(graph);
         }else{
             if(graph instanceof A){
-                graph.showMesh();
+                if(evalHandle.visible)
+                    graph.showMesh();
                 graph.dataInterface = dataInterface;
                 graph.updateGroupSize(evalHandle);
                 graph.populate();
@@ -214,7 +281,7 @@ class Pendulum{
     getHint(statement: SymNode) {
         return this.core.guessLabel(statement);
     }
-    updateDefinition(oldLabel: SymNode, label: SymNode, definition: SymNode){
+    updateDefinition(uid: string, oldLabel: SymNode, label: SymNode, definition: SymNode){
         try{
             if(label == undefined) {
                 if (oldLabel != undefined)
@@ -225,7 +292,7 @@ class Pendulum{
                 this.deleteDefinition(oldLabel);
             }
             this.wipeGraph(label.content);
-            this.core.resolveEquation(label, definition);
+            this.core.resolveEquation(label, uid, definition);
             let variable = this.core.environment.variables[label.content];
             this.updateGraph(variable.name,variable.evalHandle);
         }catch (e) {
@@ -236,13 +303,19 @@ class Pendulum{
         this.core.deleteDefinition(label.content);
         this.deleteGraph(label.content);
     }
+    setFieldPlugins(uid: string, plugins: string[]){
+        UI.defControls[uid].setFieldPlugins(plugins);
+    }
     toggleVisibility(label: SymNode){
+        let evalHandle = this.core.environment.variables[label.content].evalHandle;
         let graph = this.canvas.graphs[label.content];
+        if(evalHandle!=undefined)
+            evalHandle.visible = !evalHandle.visible;
         if(graph!=undefined){
-            if(graph.mesh.visible)
-                graph.hideMesh();
-            else
+            if(evalHandle.visible)
                 graph.showMesh();
+            else
+                graph.hideMesh();
         }
     }
     /**
@@ -256,7 +329,6 @@ class Pendulum{
         else
             return -1;
     }
-
     /**
      * Makes an active call to resize the canvas, especially useful
      * for UI drag bar updates
@@ -270,19 +342,19 @@ let p: Pendulum;
 $(()=>{
     let canvas:Canvas = init();
 
-    let gridHelper = new THREE.GridHelper(12, 12);
-    gridHelper.rotateX(Math.PI/2);
-    canvas.scene.add(gridHelper);
-
-    let gridHelper2 = new THREE.GridHelper(12, 12);
-    gridHelper2.rotateZ(Math.PI/2);
-    canvas.scene.add(gridHelper2);
-
-    let gridHelper3 = new THREE.GridHelper(12, 12);
-    canvas.scene.add(gridHelper3);
-
-    let axesHelper = new THREE.AxesHelper(7);
-    canvas.scene.add(axesHelper);
+    // let gridHelper = new THREE.GridHelper(12, 12);
+    // gridHelper.rotateX(Math.PI/2);
+    // canvas.scene.add(gridHelper);
+    //
+    // let gridHelper2 = new THREE.GridHelper(12, 12);
+    // gridHelper2.rotateZ(Math.PI/2);
+    // canvas.scene.add(gridHelper2);
+    //
+    // let gridHelper3 = new THREE.GridHelper(12, 12);
+    // canvas.scene.add(gridHelper3);
+    //
+    // let axesHelper = new THREE.AxesHelper(7);
+    // canvas.scene.add(axesHelper);
 
     // let vector = new Vector3D("example", [1,0,0], [1,1,2]);
     // vector.constructGeometry({'color': 'lightgray'});
@@ -312,6 +384,11 @@ $(()=>{
     // graph3.populate();
     // canvas.addGraph(graph3)
     // cylindricalSteppedPressure(canvas);
+    // graphCylindrical(canvas);
+    // ode(canvas);
+
+//@ts-ignore
+    window.Portal = Portal;
 })
 
 export {Pendulum}
