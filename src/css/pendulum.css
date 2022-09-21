@@ -26,8 +26,8 @@ body {
     --yellow: #fbff00;
     --gray: #f3f3f3;
     --grayShadow: #afafaf;
-    --active: rgba(255, 115, 0, 0.99);
-    --active-faded: rgb(255, 140, 0);
+    --active: rgb(157, 133, 133);
+    --active-faded: rgb(220, 186, 186);
     --light-gray: #c6c6c6;
     height: 100%;
     display: grid;
@@ -306,7 +306,9 @@ body {
     grid-row: 2 / span 1;
     grid-column: 1 / span 2;
     width: 90%;
-    margin: 0 5px;
+    align-content: center;
+    align-items: center;
+    margin: 0 10px;
     display: flex;
 }
 
@@ -331,4 +333,38 @@ body {
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
     background: #a2a2a2;
+}
+
+.sliderComponent {
+    -webkit-appearance: none;
+    height: 10px;
+    align-self: center;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+    margin: 3pt;
+}
+
+.sliderComponent:hover {
+    opacity: 1;
+}
+
+.sliderComponent::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 17px;
+    height: 17px;
+    background: #9d8585;
+    cursor: pointer;
+    border-radius:1pt;
+}
+
+.sliderComponent::-moz-range-thumb {
+    width: 17px;
+    height: 17px;
+    background: #9d8585;
+    cursor: pointer;
+    border-radius:1pt;
 }

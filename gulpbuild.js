@@ -5,6 +5,8 @@ var tsify = require("tsify");
 var sourcemaps = require("gulp-sourcemaps");
 var buffer = require("vinyl-buffer");
 var babelify = require("babelify");
+let obfuscator = require("gulp-javascript-obfuscator");
+let uglify = require("gulp-uglify");
 
 var paths = {
     pages: ["src/*.html"],
@@ -35,6 +37,23 @@ gulp.task(
             .pipe(source("index.js"))
             .pipe(buffer())
             .pipe(sourcemaps.init({ loadMaps: true }))
+            // .pipe(obfuscator(
+            //     {
+            //         identifierNamesGenerator: 'mangled',
+            //         // log: false,
+            //         ignoreImports: true,
+            //         numbersToExpressions: false,
+            //         renameGlobals: true,
+            //         renameProperties: true,
+            //         exclude:['mathquill.js','mathquill.min.js'],
+            //         // forceTransformStrings: ['constant','closestruct','openstruct'],
+            //         renamePropertiesMode: 'safe',
+            //         reservedNames: [
+            //             'prototype',
+            //         ]
+            //     }
+            // ))
+            // .pipe(uglify())
             .pipe(sourcemaps.write("./"))
             .pipe(gulp.dest("dist/js"));
     })

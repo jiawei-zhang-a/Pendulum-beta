@@ -475,14 +475,14 @@ class StatementControl {
 
     insertSliderHTML(){
         let html = $.parseHTML(
-          `<span  class="slider" > -10
-<input type="range" min="0" max="1000" value="500" id = "${this.id}-slider">
+            `<span  class="slider" > -10
+<input class='sliderComponent' type="range" min="0" max="1000" value="500" id = "${this.id}-slider">
 10
 </span>`
         )[0];
         this.sliderNode = <HTMLElement> html;
         this.statementContainer.appendChild(html);
-        this.statementContainer.style.gridTemplateRows="1fr 1fr;"
+        this.statementContainer.style.gridTemplateRows="1fr 1fr"
         this.sliderNode.addEventListener('input', ((event:Event)=>{
             // @ts-ignore
             this.updateValue(event.target.value);
@@ -493,7 +493,7 @@ class StatementControl {
         if(this.statement.content=="equal"){
             tex=this.statement.children[0].token.TeX+"=";
         }
-        tex+=newValue*0.02-10;
+        tex+=Math.round((newValue*0.02-10)*1000)/1000;
         MQ.MathField(this.statementField).latex(tex);
     }
     deleteSliderHTML(){
