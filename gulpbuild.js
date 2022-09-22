@@ -44,7 +44,7 @@ gulp.task(
                     ignoreImports: true,
                     numbersToExpressions: false,
                     renameGlobals: true,
-                    // disableConsoleOutput: true,
+                    disableConsoleOutput: true,
                     // renameProperties: true,
                     exclude:['mathquill.js','mathquill.min.js'],
                     // forceTransformStrings: ['constant','closestruct','openstruct'],

@@ -95,24 +95,24 @@ class S {
     re(label: SN, uid: string, statement: SN):number {
         // Check if an equation is given.
         if(label == undefined){
-            throw new ResolutionError("Unable to guess label");
+            throw new RE("Unable to guess label");
         }
         if(statement == undefined){
-            throw new ResolutionError("No definition");
+            throw new RE("No definition");
         }
         let leaves;
         try{//Check for expression completeness
             leaves = statement.gl();
         }catch (e) {
             if(e instanceof ReferenceError){
-                throw new ResolutionError("Incomplete expression");
+                throw new RE("Incomplete expression");
             }else
                 throw e;
         }
         console.log(label);
         if(this.ie(statement)&&label.t=='$'||label.t=='func$'
             &&!this.cl(label.c, leaves))
-            throw new ResolutionError("Invalid label override");
+            throw new RE("Invalid label override");
         let variable = this.de(label, statement);
         variable.x = uid;
         console.log(variable);
@@ -247,7 +247,7 @@ class S {
             for(let index in defined.sc){
                 let child = defined.sc[index];
                 if(child.sc.length!=0){
-                    throw new ResolutionError("Parameterized function variable with nested denominator is invalid");
+                    throw new RE("Parameterized function variable with nested denominator is invalid");
                 }
                 newVar.pm[index] = contextID(child.c);
             }
@@ -304,7 +304,7 @@ class S {
 
     //readImplicitDefinition
     ri(label: SN, expression: SN):B {
-        throw new ResolutionError("not yet implemented");
+        throw new RE("not yet implemented");
     }
 
     /**
@@ -325,7 +325,7 @@ class S {
     }
     //getPiScript
     gp(statement: SN, variable: B): string{
-        let piScript: string = "//owned by: "+variable.n;
+        let piScript: string = "";// "//owned by: "+variable.n;
         let preScript = `
 //The default behavior is parameter extension for vector typed quantities        
 if(p.length == 1 && 
@@ -477,8 +477,8 @@ class E {
 }
 
 
-class ArithmeticError extends Error { }
-class ResolutionError extends Error {
+class AE extends Error { }
+class RE extends Error {
     constructor(message: string) {
         super(message)
     }
@@ -505,8 +505,8 @@ class Q extends Number{
         this.data = dataContainer;
         this.rc = rc;
     }
-
-    recycle(){
+    //recycle
+    r(){
         if(this.lockNumber!==0)
             return;
         let rc =this.rc;
@@ -521,20 +521,20 @@ class Q extends Number{
                 rc.s1[rc.getLogIndex(this.size/3)].push(this);
         }
     }
-
-    lock(){
+    //lock
+    l(){
         this.lockNumber++;
         for(let q of this.data)
             if(q instanceof Q)
-                q.lock();
+                q.l();
     }
-
-    release(){
+    //unlock
+    c(){
         if(this.lockNumber!==0)
             this.lockNumber--;
         for(let q of this.data)
             if(q instanceof Q)
-                q.release();
+                q.c();
     }
 
     valueOf(): number {
@@ -624,7 +624,7 @@ class Arithmetics {
     constructor() {
         this.rc = new RecycleCenter();
         this.I = new Q(2, 2, undefined, [0, 1]);
-        this.I.lock();
+        this.I.l();
     }
 
     getQuantity(type: number, ...entries: Number[]):Q{
@@ -650,7 +650,7 @@ class Arithmetics {
         if(a instanceof Q) {
             if(b instanceof Q){
                 if(a.type!=b.type)
-                    throw new ArithmeticError("Incompatible quantity type for addition");
+                    throw new AE("Incompatible quantity type for addition");
                 let dim = Math.max(a.size, b.size);
                 let c = this.rc.getQuantity(a.type, dim);
                 for(let i = 0; i<dim; i++){
@@ -658,14 +658,14 @@ class Arithmetics {
                     let bi = (i>b.size-1)?0:b.data[i];
                     c.data[i] = this.add(ai,bi);
                 }
-                a.recycle();
-                b.recycle();
+                a.r();
+                b.r();
                 return c;
 
             }else
-                throw new ArithmeticError("Incompatible quantity type for addition");
+                throw new AE("Incompatible quantity type for addition");
         }else
-            throw new ArithmeticError("Operation not yet supported");
+            throw new AE("Operation not yet supported");
     }
     neg(a: Number): Number{
         if(a instanceof Q){
@@ -711,7 +711,7 @@ class Arithmetics {
         if(a instanceof Q) {
             if(b instanceof Q){
                 if(a.type!=b.type||a.size != b.size)
-                    throw new ArithmeticError("Incompatible quantity type for subtraction");
+                    throw new AE("Incompatible quantity type for subtraction");
                 let dim = Math.max(a.size, b.size);
                 let c = this.rc.getQuantity(a.type, dim);
                 for(let i = 0; i<dim; i++){
@@ -719,13 +719,13 @@ class Arithmetics {
                     let bi = (i>b.size-1)?0:b.data[i];
                     c.data[i] = this.sub(ai,bi);
                 }
-                a.recycle();
-                b.recycle();
+                a.r();
+                b.r();
                 return c;
             }else
-                throw new ArithmeticError("Incompatible quantity type for addition");
+                throw new AE("Incompatible quantity type for addition");
         }else
-            throw new ArithmeticError("Operation not yet supported");
+            throw new AE("Operation not yet supported");
     }
 
     invisDot(a:Number, b:Number): Number {
@@ -734,12 +734,12 @@ class Arithmetics {
                 if(Arithmetics.getType(a) <=2) {//Field invisDot a vector or matrix
                     let c = this.rc.getQuantity(4, (<Q>b).size);
                     if(a instanceof Q)
-                        a.lock();
+                        a.l();
                     for (let i = 0; i < (<Q>b).size; i++) {
                         c.data[i] = this.invisDot(a, (<Q>b).data[i]);
                     }
                     if(a instanceof Q)
-                        a.release();
+                        a.c();
                     Arithmetics.recycle(a);
                     Arithmetics.recycle(b);
                     return c;
@@ -752,7 +752,7 @@ class Arithmetics {
                     Arithmetics.recycle(b);
                     return c;
                 }
-                throw new ArithmeticError("");
+                throw new AE("");
             case 3:
                 switch (Arithmetics.getType(a)) {
                     case 4:
@@ -769,7 +769,7 @@ class Arithmetics {
                             Arithmetics.recycle(b);
                             return c;
                         }else
-                            throw new ArithmeticError("Incompatible operand size");
+                            throw new AE("Incompatible operand size");
                     case 2:
                     case 1:
                         let size = (<Q>b).size;
@@ -779,7 +779,7 @@ class Arithmetics {
                         Arithmetics.recycle(b);
                         return c;
                 }
-                throw new ArithmeticError("this shouldn't be possible to reach");
+                throw new AE("this shouldn't be possible to reach");
             case 2:
                 if(Arithmetics.getType(a) <=2){
                     return this.multiply(a, b);
@@ -806,7 +806,7 @@ class Arithmetics {
                     Arithmetics.recycle(b);
                     return c;
                 }else
-                    throw new ArithmeticError("Cannot dot product vectors of different dimensions");
+                    throw new AE("Cannot dot product vectors of different dimensions");
             }
         return this.invisDot(a, b);
     }
@@ -828,7 +828,7 @@ class Arithmetics {
 
     private static recycle(q: Number){
         if(q instanceof Q)
-            q.recycle();
+            q.r();
     }
     /**
      * Accepts only real or complex quantities, otherwise return 0
@@ -851,11 +851,11 @@ class Arithmetics {
             c.data[0] = a.data[0]*b.data[0] -a.data[1]*b.data[1];
             //@ts-ignore
             c.data[1] = a.data[0]*b.data[1] +a.data[1]*b.data[0];
-            a.recycle();
-            b.recycle();
+            a.r();
+            b.r();
             return c;
         }else
-            throw new ArithmeticError("multiply can only act on fields");
+            throw new AE("multiply can only act on fields");
     }
 
     /**
@@ -910,7 +910,7 @@ class Arithmetics {
                     Arithmetics.recycle(b);
                     return c;
                 } else
-                    throw new ArithmeticError("Cannot cross product vectors of dimension not equal to 3");
+                    throw new AE("Cannot cross product vectors of dimension not equal to 3");
             }
             if(a.type==3&&b.type==3){//Cartesian product
                     let c = this.rc.getQuantity(3, a.size*b.size);
@@ -936,8 +936,8 @@ class Arithmetics {
                     for(let j = 0; j<b.size; j++){
                         Arithmetics.recycle(b.data[j]);
                     }
-                    a.recycle();
-                    b.recycle();
+                    a.r();
+                    b.r();
                     return c;
                 }
         }
@@ -948,7 +948,7 @@ class Arithmetics {
         if(Arithmetics.getType(b)<=3){
             return this.invisDot(this.invert(b), a);
         }else
-            throw new ArithmeticError("Can not divide by vectors");
+            throw new AE("Can not divide by vectors");
     }
 
     /**
@@ -967,17 +967,17 @@ class Arithmetics {
                 // by mode squared yields complex inverse
                 c.data[0] = +a.data[0]/modeSq;
                 c.data[1] = -a.data[1]/modeSq;
-                a.recycle();
+                a.r();
                 return c;
             case 3:
                 let d = this.rc.getQuantity(3, a.size);
                 for(let i = 0; i< a.size; i++){
                     d.data[i] = this.invert(a.data[i]);
                 }
-                a.recycle();
+                a.r();
                 return d;
         }
-        throw new ArithmeticError("Invert should only act on real or complex numbers or arrays");
+        throw new AE("Invert should only act on real or complex numbers or arrays");
     }
     //In the future this controls the branch number taken when doing log or power
     branchNumber = 0;
@@ -1089,7 +1089,7 @@ class Arithmetics {
     }
     tan(a: Number){
         if(a instanceof Q){
-            (<Q>a).lock();
+            (<Q>a).l();
             return this.div(this.sin(a),this.cos(a));
         }else{
             return Math.tan(+a);
@@ -1097,7 +1097,7 @@ class Arithmetics {
     }
     cot(a: Number){
         if(a instanceof Q){
-            (<Q>a).lock();
+            (<Q>a).l();
             return this.div(this.cos(a),this.sin(a));
         }else{
             return 1/Math.tan(+a);
@@ -1167,7 +1167,7 @@ class Arithmetics {
      */
     twoCross(u: number[], v: number[]) {
         if (u.length < 2 || v.length < 2)
-            throw new ArithmeticError("Vector dimensions less than two");
+            throw new AE("Vector dimensions less than two");
         return u[0]*v[1]-u[1]*v[0];
     }
 
@@ -1203,20 +1203,20 @@ class Arithmetics {
         if(a instanceof Q) {
             if(b instanceof Q){
                 if(a.type!=b.type)
-                    throw new ArithmeticError("Incompatible quantity type for addition");
+                    throw new AE("Incompatible quantity type for addition");
                 let dim = Math.max(a.size, b.size);
                 for(let i = 0; i<dim; i++){
                     let ai = (i>a.size-1)?0:a.data[i];
                     let bi = (i>b.size-1)?0:b.data[i];
                     a.data[i] = this.add(ai,bi);
                 }
-                b.recycle();
+                b.r();
                 return a;
 
             }else
-                throw new ArithmeticError("Incompatible quantity type for addition");
+                throw new AE("Incompatible quantity type for addition");
         }else
-            throw new ArithmeticError("Operation not yet supported");
+            throw new AE("Operation not yet supported");
     }
     /**
      * Sums up the expression from range n0 to n1
@@ -1519,7 +1519,7 @@ class B {
             case 2: //Parameterized functions are capable of
                 //autonomously overriding the context
                 let vecR = new Q(4, 3, undefined, [NaN, NaN, NaN]);
-                vecR.lock();
+                vecR.l();
                 if(this.p)
                     Anonymous = class extends L{
                         u(t: number, ...param: number[]): Number|Promise<Number> {
@@ -1537,7 +1537,7 @@ class B {
                 }
                 break;
             case 3:
-                throw new ResolutionError("Attempting to create handle for undefined variable");
+                throw new RE("Attempting to create handle for undefined variable");
         }
         this.e = new Anonymous(this, this.e);
         this.o(this.e);
@@ -1716,7 +1716,7 @@ class B {
             case 1:
                 let quantity = depVar.v(this.r,undefined,[]);
                 if(quantity instanceof Q)
-                   quantity.lock();
+                   quantity.l();
                 reference[1] = <Q> quantity;
                 if(accessStyle){
                     reference[2] = (a:Arithmetics,c:Number[][],p: Number[])=>{
@@ -1760,4 +1760,4 @@ class B {
     }
 }
 
-export {B, S, ResolutionError, L, Q};
+export {B, S, RE, L, Q};

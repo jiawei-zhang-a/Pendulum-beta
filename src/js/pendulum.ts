@@ -11,7 +11,7 @@ import {
     PS,
     VG, PG, CAG, P
 } from "./graph";
-import {S, L, Q, ResolutionError} from "./core";
+import {S, L, Q, RE} from "./core";
 import {SN} from "./parser";
 import {cylindricalSteppedPressure, graphCylindrical, ode} from "./program";
 // import {Portal} from "function-link";
@@ -312,7 +312,7 @@ class Pi {
     }
     //setFieldPlugins
     sfp(uid: string, plugins: string[]){
-        UI.defControls[uid].setFieldPlugins(plugins);
+        UI.defControls[uid].sp(plugins);
     }
     //toggleVisibility
     tv(label: SN){
@@ -354,19 +354,6 @@ let p: Pi;
 $(()=>{
     let canvas:C = i();
 
-    // let gridHelper = new THREE.GridHelper(12, 12);
-    // gridHelper.rotateX(Math.PI/2);
-    // canvas.scene.add(gridHelper);
-    //
-    // let gridHelper2 = new THREE.GridHelper(12, 12);
-    // gridHelper2.rotateZ(Math.PI/2);
-    // canvas.scene.add(gridHelper2);
-    //
-    // let gridHelper3 = new THREE.GridHelper(12, 12);
-    // canvas.scene.add(gridHelper3);
-    //
-    // let axesHelper = new THREE.AxesHelper(7);
-    // canvas.scene.add(axesHelper);
 
     // let vector = new Vector3D("example", [1,0,0], [1,1,2]);
     // vector.constructGeometry({'color': 'lightgray'});

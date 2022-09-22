@@ -176,6 +176,20 @@ function i() {
     light3.position.set(0, -5, 0);
     scene.add(light3);
 
+    let gridHelper = new THREE.GridHelper(12, 12);
+    gridHelper.rotateX(Math.PI/2);
+    canvas.scene.add(gridHelper);
+
+    let gridHelper2 = new THREE.GridHelper(12, 12);
+    gridHelper2.rotateZ(Math.PI/2);
+    canvas.scene.add(gridHelper2);
+
+    let gridHelper3 = new THREE.GridHelper(12, 12);
+    canvas.scene.add(gridHelper3);
+
+    let axesHelper = new THREE.AxesHelper(7);
+    canvas.scene.add(axesHelper);
+
     canvas.a();
     return canvas;
 }
