@@ -5,19 +5,20 @@ window.THREE = THREE;
 import {WebGLRenderer} from "three";
 
 import "three/examples/js/controls/OrbitControls";
-import {Variable} from './core';
+import {B} from './core';
 import './graph';
-import {Graph, CartesianGraph, loadRenderer} from "./graph";
+import {G, CG, loadRenderer} from "./graph";
 
 
 /**
+ * Canvas
  * Container of THREE elements for imperative manipulation of the canvas
  */
-class Canvas{
+class C {
     public camera: THREE.Camera;
     public scene: THREE.Scene;
     public renderer: THREE.WebGLRenderer;
-    public graphs: {[key: string]:Graph}={};
+    public graphs: {[key: string]:G}={};
     public htmlElement: HTMLElement;
     public width:number;
     public height: number;
@@ -33,32 +34,36 @@ class Canvas{
         this.renderer = renderer;
         this.config = config;
         htmlElement.appendChild( renderer.domElement );
-        window.addEventListener("resize", this.onResize.bind(this));
-        this.attachCameraScaleListener();
-        this.onResize();
+        window.addEventListener("resize", this.or.bind(this));
+        this.al();
+        this.or();
     }
 
-    animate(){
-        this.renderer.setAnimationLoop( this.animation.bind(this) );
+    //animate
+    a(){
+        this.renderer.setAnimationLoop( this.n.bind(this) );
     }
 
-    animation( time: number ) {
+    //animation
+    n(time: number ) {
         this.time = time/1000;
         for(let key in this.graphs){
-            let graph: Graph = this.graphs[key];
-            graph.updateTime();
+            let graph: G = this.graphs[key];
+            graph.ut();
         }
         this.renderer.render( this.scene, this.camera );
     }
 
-    addGraph(graph: Graph){
-        graph.update();
-        graph.cameraPosition = this.camera.position;
-        this.graphs[graph.name] = graph;
-        this.scene.add(graph.mesh);
+    //addGraph
+    ag(graph: G){
+        graph.u();
+        graph.p = this.camera.position;
+        this.graphs[graph.n] = graph;
+        this.scene.add(graph.s);
     }
 
-    removeGraph(name: string){
+    //removeGraph
+    rg(name: string){
         let object = this.scene.getObjectByName(name);
         this.scene.remove( object );
         let graph = this.graphs[name];
@@ -66,20 +71,23 @@ class Canvas{
         return graph
     }
 
-    onCameraUpdate(e: Event){
-        this.updateCameraOrientation();
+    //onCameraUpdate
+    ocu(e: Event){
+        this.uco();
     }
 
     /**
+     * updateCameraOrientation
      * Called when orbit control changes the camera orientation;
      */
-    updateCameraOrientation(){
+    uco(){
         for(let key in this.graphs){
-            this.graphs[key].updateOrientation();
+            this.graphs[key].uo();
         }
     }
 
-    onResize() {
+    //onResize
+    or() {
         this.width = this.htmlElement.offsetWidth;
         this.height = this.htmlElement.offsetHeight;
         // $(this.htmlElement).outerWidth(this.width);
@@ -99,9 +107,10 @@ class Canvas{
     }
 
     /**
+     * attachCameraScaleListener
      * Listens for camera movements and reapply bounds accordingly
      */
-    attachCameraScaleListener(){
+    al(){
         window.addEventListener('wheel', (e)=>{
             if(!e.ctrlKey)
                 return;
@@ -110,20 +119,19 @@ class Canvas{
             scale.x = scale.y;
             for(let key in this.graphs){
                 let graph = this.graphs[key];
-                graph.setBounds(
+                graph.sb(
                     [[-scale.x/2, scale.x/2],
                         [-scale.y/2, scale.y/2],
                         [-scale.z/2, scale.z/2]]);
-                graph.populate();
-                graph.update();
+                graph.pu();
+                graph.u();
             }
         });
     }
 }
 
-
-
-function init() {
+//init
+function i() {
 
     let camera: THREE.Camera, scene: THREE.Scene, renderer: WebGLRenderer;
     // camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
@@ -150,12 +158,12 @@ function init() {
     loadRenderer(renderer);
     renderer.localClippingEnabled = true;
 
-    let canvas = new Canvas(camera, scene, renderer, {perspective: true, dpp: dpp},
+    let canvas = new C(camera, scene, renderer, {perspective: true, dpp: dpp},
         document.getElementById("graphpanel"));
 
     // @ts-ignore
     let control = new THREE.OrbitControls(camera, renderer.domElement);
-    control.addEventListener('change', canvas.onCameraUpdate.bind(canvas));
+    control.addEventListener('change', canvas.ocu.bind(canvas));
 
     // new OrbitalControlUpdater(tr, canvas);
     let light1 = new THREE.DirectionalLight(0xffffff, 0.5);
@@ -168,12 +176,12 @@ function init() {
     light3.position.set(0, -5, 0);
     scene.add(light3);
 
-    canvas.animate();
+    canvas.a();
     return canvas;
 }
 
-function makeGraph(variable:Variable, type: string){
+function makeGraph(variable:B, type: string){
 
 }
 
-export {init, Canvas, Graph, CartesianGraph};
+export {i, C, G, CG};

@@ -1,6 +1,6 @@
 import {cos, DiffEqn, Euler, RK4, Vec} from "./diffEqn";
-import {CartesianAsyncGraph, CartesianGraph, CartesianGraph2D, ParametricLine, Vector3D} from "./graph";
-import {Canvas} from "./graphics";
+import {CAG, CG, CGT, P, VD} from "./graph";
+import {C} from "./graphics";
 import {Vector3} from "three";
 import 'bessel/bessel';
 import {BufferGeometryUtils} from "three/examples/jsm/utils/BufferGeometryUtils";
@@ -9,7 +9,7 @@ import computeMorphedAttributes = BufferGeometryUtils.computeMorphedAttributes;
 //@ts-ignore
 let BESSEL = document.BESSEL;
 
-function ode(canvas: Canvas) {
+function ode(canvas: C) {
     let a = 0.005;
     let q = 0.1590;
     let x0 = 4.523;
@@ -31,36 +31,36 @@ function ode(canvas: Canvas) {
         [new Vec(x0, y0, z0), new Vec(dx0, dy0, dz0)]);
     let solution = rk4.getSolution(true, [-50, 10000]);
     let sHolder = new Vec();
-    let graph3 = new CartesianGraph2D('time domain',
+    let graph3 = new CGT('time domain',
         (x) => solution(x * 5, sHolder).x / 5);
-    graph3.constructGeometry({'color': 'purple'});
-    graph3.generateIndices();
-    graph3.populate();
-    canvas.addGraph(graph3);
+    graph3.cg({'color': 'purple'});
+    graph3.gi();
+    graph3.pu();
+    canvas.ag(graph3);
 
-    let graph4 = new ParametricLine('parametric domain',
+    let graph4 = new P('parametric domain',
         (x) => {
             let vec = solution(x * 1000, sHolder).multiply(0.1);
             return [vec.x, vec.y, vec.z];
         }, 10000);
-    graph4.constructGeometry({'color': 'blue'});
-    graph4.generateIndices();
-    graph4.populate();
-    canvas.addGraph(graph4);
+    graph4.cg({'color': 'blue'});
+    graph4.gi();
+    graph4.pu();
+    canvas.ag(graph4);
 
     let euler = new Euler(eqn, 0.01, 0,
         [new Vec(x0, y0, z0), new Vec(dx0, dy0, dz0)]);
     let eSolution = euler.getSolution(true, [-50, 100]);
     let eHolder = new Vec();
-    let graph5 = new CartesianGraph2D('time domain',
+    let graph5 = new CGT('time domain',
         (x) => eSolution(x * 5, eHolder).x / 5);
-    graph5.constructGeometry({'color': 'red'});
-    graph5.generateIndices();
-    graph5.populate();
-    canvas.addGraph(graph5);
+    graph5.cg({'color': 'red'});
+    graph5.gi();
+    graph5.pu();
+    canvas.ag(graph5);
 }
 
-function field(canvas: Canvas) {
+function field(canvas: C) {
     let vs = [];
     let vectors = [];
     let func = (t: number) => {
@@ -104,13 +104,13 @@ function field(canvas: Canvas) {
         let t0 = 0;
         let tracer = new Tracer();
         let v0 = new Vector3(...v);
-        let vec3d = new Vector3D(v.toString(), field,
+        let vec3d = new VD(v.toString(), field,
             () => tracer.trace(canvas.time * 0.1, v0, field).toArray());
         vectors.push(vec3d);
-        vec3d.constructGeometry({'color': 'orange'});
-        vec3d.generateIndices();
-        vec3d.populate();
-        canvas.addGraph(vec3d);
+        vec3d.cg({'color': 'orange'});
+        vec3d.gi();
+        vec3d.pu();
+        canvas.ag(vec3d);
     }
 }
 
@@ -175,7 +175,7 @@ class CylindricalContainment {
     }
 }
 
-function cylindricalSteppedPressure(canvas: Canvas) {
+function cylindricalSteppedPressure(canvas: C) {
     console.log("method called");
     let vs = [];
     let vectors = [];
@@ -204,33 +204,33 @@ function cylindricalSteppedPressure(canvas: Canvas) {
         for (let v of vs) {
             let v0 = new Vector3(...v);
             let tracer = new Tracer();
-            let vec3d = new Vector3D(n.toString(),
+            let vec3d = new VD(n.toString(),
                 vec,
                 () => tracer.trace(canvas.time, v0, vec).toArray());
             vectors.push(vec3d);
-            vec3d.constructGeometry({'color': 'green'});
-            vec3d.generateIndices();
-            vec3d.populate();
+            vec3d.cg({'color': 'green'});
+            vec3d.gi();
+            vec3d.pu();
             // vec3d.timeDependent = true;
-            canvas.addGraph(vec3d);
+            canvas.ag(vec3d);
             n++;
         }
     }
 }
 
-function graphCylindrical(canvas: Canvas){
+function graphCylindrical(canvas: C){
     let link = Portal.importFunc(8080, 2);
-    let graph = new CartesianAsyncGraph("cylindric error",
+    let graph = new CAG("cylindric error",
         (x,y)=><Promise<number>>link.get([x,y]));
-    graph.constructGeometry();
-    graph.generateIndices();
-    graph.populate();
-    canvas.addGraph(graph);
+    graph.cg();
+    graph.gi();
+    graph.pu();
+    canvas.ag(graph);
     // link.get([1,1],(value)=>{console.log(value)});
     console.log(link);
 }
 
-function graphTorus(canvas: Canvas){
+function graphTorus(canvas: C){
 
 }
 

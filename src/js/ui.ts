@@ -1,32 +1,16 @@
 /* jshint esversion: 6 */
 import "mathquill/build/mathquill";
-import {SymNode, Parser} from "./parser";
+import {SN, R} from "./parser";
 import {Pendulum} from './pendulum';
 // @ts-ignore
 let MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
+
 
 // let types = {
 //     ":": "Variable",
 //     "": "Function",
 //     "{": "Object"
 // };
-
-let samples:{[key: string]: string[]} = {
-    "torus": ["\\left(\\left(a+b\\cos \\left(2\\pi v\\right)\\right)\\cos \\left(2\\pi u\\right),\\left(a+b\\cos \\left(2\\pi v\\right)\\right)\\sin \\left(2\\pi u\\right),b\\sin \\left(2\\pi v\\right)\\right)",
-    "a=2",
-    "b=1"],
-    "field 1": ["\\left(yz,xz,-xy\\right)"],
-    "field 2": ["\\left(x,y,z\\right)\\times \\left(y,z,x\\right)"],
-    "field 3": ["\\left(yz,xz,-xy+\\cos \\left(t\\right)\\right)"],
-    "function usage": ["f\\left(x\\right)=e^{-\\frac{x^2}{2}}","f\\left(x+iy\\right)"],
-    "complex": ["\\left(x+iy\\right)^3", "-i\\left(x+iy\\right)^3"],
-    "topology": ["f=\\left(10u-5,10v-5,-1\\right)",
-    "g=\\left(\\left(2+\\sin \\left(2\\pi v\\right)\\right)\\cos \\left(2\\pi u\\right),\\left(2+\\sin \\left(2\\pi v\\right)\\right)\\sin \\left(2\\pi u\\right),\\cos \\left(2\\pi v\\right)\\right)",
-    "pf+\\left(1-p\\right)g",
-    "p=\\cos \\left(\\frac{t}{5}\\right)^2"],
-    "summation 1": ["\\sum _{n=0}^{10}\\frac{\\left(-1\\right)^n\\cdot \\left(x+iy\\right)^{2n+1}}{\\left(2n+1\\right)!}"],
-    "summation 2 (takes some time to load)": ["\\frac{3}{r^2}\\sum _{n=0}^3\\left(\\left(x,\\frac{y^n}{n!},z\\right)\\times \\left(\\frac{x^n}{n!},y,z\\right)\\right)"]
-}
 
 let idGenerator = 1;
 
@@ -41,7 +25,6 @@ function load(pendulum:Pendulum){
     loadDefinitions();
     loadAddBtn();
     loadDefSettingsBtn();
-    loadSamples();
     return defControls;
 }
 
@@ -56,7 +39,6 @@ let resizer: HTMLElement,
     root: HTMLElement,
     defSettings: HTMLElement,
     addButton: HTMLElement,
-    sampleButton: HTMLElement,
     navBar: HTMLElement,
     mathPanel: HTMLElement,
     defBar: HTMLElement;
@@ -67,7 +49,6 @@ function loadComponents(){
     graphPanel = document.getElementById('graphpanel');
     root = <HTMLElement> document.getElementById('root');
     addButton = document.getElementById("addButton");
-    sampleButton = document.getElementById("sampleButton");
     defSettings = document.getElementById("defSettings");
     navBar = document.getElementById("navbar");
     mathPanel = document.getElementById("mathpanel");
@@ -174,7 +155,6 @@ function loadDefSettingsBtn(){
 }
 function loadAddBtn(){
     addButton.addEventListener("click", addFunction);
-    sampleButton.addEventListener("click", addFunction);
 }
 function addFunction(){
     defRoot.getLast().insertNewDefinition();
@@ -224,7 +204,6 @@ class DefControl{
         this.statementControl.insertStatementHTML(newID);
         let newDefControl = new DefControl(newID);
         this.insert(newDefControl);
-        return newDefControl;
     }
     delete(){
         if(defRoot == this)
@@ -311,15 +290,15 @@ class LabelControl {
     public labelField:HTMLElement;
     public type = ':';
     public statementControl:StatementControl;
-    public label: SymNode;
+    public label: SN;
     mathquill: any;
-    parser: Parser;
+    parser: R;
     hinting = false;
     hintTeX = '';
     constructor(parent: DefControl, container: HTMLElement, field: HTMLElement) {
         this.parent = parent;
         this.id = parent.id;
-        this.parser = new Parser();
+        this.parser = new R();
         this.labelContainer = container;
         this.labelField = field;
         this.initiate();
@@ -334,7 +313,7 @@ class LabelControl {
                 edit: this.updateSize.bind(this)
             }
         });
-        this.label = this.parser.toStatementTree(this.mathquill.latex());
+        this.label = this.parser.ts(this.mathquill.latex());
         this.labelField.addEventListener('focusin', this.onFocus.bind(this));
         this.labelField.addEventListener('focusout', this.onFocusExit.bind(this));
         this.onFocusExit();
@@ -347,7 +326,7 @@ class LabelControl {
             this.hintTeX=`\\left(${hint}\\right)`;
         if(this.hinting){
             this.mathquill.latex(this.hintTeX);
-            this.label = this.parser.toStatementTree(this.mathquill.latex());
+            this.label = this.parser.ts(this.mathquill.latex());
         }
     }
     onFocus(){
@@ -359,7 +338,7 @@ class LabelControl {
         this.hinting = this.mathquill.latex()=='';
         if(this.hinting){
             this.mathquill.latex(this.hintTeX);
-            this.label = this.parser.toStatementTree(this.mathquill.latex());
+            this.label = this.parser.ts(this.mathquill.latex());
         }
     }
     /**
@@ -400,15 +379,14 @@ class StatementControl {
     public sliderNode: HTMLElement;
     public type = ':';
     public labelControl: LabelControl;
-    invisible = false;
     mathquill: any;
-    parser: Parser;
-    statement: SymNode;
+    parser: R;
+    statement: SN;
     pluginVisuals: {plugin: HTMLElement};
     constructor(parent: DefControl, container: HTMLElement, field: HTMLElement, colorBox:HTMLElement) {
         this.parent = parent;
         this.id = parent.id;
-        this.parser = new Parser();
+        this.parser = new R();
         this.statementContainer = container;
         this.statementField = field;
         this.colorBox = colorBox;
@@ -457,7 +435,7 @@ class StatementControl {
                 downOutOf: () => this.parent.focusNext(),
             }
         });
-        this.statement = this.parser.toStatementTree(this.mathquill.latex());
+        this.statement = this.parser.ts(this.mathquill.latex());
         this.statementContainer.addEventListener('focusin', this.onFocus.bind(this));
         this.statementContainer.addEventListener('focusout', this.onFocusExit.bind(this));
         this.colorBox.addEventListener('click', this.toggleVisibility.bind(this));
@@ -466,19 +444,13 @@ class StatementControl {
         pendulum.tv(this.labelControl.label);
         this.setColor(pendulum.qc(this.labelControl.label));
     }
-    setInvisible(){
-        pendulum.setInvisible(this.labelControl.label);
-        this.setColor(pendulum.qc(this.labelControl.label));
-    }
     loadStatement(){
-        this.statement = this.parser.toStatementTree(this.mathquill.latex());
+        this.statement = this.parser.ts(this.mathquill.latex());
         this.parent.updateDefinition();
     }
     onEdit(){
         this.updateSize();
         this.loadStatement();
-        if(this.invisible)
-            pendulum.setInvisible(this.labelControl.label);
     }
     onFocus(){
         if(this.parent.previous!=undefined)
@@ -502,29 +474,27 @@ class StatementControl {
 
     insertSliderHTML(){
         let html = $.parseHTML(
-            `<span  class="slider" > -10
-<input class='sliderComponent' type="range" min="0" max="1000" value="500" id = "${this.id}-slider">
+          `<span  class="slider" > -10
+<input class="sliderComponent" type="range" min="0" max="1000" value="500" id = "${this.id}-slider">
 10
 </span>`
         )[0];
         this.sliderNode = <HTMLElement> html;
         this.statementContainer.appendChild(html);
-        this.statementContainer.style.gridTemplateRows="1fr 1fr"
+        this.statementContainer.style.gridTemplateRows="1fr 1fr;"
         this.sliderNode.addEventListener('input', ((event:Event)=>{
             // @ts-ignore
             this.updateValue(event.target.value);
-        }))
+        }));
+        this.updateSize();
     }
     updateValue(newValue: number){
         let tex = "";
-        if(this.statement.content=="equal"){
-            tex=this.statement.children[0].token.TeX+"=";
+        if(this.statement.c=="equal"){
+            tex=this.statement.ch[0].s.X+"=";
         }
-        tex+=Math.round((newValue*0.02-10)*1000)/1000;
+        tex+=Math.round(1000*(newValue*0.02-10))/1000;
         MQ.MathField(this.statementField).latex(tex);
-    }
-    setTeX(TeX: string){
-        MQ.MathField(this.statementField).latex(TeX);
     }
     deleteSliderHTML(){
         if(!this.sliderNode)
@@ -541,49 +511,6 @@ class StatementControl {
             this.colorBox.style.background = `rgb(${r}, ${g}, ${b})`;
         }else
             this.colorBox.style.background = invisibleBackground;
-    }
-}
-
-function loadSamples(){
-    new SampleManager("sampleList");
-    new SampleManager("exampleList");
-}
-
-class SampleManager{
-    list: HTMLElement;
-    constructor(id: string) {
-        this.list = document.getElementById(id);
-        for(let key in samples){
-            let field = new SampleField(key);
-            this.list.append(field.link);
-        }
-    }
-}
-
-class SampleField{
-    link: HTMLElement;
-    name: string;
-    expressions: string[];
-    defControls: DefControl[] = [];
-    constructor(name: string){
-        this.name = name;
-        this.expressions = samples[name];
-        this.link = <HTMLElement> $.parseHTML(`<a href="#">${name}</a>`)[0];
-        this.link.addEventListener('click', this.populateFields.bind(this));
-    }
-    populateFields(){
-        for(let key in defControls){
-            defControls[key].statementControl.setInvisible();
-        }
-        for(let i = 0; i<this.expressions.length; i++){
-            let expression = this.expressions[i];
-            let defControl = defRoot.getLast().insertNewDefinition();
-            if(this.name=="topology"&&i!=2){
-                defControl.statementControl.invisible = true;
-            }
-            defControl.statementControl.setTeX(expression);
-            this.defControls.push(defControl);
-        }
     }
 }
 

@@ -39,28 +39,20 @@ gulp.task(
             .pipe(sourcemaps.init({ loadMaps: true }))
             .pipe(obfuscator(
                 {
-                    compact: true,
-
                     identifierNamesGenerator: 'mangled',
                     // log: false,
                     ignoreImports: true,
-                    // numbersToExpressions: false,
-                    numbersToExpressions: true,
-                    simplify: true,
-                    stringArrayShuffle: true,
-                    // stringArrayEncoding: ['rc4'],
+                    numbersToExpressions: false,
                     renameGlobals: true,
-                    disableConsoleOutput: true,
-                    selfDefending: true,
-                    domainLock: ['http://www.cloudnest.org/pendulum/beta/','cloudnest.org/pendulum/beta/'],
-                    // domainLockRedirectUrl: 'http://www.cloudnest.org',
-                    // renameProperties: true,Ζ
+                    // renameProperties: true,
                     exclude:['mathquill.js','mathquill.min.js'],
                     // forceTransformStrings: ['constant','closestruct','openstruct'],
                     renamePropertiesMode: 'safe',
+                    reservedNames: [
+                        'prototype',
+                    ]
                 }
             ))
-            // .pipe(minify())
             // .pipe(uglify())
             .pipe(sourcemaps.write("./"))
             .pipe(gulp.dest("dist/js"));

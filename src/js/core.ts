@@ -1,4 +1,4 @@
-import {SymNode} from "./parser";
+import {SN} from "./parser";
 import {Pendulum} from "./pendulum";
 import {stat} from "fs";
 
@@ -23,9 +23,9 @@ const uID = contextID('u');
 const vID = contextID('v');
 const vecRID = contextID('>r');
 
-class Core {
+class S {
 
-    environment: Environment = new Environment();
+    environment: E = new E();
     pendulum: Pendulum;
     constructor(pendulum: Pendulum){
         //@ts-ignore expose environment to global for debugging
@@ -37,35 +37,36 @@ class Core {
      */
 
     /**
+     * guessLabel
      * Deduces the default label for the statement given, if no label can be effectively deduced,
      * returns undefined.
      * @param statement
      */
-    guessLabel(statement: SymNode): string{
+    gl(statement: SN): string{
         if(statement==undefined)
             return undefined;
         //First investigate if an equation is present
-        if(!(statement.type == 'operator'&&statement.content == 'equal')){
+        if(!(statement.t == 'operator'&&statement.c == 'equal')){
             return undefined;
         }
-        let lhs = statement.children[0];
-        let rhs = statement.children[1];
+        let lhs = statement.ch[0];
+        let rhs = statement.ch[1];
         if(lhs==undefined||rhs==undefined)
             return undefined;
         //Check for singletons
-        if((lhs.type=='$'||lhs.type=='func$')){
-            if('xyz'.indexOf(lhs.content)!=-1)
+        if((lhs.t=='$'||lhs.t=='func$')){
+            if('xyz'.indexOf(lhs.c)!=-1)
                 return undefined;
-            return lhs.content;
+            return lhs.c;
         }
-        if(rhs.type=='$'||rhs.type=='func$'){
-            if('xyz'.indexOf(lhs.content)!=-1)
+        if(rhs.t=='$'||rhs.t=='func$'){
+            if('xyz'.indexOf(lhs.c)!=-1)
                 return undefined;
-            return rhs.content;
+            return rhs.c;
         }
         let leaves;
         try{//Check for expression completeness
-            leaves = statement.getLeaves();
+            leaves = statement.gl();
         }catch (e) {
             return undefined;
         }
@@ -79,20 +80,21 @@ class Core {
          }
          for(let key in algebraicCounts){
              if(algebraicCounts[key]==1
-                 &&(this.environment.variables[key]==undefined
-                     ||this.environment.variables[key].type==3))
+                 &&(this.environment.v[key]==undefined
+                     ||this.environment.v[key].t==3))
                  return key;
          }
          return undefined;
     }
     /**
+     * resolveEquation
      * Resolves the equation by assigning it the proper label
      * @param label the overriding string for label supplied by the user
      * @param uid
      * @param statement
      * @return parseMessage the message constant that prompts the UI response
      */
-    resolveEquation(label: SymNode, uid: string, statement: SymNode):number {
+    re(label: SN, uid: string, statement: SN):number {
         // Check if an equation is given.
         if(label == undefined){
             throw new ResolutionError("Unable to guess label");
@@ -102,7 +104,7 @@ class Core {
         }
         let leaves;
         try{//Check for expression completeness
-            leaves = statement.getLeaves();
+            leaves = statement.gl();
         }catch (e) {
             if(e instanceof ReferenceError){
                 throw new ResolutionError("Incomplete expression");
@@ -110,18 +112,18 @@ class Core {
                 throw e;
         }
         console.log(label);
-        if(this.isEquation(statement)&&label.type=='$'||label.type=='func$'
-            &&!this.containsLabel(label.content, leaves))
+        if(this.ie(statement)&&label.t=='$'||label.t=='func$'
+            &&!this.cl(label.c, leaves))
             throw new ResolutionError("Invalid label override");
-        let variable = this.defineEqnVariable(label, statement);
-        variable.uid = uid;
+        let variable = this.de(label, statement);
+        variable.x = uid;
         console.log(variable);
-        this.environment.variables[label.content] = variable;
-        this.environment.uidVariables[uid] = variable;
-        variable.pulseDependants();
-        variable.createEvalHandle();
+        this.environment.v[label.c] = variable;
+        this.environment.u[uid] = variable;
+        variable.ps();
+        variable.eh();
         let plugins: string[] = [];
-        if(variable.singleNumber){
+        if(variable.s){
             plugins.push("slider");
         }
         this.pendulum.sfp(uid, plugins)
@@ -129,195 +131,203 @@ class Core {
     }
 
     /**
+     * isEquation
      * Tests whether a given statement is an equation
      * @param statement
      */
-    isEquation(statement: SymNode){
-        return statement.type=='operator'&&statement.content=='=';
+    ie(statement: SN){
+        return statement.t=='operator'&&statement.c=='=';
     }
 
-    defineCodeVariable(label: string,
-                       compute:(a: Arithmetics,c:Number[][],p:Number[])=>Number|Promise<Number>, dependencies: string[], async: boolean){
-        let newVar = this.prepareVariable(label, dependencies);
-        newVar.type = 2;
-        newVar.setCompute(compute);
-        newVar.asynchronous = async;
+    //Define code variable
+    dc(label: string,
+       compute:(a: Arithmetics,c:Number[][],p:Number[])=>Number|Promise<Number>, dependencies: string[], async: boolean){
+        let newVar = this.pv(label, dependencies);
+        newVar.t = 2;
+        newVar.sc(compute);
+        newVar.h = async;
         return newVar;
     }
 
-    prepareVariable(label: string, dependencies:string[]){
+    //prepareVariable
+    pv(label: string, dependencies:string[]){
 
-        let newVar:Variable;
+        let newVar:B;
         // For redefinition, erase the previous dependencies, retain the dependants.
-        if(this.environment.variables[label] != undefined) {
-            newVar = this.environment.variables[label];
-            newVar.referenceList.length = 0;
-            newVar.removeDependencies();
-            newVar.rlMapping = {};
-            newVar.inverseRlMapping = {};
-            newVar.parameterMapping = [];
+        if(this.environment.v[label] != undefined) {
+            newVar = this.environment.v[label];
+            newVar.l.length = 0;
+            newVar.rp();
+            newVar.m = {};
+            newVar.g = {};
+            newVar.pm = [];
         } else {
-            newVar = new Variable(label, this.environment);
+            newVar = new B(label, this.environment);
         }
         for (let depVarLabel of dependencies) {
             let reference:number[];
             let rlIndex;
             // Dependency.
-            let depVar = this.environment.variables[depVarLabel];
+            let depVar = this.environment.v[depVarLabel];
             // Create dependent variable not present in the current environment.
             if (depVar == undefined) {
-                depVar = new Variable(depVarLabel, this.environment);
-                this.environment.variables[depVarLabel] = depVar;
+                depVar = new B(depVarLabel, this.environment);
+                this.environment.v[depVarLabel] = depVar;
             }
             //Idempotent dependency construction
-            newVar.dependencies[depVarLabel]=depVar;
-            depVar.dependants[newVar.name] = newVar;
+            newVar.d[depVarLabel]=depVar;
+            depVar.q[newVar.n] = newVar;
             // Initialize rl cache if needed.
-            if ((rlIndex = newVar.rlMapping[depVarLabel]) == undefined) {
+            if ((rlIndex = newVar.m[depVarLabel]) == undefined) {
                 reference = [];
-                newVar.rlMapping[depVarLabel] = newVar.referenceList.length;
-                newVar.inverseRlMapping[newVar.referenceList.length] = depVarLabel;
-                newVar.referenceList.push(reference);
-                newVar.configureReference(depVarLabel);
+                newVar.m[depVarLabel] = newVar.l.length;
+                newVar.g[newVar.l.length] = depVarLabel;
+                newVar.l.push(reference);
+                newVar.k(depVarLabel);
             }
         }
         return newVar;
     }
 
-    defineEqnVariable(label: SymNode, statement:SymNode):Variable{
-        if(!(statement.content=='equal'&&statement.type=='operator'))
-            return this.readExplicitDefinition(label.content, label, statement);
-        let lhs = statement.children[0];
-        let rhs = statement.children[1];
+    //defineEqnVariable
+    de(label: SN, statement:SN):B{
+        if(!(statement.c=='equal'&&statement.t=='operator'))
+            return this.ed(label.c, label, statement);
+        let lhs = statement.ch[0];
+        let rhs = statement.ch[1];
         // Explicit definition. Left-hand side is a singleton of a variable
-        if(lhs.type == '$' || lhs.type == 'func$'){
-            let rhsLeaves = statement.children[1].getLeaves();
-            if(!this.containsLabel(lhs.content, rhsLeaves))
-                return this.readExplicitDefinition(label.content, lhs, rhs);
+        if(lhs.t == '$' || lhs.t == 'func$'){
+            let rhsLeaves = statement.ch[1].gl();
+            if(!this.cl(lhs.c, rhsLeaves))
+                return this.ed(label.c, lhs, rhs);
         }
-        if(rhs.type == '$' || rhs.type == 'func$'){
-            let lhsLeaves = statement.children[0].getLeaves();
-            if(!this.containsLabel(rhs.content, lhsLeaves))
-                return this.readExplicitDefinition(label.content, rhs, lhs);
+        if(rhs.t == '$' || rhs.t == 'func$'){
+            let lhsLeaves = statement.ch[0].gl();
+            if(!this.cl(rhs.c, lhsLeaves))
+                return this.ed(label.c, rhs, lhs);
         }
-        return this.readImplicitDefinition(label, statement);
+        return this.ri(label, statement);
     }
 
     /**
+     * containsLabel
      * Checks whether the statement tree contains variables with the
      * specified label, if not returns false
      * @param label
      * @param leaves
      */
-    containsLabel(label: string, leaves: SymNode[]){
+    cl(label: string, leaves: SN[]){
         for(let leaf of leaves){
-            if(leaf.content==label)
+            if(leaf.c==label)
                 return true;
         }
         return false;
     }
 
     /**
+     * readExplicitDefinition
      * Interpret the statement tree as native data representations.
      * @param label Label specified by the user
      * @param defined Tree representation of the variable that is defined, should be a leaf here.
      * @param definition Tree representation of the definition in terms of an expression
      */
-    readExplicitDefinition(label: string, defined: SymNode, definition: SymNode): Variable {
-        let newVar:Variable;
+    ed(label: string, defined: SN, definition: SN): B {
+        let newVar:B;
         // For redefinition, erase the previous dependencies, retain the dependants.
-        if(this.environment.variables[label] != undefined) {
-            newVar = this.environment.variables[label];
-            newVar.referenceList.length = 0;
-            newVar.removeDependencies();
-            newVar.rlMapping = {};
-            newVar.inverseRlMapping = {};
-            newVar.parameterMapping = [];
+        if(this.environment.v[label] != undefined) {
+            newVar = this.environment.v[label];
+            newVar.l.length = 0;
+            newVar.rp();
+            newVar.m = {};
+            newVar.g = {};
+            newVar.pm = [];
         } else {
-            newVar = new Variable(label, this.environment);
+            newVar = new B(label, this.environment);
         }
-        newVar.parameterized = defined.type=='func$';
-        if(newVar.parameterized){//Initialize parameter mapping for parameterized functions
-            for(let index in defined.subClauses){
-                let child = defined.subClauses[index];
-                if(child.subClauses.length!=0){
+        newVar.p = defined.t=='func$';
+        if(newVar.p){//Initialize parameter mapping for parameterized functions
+            for(let index in defined.sc){
+                let child = defined.sc[index];
+                if(child.sc.length!=0){
                     throw new ResolutionError("Parameterized function variable with nested denominator is invalid");
                 }
-                newVar.parameterMapping[index] = contextID(child.content);
+                newVar.pm[index] = contextID(child.c);
             }
         }
         /*
             First top-down traversal to generate variables and establish dependencies.
          */
-        let leaves: SymNode[] = definition.getLeaves();
+        let leaves: SN[] = definition.gl();
         for(let leaf of leaves){
             // Name of this dependency.
-            let depVarLabel = leaf.content;
+            let depVarLabel = leaf.c;
             //Idempotent parameterized access style specification
-            if(leaf.type == 'func$')
-                newVar.functionAccess[depVarLabel] = true;
+            if(leaf.t == 'func$')
+                newVar.fa[depVarLabel] = true;
         }
         for (let leaf of leaves) {
             //Consider only symbols representing functions or algebraics
-            if (leaf.type == '#' || leaf.type == 'constant')
+            if (leaf.t == '#' || leaf.t == 'constant')
                 continue;
             // Build reference list.
             // Name of this dependency.
-            let depVarLabel = leaf.content;
+            let depVarLabel = leaf.c;
             let reference:number[];
             let rlIndex;
             // Dependency.
-            let depVar = this.environment.variables[depVarLabel];
+            let depVar = this.environment.v[depVarLabel];
             // Create dependent variable not present in the current environment.
             if (depVar == undefined) {
-                depVar = new Variable(depVarLabel, this.environment);
-                this.environment.variables[depVarLabel] = depVar;
+                depVar = new B(depVarLabel, this.environment);
+                this.environment.v[depVarLabel] = depVar;
             }
             //Idempotent dependency construction
-            newVar.dependencies[depVarLabel]=depVar;
-            depVar.dependants[newVar.name] = newVar;
+            newVar.d[depVarLabel]=depVar;
+            depVar.q[newVar.n] = newVar;
             // Initialize rl cache if needed.
-            if ((rlIndex = newVar.rlMapping[depVarLabel]) == undefined) {
+            if ((rlIndex = newVar.m[depVarLabel]) == undefined) {
                 reference = [];
-                newVar.rlMapping[depVarLabel] = newVar.referenceList.length;
-                newVar.inverseRlMapping[newVar.referenceList.length] = depVarLabel;
-                newVar.referenceList.push(reference);
-                newVar.configureReference(depVarLabel);
+                newVar.m[depVarLabel] = newVar.l.length;
+                newVar.g[newVar.l.length] = depVarLabel;
+                newVar.l.push(reference);
+                newVar.k(depVarLabel);
             }
         }
         //Set type of new var away from constant if it has dependency. As the
         //new variable is reasonably defined by this time, it shouldn't be algebraic
-        newVar.type = (Object.keys(newVar.dependencies).length!=0)? 2: 1;
-        newVar.singleNumber = (definition.type == "#" && definition.children.length == 0)||
-            (definition.type == "operator"&&definition.content=='neg'&&definition.children[0].type=='#');
-        let piScript = this.getPiScript(definition, newVar);
+        newVar.t = (Object.keys(newVar.d).length!=0)? 2: 1;
+        newVar.s = (definition.t == "#" && definition.ch.length == 0)||
+            (definition.t == "operator"&&definition.c=='neg'&&definition.ch[0].t=='#');
+        let piScript = this.gp(definition, newVar);
         console.log("piScript: \n"+piScript);
-        newVar.setPiScript(piScript);
+        newVar.ss(piScript);
         return newVar;
     }
 
-    readImplicitDefinition(label: SymNode, expression: SymNode):Variable {
+    //readImplicitDefinition
+    ri(label: SN, expression: SN):B {
         throw new ResolutionError("not yet implemented");
     }
 
     /**
+     * splitLowerCase
      * Retrieves the variable name of the varied quantity of a large
      * operator
      * @param lowerClause
      * @private
      */
-    private splitLowerClause(lowerClause: SymNode):{variableName: string, lowerClause: SymNode}{
-        if(lowerClause.content==='equal'){
-            let lhs = lowerClause.children[0];
-            let rhs = lowerClause.children[1];
-            if(lhs.type == '$')
-                return {variableName:lhs.content, lowerClause: rhs};
+    private lc(lowerClause: SN):{variableName: string, lowerClause: SN}{
+        if(lowerClause.c==='equal'){
+            let lhs = lowerClause.ch[0];
+            let rhs = lowerClause.ch[1];
+            if(lhs.t == '$')
+                return {variableName:lhs.c, lowerClause: rhs};
         }
         return undefined;
     }
-
-    getPiScript(statement: SymNode, variable: Variable): string{
-        let piScript: string = "//owned by: "+variable.name;
+    //getPiScript
+    gp(statement: SN, variable: B): string{
+        let piScript: string = "//owned by: "+variable.n;
         let preScript = `
 //The default behavior is parameter extension for vector typed quantities        
 if(p.length == 1 && 
@@ -341,67 +351,69 @@ for(let index = 0; index<pm.length; index++){
         q.recycle();
     }
 }\n`;
-        if(variable.parameterized&&variable.type!=1){//Append parameter override clause
+        if(variable.p&&variable.t!=1){//Append parameter override clause
             piScript+=preScript;
-            piScript+="let r = "+this.parseTree(statement,variable)+";";
+            piScript+="let r = "+this.pt(statement,variable)+";";
             piScript+=postScript;
             piScript+="return r;";
         }
         else
-            piScript+="\nreturn "+this.parseTree(statement, variable)+';';
+            piScript+="\nreturn "+this.pt(statement, variable)+';';
         return piScript;
     }
 
-    parseTree(node: SymNode, variable: Variable):string {
-        let nodeLabel = node.content;
+    //parseTree
+    pt(node: SN, variable: B):string {
+        let nodeLabel = node.c;
         let concatenated = "";
-        switch(node.type){
+        switch(node.t){
             case '$':
-                return "get("+variable.rlMapping[nodeLabel]+", c)";
+                return "get("+variable.m[nodeLabel]+", c)";
             case '#':
-                return node.content;
+                return node.c;
             case 'constant':
-                switch (node.content) {
+                switch (node.c) {
                     case 'i':
                         return 'a.I';
                     default:
-                        return 'Math.'+node.content.toUpperCase();
+                        return 'Math.'+node.c.toUpperCase();
                 }
             case 'operator':
-                if(node.content=='sum'){
-                    return this.parseLargeOperator(node, variable);
+                if(node.c=='sum'){
+                    return this.pl(node, variable);
                 }
             case 'function':
-                for(let subTree of node.children){
-                    concatenated+=this.parseTree(subTree, variable)+",";
+                for(let subTree of node.ch){
+                    concatenated+=this.pt(subTree, variable)+",";
                 }
-                return this.convertAlias(node.content)
+                return this.a(node.c)
                     +"("+ concatenated.substring(0, concatenated.length-1) +")";
             case 'func$':
-                for(let subTree of node.subClauses){
-                    concatenated+=this.parseTree(subTree, variable)+",";
+                for(let subTree of node.sc){
+                    concatenated+=this.pt(subTree, variable)+",";
                 }
-                return "get("+variable.rlMapping[nodeLabel]+", c, 1)"+"(a, c, "
+                return "get("+variable.m[nodeLabel]+", c, 1)"+"(a, c, "
                         +"["+ concatenated.substring(0, concatenated.length-1) +"])";
             case 'vector':
-                for(let subTree of node.children){
-                    concatenated+=this.parseTree(subTree, variable)+',';
+                for(let subTree of node.ch){
+                    concatenated+=this.pt(subTree, variable)+',';
                 }
                 return `a.getQuantity(4,${concatenated})`;
             case 'array':
-                for(let subTree of node.children){
-                    concatenated+=this.parseTree(subTree, variable)+',';
+                for(let subTree of node.ch){
+                    concatenated+=this.pt(subTree, variable)+',';
                 }
                 return `a.getQuantity(3,${concatenated})`;
         }
         return "";
     }
 
-    parseLargeOperator(node: SymNode, variable: Variable): string{
-        let nodeLabel = node.content;
-        let exprContent = this.parseTree(node.children[0], variable);
-        let {variableName, lowerClause} = this.splitLowerClause(node.subClauses[0]);
-        let upperClause = node.subClauses[1];
+    //parseLargeOperator
+    pl(node: SN, variable: B): string{
+        let nodeLabel = node.c;
+        let exprContent = this.pt(node.ch[0], variable);
+        let {variableName, lowerClause} = this.lc(node.sc[0]);
+        let upperClause = node.sc[1];
         let nID = contextID(variableName);
         let expr = `(n)=>{
     let store = c[${nID}][0];
@@ -410,55 +422,60 @@ for(let index = 0; index<pm.length; index++){
     c[${nID}][0] = store;
     return r;
 }`;
-        return `${this.convertAlias(node.content)}(${this.parseTree(lowerClause, variable)},
-    ${this.parseTree(upperClause, variable)},${expr})`;
+        return `${this.a(node.c)}(${this.pt(lowerClause, variable)},
+    ${this.pt(upperClause, variable)},${expr})`;
     }
 
     /**
+     * convertAlias
      * Converts from an alias of an operator to its unified name in Arithmetics.
      *
      * @param operator
      */
-    convertAlias(operator: string): string{
+    a(operator: string): string{
         if(operator == 'invisdot')
             return 'a.invisDot';
         if(operator == 'frac')
             return 'a.div';
         if(operator == 'ln')
             return 'a.log';
-        if(operator == 'cos'||operator == 'sin'||operator=='tan' ||operator == 'sqrt')
+        if(operator == 'cos'||operator == 'sin'||operator=='tan'||operator=='cot')
+            return 'a.'+operator;
+        if(operator == 'sqrt')
             return 'Math.'+operator;
-        if(operator == 'cot')
-            return '1/Math.tan';
         return 'a.'+operator;
     }
 
-    deleteDefinition(label: string){
-        let variable = this.environment.variables[label];
+    //deleteDefinition
+    d(label: string){
+        let variable = this.environment.v[label];
         if(variable == undefined)
             return;
-        delete this.environment.uidVariables[variable.uid];
-        variable.type = 3;
-        variable.referenceList.length = 0;
-        variable.removeDependencies();
-        variable.rlMapping = {};
-        variable.inverseRlMapping = {};
-        variable.parameterMapping = [];
-        variable.evaluate = variable.default;
-        variable.pulseDependants();
-        if(Object.keys(variable.dependants).length==0){
-            delete this.environment.variables[label];
+        delete this.environment.u[variable.x];
+        variable.t = 3;
+        variable.l.length = 0;
+        variable.rp();
+        variable.m = {};
+        variable.g = {};
+        variable.pm = [];
+        variable.v = variable.f;
+        variable.ps();
+        if(Object.keys(variable.q).length==0){
+            delete this.environment.v[label];
         }
     }
 
-    createImportVariable(label: string, URL: string){
+    //createImportVariable
+    civ(label: string, URL: string){
         
     }
 }
 
-class Environment {
-    variables: {[name: string]: Variable} = {};
-    uidVariables: {[uid: string]: Variable} = {};
+class E {
+    //Variables
+    v: {[name: string]: B} = {};
+    //uidVariables
+    u: {[uid: string]: B} = {};
 }
 
 
@@ -1040,6 +1057,54 @@ class Arithmetics {
         }
     }
 
+    cos(a: Number){
+        switch (Arithmetics.getType(a)) {
+            case 1:
+                return Math.cos(+a);
+            case 2:
+                let x = +(<Quantity> a).data[0];
+                let y = +(<Quantity> a).data[1];
+                let c = this.rc.getQuantity(2,2);
+                c.data[0] = (Math.exp(y)+Math.exp(-y))*Math.cos(x)/2;
+                c.data[1] = (Math.exp(-y)-Math.exp(y))*Math.sin(x)/2;
+                Arithmetics.recycle(a);
+                return c;
+            default:
+                return this.arrayFunc(<Quantity> a, this.cos);
+        }
+    }
+    sin(a: Number){
+        switch (Arithmetics.getType(a)) {
+            case 1:
+                return Math.sin(+a);
+            case 2:
+                let x = +(<Quantity> a).data[0];
+                let y = +(<Quantity> a).data[1];
+                let c = this.rc.getQuantity(2,2);
+                c.data[0] = (Math.exp(-y)+Math.exp(y))*Math.sin(x)/2;
+                c.data[1] = (Math.exp(y)-Math.exp(-y))*Math.cos(x)/2;
+                Arithmetics.recycle(a);
+                return c;
+            default:
+                return this.arrayFunc(<Quantity> a, this.cos);
+        }
+    }
+    tan(a: Number){
+        if(a instanceof Quantity){
+            (<Quantity>a).lock();
+            return this.div(this.sin(a),this.cos(a));
+        }else{
+            return Math.tan(+a);
+        }
+    }
+    cot(a: Number){
+        if(a instanceof Quantity){
+            (<Quantity>a).lock();
+            return this.div(this.cos(a),this.sin(a));
+        }else{
+            return 1/Math.tan(+a);
+        }
+    }
     /**
      * Operates on arrays or vectors with a given unary function iteratively.
      * Returns a quantity of the same type and dimension.
@@ -1171,169 +1236,203 @@ class Arithmetics {
 }
 
 /**
+ * Evaluable
  * A simple interface as an evaluation handle for
  * external access of a variable, carries with itself
  * a context matrix
  */
-abstract class Evaluable {
-    target: Variable;
-    evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number|Promise<Number>;
-    context: Number[][];
-    visType = 'none';
-    visible = true;
+abstract class L {
+    //target
+    t: B;
+    //evaluate
+    e: (a:Arithmetics, c:Number[][], p:Number[])=>Number|Promise<Number>;
+    //context
+    c: Number[][];
+    //visType
+    v = 'none';
+    //l
+    l = true;
+    //subEvaluables
     //This list is populated when visType is group
-    subEvaluables: Evaluable[] = [];
-    timeDependent: boolean = false;
-    public constructor(target: Variable, previous: Evaluable) {
-        this.target = target;
-        this.evaluate = target.evaluate;
-        this.context = new Array(52);
+    s: L[] = [];
+    //timeDependent
+    n: boolean = false;
+    public constructor(target: B, previous: L) {
+        this.t = target;
+        this.e = target.v;
+        this.c = new Array(52);
         for(let i = 0; i<26; i++){
-            this.context[i] = [NaN];
+            this.c[i] = [NaN];
         }
         for(let i = 26; i<52; i++){
-            this.context[i] = [];
+            this.c[i] = [];
         }
-        this.populateContext.bind(this);
+        this.p.bind(this);
         if(previous!=undefined)
-            this.visible = previous.visible;
+            this.l = previous.l;
     }
 
     /**
-     *
+     * compute
      * @param t
      * @param param sparse array of ID-based parameters
      */
-    abstract compute(t: number, ...param: Number[]): Number|Promise<Number>;
-
-    populateContext(t: number, param: number[], vecR: Quantity) {
+    abstract u(t: number, ...param: Number[]): Number|Promise<Number>;
+    //populateContext
+    p(t: number, param: number[], vecR: Quantity) {
         //Supply positional arguments into x & y by default,
         //Parameters clause will then override x & y values
         //if they occupy the same name space. eg. f(y,x)
-        this.context[xID][0] = param[0];
-        this.context[yID][0] = (param.length>1)?param[1]:0;
-        this.context[zID][0] = (param.length>2)?param[2]:0;
-        this.context[rID][0] = Math.sqrt(param[0]*param[0]+param[1]*param[1]+param[2]*param[2]);
-        this.context[tID][0] = t;
+        this.c[xID][0] = param[0];
+        this.c[yID][0] = (param.length>1)?param[1]:0;
+        this.c[zID][0] = (param.length>2)?param[2]:0;
+        this.c[rID][0] = Math.sqrt(param[0]*param[0]+param[1]*param[1]+param[2]*param[2]);
+        this.c[tID][0] = t;
         vecR.data[0] = param[0];
         vecR.data[1] = (param.length>1)?param[1]:0;
         vecR.data[2] = (param.length>2)?param[2]:0;
-        this.context[vecRID][0] = vecR;
+        this.c[vecRID][0] = vecR;
     }
 
-    listener: Function = undefined;
+    //Listener
+    st: Function = undefined;
 
-    onUpdate(callBack: () => void) {
-        this.listener = callBack;
+    //onUpdate
+    o(callBack: () => void) {
+        this.st = callBack;
     }
 
-    update(){
-        if(this.listener!=undefined)
-            this.listener();
+    //update
+    d(){
+        if(this.st!=undefined)
+            this.st();
     }
 }
 
-class Variable {
+//Variable
+class B {
 
     /**
+     * name
      * String identifier of variable.
      */
-    public name:string;
+    public n:string;
 
     /**
+     * type
      * Indexed ID of the type of variable matching the inner class names.
      * 1. 'Constant'
      * 2. 'Function'
      * 3. 'Algebraic'
      */
-    public type: number = 3;
-    public anonymous: boolean = false;
+    public t: number = 3;
+    //anonymous
+    public a: boolean = false;
 
     /**
+     * evalHandle
      * Inner class implemented evaluation handle.
      */
-    evalHandle: Evaluable;
+    e: L;
     /**
+     * arithmetics
      * Each variable should store an arithmetics instance
      */
-    arithmetics: Arithmetics;
+    r: Arithmetics;
     /**
+     * dependencies
      * References of variables that this variable depends for its definition.
      * Actively managed.
+     *
      */
-    dependencies:{[key: string]: Variable};
+    d:{[key: string]: B};
     /**
+     * functionAccess
      * Indicates whether a dependent variable is accessed function style
      * (func$) typed token
      */
-    functionAccess:{[key: string]: boolean};
+    fa:{[key: string]: boolean};
     /**
+     * dependants
      * References of variables that depend on this variable.
      * Passively managed.
      */
-    dependants:{[key: string]: Variable};
+    q:{[key: string]: B};
     /**
+     * piScript
      * Code for evaluating this variable.
      */
-    piScript:string = '';
+    c:string = '';
 
     /**
+     * referenceList
      * Contains references of structure [type, parameter1, parameter2, ...]
      */
-    referenceList:(Number       |Function)[][];
+    l:(Number|Function)[][];
     /**
+     * rlMapping
      * A mapping from local variable names to the index of that
      * local variable inside the reference list
      */
-    rlMapping: { [varLabel: string]: number };
+    m: { [varLabel: string]: number };
     /**
+     * inverseRlMapping
      * A mapping from reference list indices
      */
-    inverseRlMapping: { [rlIndex: number]: string };
+    g: { [rlIndex: number]: string };
     /**
+     * parameterized
      * Indicates whether the variable takes parameters during evaluation
      */
-    parameterized = false;
+    p = false;
     /**
+     * singleNumber
      * Set to true if the variable is specified by a singular number
      */
-    singleNumber = false;
+    s = false;
     /**
+     * asynchronous
      * Determines if the evaluation method is asynchronous
      */
-    asynchronous = false;
+    h = false;
     /**
+     * parameterMapping
      * parameter position -> contextID, generated upon instantiation
      */
-    parameterMapping: number[] = [];
+    pm: number[] = [];
     /**
+     * compute
      * Core function generated based on piScript. Takes parameters
      * a: Arithmetics, c: context, p: parameters, pm: parameter mapping,
      * get: reference access
      *
      * @protected
      */
-    protected compute: Function;
+    protected u: Function;
 
-    environment: Environment;
+    environment: E;
     /**
+     * default
      * Default evaluation clause
      * @param a
      * @param c
      * @param p
      */
-    default = (a:Arithmetics, c:Number[][], p: Number[])=>c[this.contextID][0];
+    f = (a:Arithmetics, c:Number[][], p: Number[])=>c[this.cd][0];
     /**
+     * evaluate
      * Wraps around compute to create local field accessibility. Takes parameters
      * a: Arithmetics, c: context, p: parameters
      *
      * Initialized to default value access
      */
-    evaluate: (a:Arithmetics, c:Number[][], p:Number[])=>Number|Promise<Number>
-        = this.default;
-    evaluateAsync: (a:Arithmetics, c:Number[][], p:Number[], callback: (val: Number)=>void)=>void;
-    get = (rlID:number, context: Number[][], s = 0)=>{
-        let reference = this.referenceList[rlID];
+    v: (a:Arithmetics, c:Number[][], p:Number[])=>Number|Promise<Number>
+        = this.f;
+    //evaluateAsync
+    as: (a:Arithmetics, c:Number[][], p:Number[], callback: (val: Number)=>void)=>void;
+    //get
+    tg = (rlID:number, context: Number[][], s = 0)=>{
+        let reference = this.l[rlID];
         if(s!==0){
             switch (reference[0]) {
                 case 1: return reference[2];
@@ -1343,75 +1442,79 @@ class Variable {
         }
         switch (reference[0]){//Depends on type
             case 1: return reference[1];
-            case 2: return (<Function>reference[1])(this.arithmetics, context, []);
+            case 2: return (<Function>reference[1])(this.r, context, []);
             case 3: return context[<number>reference[1]][<number>reference[2]];
         }
         return undefined;
     };
     /**
+     * contextID
      * Context ID for default value access
      */
-    contextID: number;
+    cd: number;
     /**
+     * uid
      * ID of the user input
      */
-    uid: string;
+    x: string;
     /**
      * Default constructors with no initialization.
      */
-    public constructor(name:string, environment: Environment) {
-        this.name = name;
+    public constructor(name:string, environment: E) {
+        this.n = name;
         this.environment = environment;
-        this.contextID = contextID(name);
-        this.rlMapping = {};
-        this.referenceList = [];
-        this.inverseRlMapping = {};
-        this.dependants = {};
-        this.dependencies = {};
-        this.functionAccess = {};
-        this.arithmetics = new Arithmetics();
+        this.cd = contextID(name);
+        this.m = {};
+        this.l = [];
+        this.g = {};
+        this.q = {};
+        this.d = {};
+        this.fa = {};
+        this.r = new Arithmetics();
     }
-
-    setPiScript(piScript:string){
-        this.piScript = piScript;
+    //setPiScript
+    ss(piScript:string){
+        this.c = piScript;
         //a is the Arithmetics library, p contains the parameters,
         // and c is the context matrix
-        this.compute = new Function('a', 'c', 'p', 'pm', 'get', piScript);
-        let compute = this.compute;
-        let parameterMapping = this.parameterMapping;
-        let get = this.get.bind(this);
-        this.evaluate = function(a: Arithmetics, context: Number[][], parameters: Number[]){
+        this.u = new Function('a', 'c', 'p', 'pm', 'get', piScript);
+        let compute = this.u;
+        let parameterMapping = this.pm;
+        let get = this.tg.bind(this);
+        this.v = function(a: Arithmetics, context: Number[][], parameters: Number[]){
             return compute(a, context, parameters, parameterMapping, get);
         };
     }
-
-    setCompute(compute:(a: Arithmetics,c:Number[][],p:Number[])=>Number|Promise<Number>){
-        this.compute=compute;
-        this.evaluate = function(a: Arithmetics, context: Number[][], parameters: Number[]){
+    //setCompute
+    sc(compute:(a: Arithmetics, c:Number[][], p:Number[])=>Number|Promise<Number>){
+        this.u=compute;
+        this.v = function(a: Arithmetics, context: Number[][], parameters: Number[]){
             return compute(a, context, parameters);
         };
     }
 
     /**
+     * loadVisualization
      * Configures the type of visualizations that should be applied to this,
      * based on the name of the dependent variable, the type of this, and so on
      */
-    loadVisualization(pendulum: Pendulum){
-        return pendulum.ug(this.name,this.evalHandle);
+    i(pendulum: Pendulum){
+        return pendulum.ug(this.n,this.e);
     }
     /**
+     * createEvalHandle
      * Instantiates a new evaluation handle for the variable. The type
      * of the evaluation handle varies depending on the number of local
      * algebraics.
      */
-    createEvalHandle(){
+    eh(){
         let Anonymous;
-        let a = this.arithmetics;
-        switch (this.type){
+        let a = this.r;
+        switch (this.t){
             case 1:
-                Anonymous = class extends Evaluable{
-                    compute(t:number, ...param: number[]): Number|Promise<Number> {
-                        return this.evaluate(a, this.context, []);
+                Anonymous = class extends L{
+                    u(t:number, ...param: number[]): Number|Promise<Number> {
+                        return this.e(a, this.c, []);
                     }
                 };
                 break;
@@ -1419,18 +1522,18 @@ class Variable {
                 //autonomously overriding the context
                 let vecR = new Quantity(4, 3, undefined, [NaN, NaN, NaN]);
                 vecR.lock();
-                if(this.parameterized)
-                    Anonymous = class extends Evaluable{
-                        compute(t: number, ...param: number[]): Number|Promise<Number> {
-                            this.populateContext(t, param, vecR);
-                            return this.evaluate(a, this.context, param);
+                if(this.p)
+                    Anonymous = class extends L{
+                        u(t: number, ...param: number[]): Number|Promise<Number> {
+                            this.p(t, param, vecR);
+                            return this.e(a, this.c, param);
                         }
                     };
                 else {
-                    Anonymous = class extends Evaluable {
-                        compute(t:number, ...param: number[]): Number|Promise<Number> {
-                            this.populateContext(t, param, vecR);
-                            return this.evaluate(a, this.context, []);
+                    Anonymous = class extends L {
+                        u(t:number, ...param: number[]): Number|Promise<Number> {
+                            this.p(t, param, vecR);
+                            return this.e(a, this.c, []);
                         }
                     };
                 }
@@ -1438,160 +1541,161 @@ class Variable {
             case 3:
                 throw new ResolutionError("Attempting to create handle for undefined variable");
         }
-        this.evalHandle = new Anonymous(this, this.evalHandle);
-        this.getVisType(this.evalHandle);
+        this.e = new Anonymous(this, this.e);
+        this.o(this.e);
     }
 
     /**
+     * getVisType
      * Get the visualization type of this by testing the output
      * quantity of this. Array typed evalHandles get recursively
      * computed
      */
-    getVisType(evalHandle: Evaluable){
-        let q = evalHandle.compute(0, 0,0,0);
-        evalHandle.subEvaluables.length=0;
-        if(this.containsVariables('t')&&this.environment.variables['t'].type==3)
-            evalHandle.timeDependent = true;
+    o(evalHandle: L){
+        let q = evalHandle.u(0, 0,0,0);
+        evalHandle.s.length=0;
+        if(this.b('t')&&this.environment.v['t'].t==3)
+            evalHandle.n = true;
         if(!(q instanceof Quantity)) {
-            evalHandle.visType = 'cartesian';
-            if(this.asynchronous)
-                evalHandle.visType='cartesianAsync';
-            if(this.singleNumber)
-                evalHandle.visible = false;
+            evalHandle.v = 'cartesian';
+            if(this.h)
+                evalHandle.v='cartesianAsync';
         }
         else switch (q.type) {
             case 2:
-                evalHandle.visType = 'cartesian';
-                if(this.asynchronous)
-                    evalHandle.visType='cartesianAsync';
-                if(this.singleNumber)
-                    evalHandle.visible = false;
+                evalHandle.v = 'cartesian';
+                if(this.h)
+                    evalHandle.v='cartesianAsync';
                 break;
             case 4:
-                if(this.containsVariables('u')
-                    &&this.environment.variables['u'].type == 3){
-                    if(this.containsVariables('v')&&
-                        this.environment.variables['v'].type==3) {
-                        evalHandle.visType = 'parametricSurface';
-                        evalHandle.populateContext = (t, param, vecR)=>{
+                if(this.b('u')
+                    &&this.environment.v['u'].t == 3){
+                    if(this.b('v')&&
+                        this.environment.v['v'].t==3) {
+                        evalHandle.v = 'parametricSurface';
+                        evalHandle.p = (t, param, vecR)=>{
                             //Supply positional arguments into x & y by default,
                             //Parameters clause will then override x & y values
                             //if they occupy the same name space. eg. f(y,x)
-                            evalHandle.context[uID][0] = param[0];
-                            evalHandle.context[vID][0] = (param.length>1)?param[1]:0;
-                            evalHandle.context[tID][0] = t;
+                            evalHandle.c[uID][0] = param[0];
+                            evalHandle.c[vID][0] = (param.length>1)?param[1]:0;
+                            evalHandle.c[tID][0] = t;
                         };
-                        evalHandle.populateContext.bind(evalHandle);
+                        evalHandle.p.bind(evalHandle);
                     }else{
-                        evalHandle.visType = 'parametricCurve';
-                        evalHandle.populateContext = (t, param, vecR)=> {
+                        evalHandle.v = 'parametricCurve';
+                        evalHandle.p = (t, param, vecR)=> {
                             //Supply positional arguments into x & y by default,
                             //Parameters clause will then override x & y values
                             //if they occupy the same name space. eg. f(y,x)
-                            evalHandle.context[uID][0] = param[0];
-                            evalHandle.context[tID][0] = t;
+                            evalHandle.c[uID][0] = param[0];
+                            evalHandle.c[tID][0] = t;
                         }
                     }
                 }
-                else if(this.containsVariables('xyzr')||this.dependencies['>r']!=undefined)
-                    evalHandle.visType = 'vecField';
+                else if(this.b('xyzr')||this.d['>r']!=undefined)
+                    evalHandle.v = 'vecField';
                 else
-                    evalHandle.visType = 'vector';
+                    evalHandle.v = 'vector';
                 break;
             case 3:
-                evalHandle.visType = 'group';
+                evalHandle.v = 'group';
                 for(let i = 0; i<q.size; i++){
-                    let Anonymous = class extends Evaluable{
-                        compute(t: number, ...param: Number[]): Number|Promise<Number> {
-                            let q = evalHandle.compute(t, ...param);
+                    let Anonymous = class extends L{
+                        u(t: number, ...param: Number[]): Number|Promise<Number> {
+                            let q = evalHandle.u(t, ...param);
                             if(q instanceof Promise){
                                 return new Promise((resolve)=>{
                                     (<Promise<Number>> q).then((val)=>resolve((<Quantity> val).data[i]));
                                 });
                             }else
-                                return (<Quantity> evalHandle.compute(t, ...param)).data[i];
+                                return (<Quantity> evalHandle.u(t, ...param)).data[i];
                         }
                     }
-                    let subHandle = new Anonymous(this, this.evalHandle);
-                    evalHandle.subEvaluables.push(subHandle);
+                    let subHandle = new Anonymous(this, this.e);
+                    evalHandle.s.push(subHandle);
                     console.log(evalHandle);
-                    this.getVisType(subHandle);
+                    this.o(subHandle);
                 }
-                if(evalHandle.subEvaluables.length!=0
-                    &&evalHandle.subEvaluables[0].visType=='parametricSurface'){
-                    evalHandle.populateContext = (t, param, vecR)=>{
+                if(evalHandle.s.length!=0
+                    &&evalHandle.s[0].v=='parametricSurface'){
+                    evalHandle.p = (t, param, vecR)=>{
                         //Supply positional arguments into x & y by default,
                         //Parameters clause will then override x & y values
                         //if they occupy the same name space. eg. f(y,x)
-                        evalHandle.context[uID][0] = param[0];
-                        evalHandle.context[vID][0] = (param.length>1)?param[1]:0;
-                        evalHandle.context[tID][0] = t;
+                        evalHandle.c[uID][0] = param[0];
+                        evalHandle.c[vID][0] = (param.length>1)?param[1]:0;
+                        evalHandle.c[tID][0] = t;
                     };
-                    evalHandle.populateContext.bind(evalHandle);
+                    evalHandle.p.bind(evalHandle);
                 }
                 break;
         }
         //This is a deep traversal of the evaluation tree, invoked each time eval handle is created
-        for(let key in this.dependants){
-            let dependant = this.dependants[key];
-            dependant.getVisType(dependant.evalHandle);
+        for(let key in this.q){
+            let dependant = this.q[key];
+            dependant.o(dependant.e);
         }
-        evalHandle.update();
+        evalHandle.d();
     }
 
     /**
+     * containsVariables
      * Checks if the dependencies of this contains the specified keys
      * @private
      */
-    private containsVariables(keys: string): boolean{
+    private b(keys: string): boolean{
         let r = false;
         for(let c of keys){
-            if(this.dependencies[c]!=undefined)
+            if(this.d[c]!=undefined)
                 return true;
         }
-        for(let key in this.dependencies) {
-            let dependent = this.dependencies[key];
-            if (dependent.containsVariables(keys))
+        for(let key in this.d) {
+            let dependent = this.d[key];
+            if (dependent.b(keys))
                 return true;
         }
         return false;
     }
     /**
+     * getAlgebraics
      * Creates a list of local algebraic references
      */
-    getAlgebraics(): number[][]{
+    j(): number[][]{
         let algebraics:number[][] = [];
-        for(let reference of this.referenceList){
+        for(let reference of this.l){
             if(reference[0]==3)
                 algebraics.push(<number[]>reference);
         }
         return algebraics;
     }
-
-    removeDependencies(){
-        for(let key in this.dependencies){
-            let object = this.dependencies[key];
-            delete object.dependants[this.name];
-            delete this.functionAccess[key];
-            delete this.dependencies[key];
+    //removeDependencies
+    rp(){
+        for(let key in this.d){
+            let object = this.d[key];
+            delete object.d[this.n];
+            delete this.fa[key];
+            delete this.d[key];
         }
     }
 
     /**
+     * pulseDependants
      * After (re)definition, pulse dependents should be called
      * to inform the dependents of this about the changed internal states.
      *
      * When internal states of this are unchanged, pulseDependents
      * should be idempotent.
      */
-    pulseDependants(){
-        for(let key in this.dependants){
-            let dependant = this.dependants[key];
-            dependant.configureReference(this.name);
+    ps(){
+        for(let key in this.q){
+            let dependant = this.q[key];
+            dependant.k(this.n);
         }
     }
 
     /**
+     * configureReference
      * Configures the locally referenced variable based on its type,
      * by updating the local cache structures such as the reference list.
      * The specified variable is assumed to exist in the dependency table by
@@ -1601,16 +1705,16 @@ class Variable {
      *
      * @param varName the name of the locally referenced variable.
      */
-    configureReference(varName: string){
-        let reference = this.referenceList[this.rlMapping[varName]];
-        let depVar = this.dependencies[varName];
-        let accessStyle = this.functionAccess[varName];
+    k(varName: string){
+        let reference = this.l[this.m[varName]];
+        let depVar = this.d[varName];
+        let accessStyle = this.fa[varName];
         //Information access style, style 1 and style 2 are equivalent for local Algebraics,
         //except style 2 is slower but permits parameter as multiplicative clause
-        reference[0] = depVar.type;
+        reference[0] = depVar.t;
         switch (reference[0]) {
             case 1:
-                let quantity = depVar.evaluate(this.arithmetics,undefined,[]);
+                let quantity = depVar.v(this.r,undefined,[]);
                 if(quantity instanceof Quantity)
                    quantity.lock();
                 reference[1] = <Quantity> quantity;
@@ -1628,15 +1732,15 @@ class Variable {
                 }
                 break;
             case 2:
-                if(depVar.parameterized||!accessStyle)
-                    reference[1] = depVar.evaluate;
+                if(depVar.p||!accessStyle)
+                    reference[1] = depVar.v;
                 else
                     reference[1] = (a:Arithmetics,c:Number[][],p: Number[])=>{//Special dealing with func$ type
-                        return a.invisDot(<Quantity> depVar.evaluate(a,c,[]), (p.length!=0)?p[0]:1);
+                        return a.invisDot(<Quantity> depVar.v(a,c,[]), (p.length!=0)?p[0]:1);
                     }
                 break;
             case 3:
-                reference[1] = contextID(depVar.name);
+                reference[1] = contextID(depVar.n);
                 reference[2] = 0;
                 if(accessStyle){
                     reference[3] = (a:Arithmetics,c:Number[][],p: Number[])=>{
@@ -1656,4 +1760,4 @@ class Variable {
     }
 }
 
-export {Variable, Core, ResolutionError, Evaluable, Quantity};
+export {B, S, ResolutionError, L, Quantity};
