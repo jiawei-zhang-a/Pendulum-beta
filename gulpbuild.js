@@ -6,7 +6,7 @@ var sourcemaps = require("gulp-sourcemaps");
 var buffer = require("vinyl-buffer");
 var babelify = require("babelify");
 let obfuscator = require("gulp-javascript-obfuscator");
-let uglify = require("gulp-uglify");
+const minify = require('gulp-minify');
 
 var paths = {
     pages: ["src/*.html"],
@@ -44,6 +44,7 @@ gulp.task(
                     ignoreImports: true,
                     numbersToExpressions: false,
                     renameGlobals: true,
+                    // disableConsoleOutput: true,
                     // renameProperties: true,
                     exclude:['mathquill.js','mathquill.min.js'],
                     // forceTransformStrings: ['constant','closestruct','openstruct'],
@@ -53,7 +54,7 @@ gulp.task(
                     ]
                 }
             ))
-            // .pipe(uglify())
+            .pipe(minify())
             .pipe(sourcemaps.write("./"))
             .pipe(gulp.dest("dist/js"));
     })

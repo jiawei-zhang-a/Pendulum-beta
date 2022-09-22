@@ -1,7 +1,7 @@
 /* jshint esversion: 6 */
 import "mathquill/build/mathquill";
 import {SN, R} from "./parser";
-import {Pendulum} from './pendulum';
+import {Pi} from './pendulum';
 // @ts-ignore
 let MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
 
@@ -18,7 +18,7 @@ function getID() {
     return (idGenerator++).toString();
 }
 
-function load(pendulum:Pendulum){
+function load(pendulum:Pi){
     loadPendulum(pendulum);
     loadComponents();
     loadDragBar();
@@ -28,8 +28,8 @@ function load(pendulum:Pendulum){
     return defControls;
 }
 
-let pendulum: Pendulum;
-function loadPendulum(p: Pendulum){
+let pendulum: Pi;
+function loadPendulum(p: Pi){
     pendulum = p;
 }
 

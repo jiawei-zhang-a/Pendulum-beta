@@ -11,13 +11,13 @@ import {
     PS,
     VG, PG, CAG, P
 } from "./graph";
-import {S, L, Quantity, ResolutionError} from "./core";
+import {S, L, Q, ResolutionError} from "./core";
 import {SN} from "./parser";
 import {cylindricalSteppedPressure, graphCylindrical, ode} from "./program";
 // import {Portal} from "function-link";
 
 // Coordinator of all actions of sub-modules
-class Pendulum{
+class Pi {
     //core
     e: S;
     //canvas
@@ -208,17 +208,17 @@ class Pendulum{
                            graph = this.gg(label, CR, graph, color,
                                evalHandle,
                                (x:number,y:number)=>
-                                   (<Quantity>evalHandle.u(this.s.time, x, y)).data);
+                                   (<Q>evalHandle.u(this.s.time, x, y)).data);
                            break;
                        case 'vector':
                            graph = this.gg(label, VG, graph, color, evalHandle,
                                (x:number,y:number)=>
-                                   (<Quantity>evalHandle.u(this.s.time, x, y)).data);
+                                   (<Q>evalHandle.u(this.s.time, x, y)).data);
                            break;
                        case 'parametricSurface':
                            graph = this.gg(label, PG, graph, color, evalHandle,
                                (x:number,y:number)=>
-                                   (<Quantity>evalHandle.u(this.s.time, x, y)).data);
+                                   (<Q>evalHandle.u(this.s.time, x, y)).data);
                            break;
                    }
         }
@@ -283,6 +283,10 @@ class Pendulum{
     }
     //updateDefinition
     ud(uid: string, oldLabel: SN, label: SN, definition: SN){
+
+        console.log("updateDefinition Called ");
+        console.log(oldLabel);
+        console.log(label);
         try{
             if(label == undefined) {
                 if (oldLabel != undefined)
@@ -290,11 +294,12 @@ class Pendulum{
                 return;
             }
             if(oldLabel!=undefined &&oldLabel.c!=label.c){
+                console.log("deleting old label");
                 this.dd(oldLabel);
             }
             this.wg(label.c);
             this.e.re(label, uid, definition);
-            let variable = this.e.environment.v[label.c];
+            let variable = this.e.e.v[label.c];
             this.ug(variable.n,variable.e);
         }catch (e) {
             console.log(e);
@@ -311,7 +316,7 @@ class Pendulum{
     }
     //toggleVisibility
     tv(label: SN){
-        let evalHandle = this.e.environment.v[label.c].e;
+        let evalHandle = this.e.e.v[label.c].e;
         let graph = this.s.graphs[label.c];
         if(evalHandle!=undefined)
             evalHandle.l = !evalHandle.l;
@@ -344,7 +349,7 @@ class Pendulum{
         this.s.or();
     }
 }
-let p: Pendulum;
+let p: Pi;
 
 $(()=>{
     let canvas:C = i();
@@ -375,7 +380,7 @@ $(()=>{
     // vector1.populate();
     // canvas.addGraph(vector1);
 
-    p = new Pendulum(canvas);
+    p = new Pi(canvas);
     UI.load(p);
     // p.updateGraph("sinusoidal", (x,y)=>Math.cos(x*3+p.canvas.time));
 
@@ -394,8 +399,6 @@ $(()=>{
     // graphCylindrical(canvas);
     // ode(canvas);
 
-//@ts-ignore
-    window.Portal = Portal;
 });
 
-export {Pendulum};
+export {Pi};

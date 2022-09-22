@@ -1,5 +1,5 @@
 import {SN} from "./parser";
-import {Pendulum} from "./pendulum";
+import {Pi} from "./pendulum";
 import {stat} from "fs";
 
 const aAscii = 'a'.charCodeAt(0);
@@ -25,12 +25,10 @@ const vecRID = contextID('>r');
 
 class S {
 
-    environment: E = new E();
-    pendulum: Pendulum;
-    constructor(pendulum: Pendulum){
-        //@ts-ignore expose environment to global for debugging
-        window.Core = this;
-        this.pendulum = pendulum;
+    e: E = new E();
+    p: Pi;
+    constructor(pendulum: Pi){
+        this.p = pendulum;
     }
     /**
      * Methods for resolving types of inputted statements (in string) to native representations.
@@ -80,8 +78,8 @@ class S {
          }
          for(let key in algebraicCounts){
              if(algebraicCounts[key]==1
-                 &&(this.environment.v[key]==undefined
-                     ||this.environment.v[key].t==3))
+                 &&(this.e.v[key]==undefined
+                     ||this.e.v[key].t==3))
                  return key;
          }
          return undefined;
@@ -118,15 +116,15 @@ class S {
         let variable = this.de(label, statement);
         variable.x = uid;
         console.log(variable);
-        this.environment.v[label.c] = variable;
-        this.environment.u[uid] = variable;
+        this.e.v[label.c] = variable;
+        this.e.u[uid] = variable;
         variable.ps();
         variable.eh();
         let plugins: string[] = [];
         if(variable.s){
             plugins.push("slider");
         }
-        this.pendulum.sfp(uid, plugins)
+        this.p.sfp(uid, plugins)
         return 0;
     }
 
@@ -154,25 +152,25 @@ class S {
 
         let newVar:B;
         // For redefinition, erase the previous dependencies, retain the dependants.
-        if(this.environment.v[label] != undefined) {
-            newVar = this.environment.v[label];
+        if(this.e.v[label] != undefined) {
+            newVar = this.e.v[label];
             newVar.l.length = 0;
             newVar.rp();
             newVar.m = {};
             newVar.g = {};
             newVar.pm = [];
         } else {
-            newVar = new B(label, this.environment);
+            newVar = new B(label, this.e);
         }
         for (let depVarLabel of dependencies) {
             let reference:number[];
             let rlIndex;
             // Dependency.
-            let depVar = this.environment.v[depVarLabel];
+            let depVar = this.e.v[depVarLabel];
             // Create dependent variable not present in the current environment.
             if (depVar == undefined) {
-                depVar = new B(depVarLabel, this.environment);
-                this.environment.v[depVarLabel] = depVar;
+                depVar = new B(depVarLabel, this.e);
+                this.e.v[depVarLabel] = depVar;
             }
             //Idempotent dependency construction
             newVar.d[depVarLabel]=depVar;
@@ -234,15 +232,15 @@ class S {
     ed(label: string, defined: SN, definition: SN): B {
         let newVar:B;
         // For redefinition, erase the previous dependencies, retain the dependants.
-        if(this.environment.v[label] != undefined) {
-            newVar = this.environment.v[label];
+        if(this.e.v[label] != undefined) {
+            newVar = this.e.v[label];
             newVar.l.length = 0;
             newVar.rp();
             newVar.m = {};
             newVar.g = {};
             newVar.pm = [];
         } else {
-            newVar = new B(label, this.environment);
+            newVar = new B(label, this.e);
         }
         newVar.p = defined.t=='func$';
         if(newVar.p){//Initialize parameter mapping for parameterized functions
@@ -275,11 +273,11 @@ class S {
             let reference:number[];
             let rlIndex;
             // Dependency.
-            let depVar = this.environment.v[depVarLabel];
+            let depVar = this.e.v[depVarLabel];
             // Create dependent variable not present in the current environment.
             if (depVar == undefined) {
-                depVar = new B(depVarLabel, this.environment);
-                this.environment.v[depVarLabel] = depVar;
+                depVar = new B(depVarLabel, this.e);
+                this.e.v[depVarLabel] = depVar;
             }
             //Idempotent dependency construction
             newVar.d[depVarLabel]=depVar;
@@ -448,10 +446,10 @@ for(let index = 0; index<pm.length; index++){
 
     //deleteDefinition
     d(label: string){
-        let variable = this.environment.v[label];
+        let variable = this.e.v[label];
         if(variable == undefined)
             return;
-        delete this.environment.u[variable.x];
+        delete this.e.u[variable.x];
         variable.t = 3;
         variable.l.length = 0;
         variable.rp();
@@ -461,7 +459,7 @@ for(let index = 0; index<pm.length; index++){
         variable.v = variable.f;
         variable.ps();
         if(Object.keys(variable.q).length==0){
-            delete this.environment.v[label];
+            delete this.e.v[label];
         }
     }
 
@@ -486,7 +484,7 @@ class ResolutionError extends Error {
     }
 }
 
-class Quantity extends Number{
+class Q extends Number{
     rc: RecycleCenter;
     /**
      * 1. real
@@ -527,7 +525,7 @@ class Quantity extends Number{
     lock(){
         this.lockNumber++;
         for(let q of this.data)
-            if(q instanceof Quantity)
+            if(q instanceof Q)
                 q.lock();
     }
 
@@ -535,7 +533,7 @@ class Quantity extends Number{
         if(this.lockNumber!==0)
             this.lockNumber--;
         for(let q of this.data)
-            if(q instanceof Quantity)
+            if(q instanceof Q)
                 q.release();
     }
 
@@ -555,27 +553,27 @@ class RecycleCenter{
     /**
      * Array / vector stack 0
      */
-    s0: Quantity[];
+    s0: Q[];
     /**
      * Array vector stack 1
      */
-    s1: Quantity[][];
+    s1: Q[][];
     /**
      * Complex variable stack
      */
-    sc: Quantity[];
+    sc: Q[];
     constructor() {
         this.s0 = [];
         this.s1 = [];
         this.sc = [];
     }
-    getQuantity(type: number, dim: number):Quantity{
+    getQuantity(type: number, dim: number):Q{
         if(type == 2){
             if(this.sc.length!=0) {
                 return this.sc.pop();
             }
             else{
-                return  new Quantity(type, dim, this, [0,0]);
+                return  new Q(type, dim, this, [0,0]);
             }
         }
         if(dim<=3){
@@ -586,7 +584,7 @@ class RecycleCenter{
                 return q;
             }
             else{
-                return  new Quantity(type, dim, this, new Array(dim).fill(0));
+                return  new Q(type, dim, this, new Array(dim).fill(0));
             }
         }
         else {
@@ -600,7 +598,7 @@ class RecycleCenter{
                 return q;
             }
             else {
-                return new Quantity(type, dim, this, new Array(dim).fill(0));
+                return new Q(type, dim, this, new Array(dim).fill(0));
             }
         }
     }
@@ -622,14 +620,14 @@ class RecycleCenter{
 class Arithmetics {
     rc: RecycleCenter;
     //Imaginary unit
-    I: Quantity;
+    I: Q;
     constructor() {
         this.rc = new RecycleCenter();
-        this.I = new Quantity(2, 2, undefined, [0, 1]);
+        this.I = new Q(2, 2, undefined, [0, 1]);
         this.I.lock();
     }
 
-    getQuantity(type: number, ...entries: Number[]):Quantity{
+    getQuantity(type: number, ...entries: Number[]):Q{
         let q = this.rc.getQuantity(type, entries.length);
         q.data = entries;
         return q;
@@ -637,20 +635,20 @@ class Arithmetics {
     }
 
     add(a:Number, b:Number): Number {
-        if(!(a instanceof Quantity)&&!(b instanceof Quantity)){
+        if(!(a instanceof Q)&&!(b instanceof Q)){
             //@ts-ignore
             return a+b;
         }
         let ar = this.extensionRank(a);
         let br = this.extensionRank(b);
         if(br>ar){
-            a = this.extend(a, (<Quantity>b).type, (<Quantity>b).size);
+            a = this.extend(a, (<Q>b).type, (<Q>b).size);
         }
         else if(ar>br){
-            b = this.extend(b, (<Quantity>a).type, (<Quantity>a).size);
+            b = this.extend(b, (<Q>a).type, (<Q>a).size);
         }
-        if(a instanceof Quantity) {
-            if(b instanceof Quantity){
+        if(a instanceof Q) {
+            if(b instanceof Q){
                 if(a.type!=b.type)
                     throw new ArithmeticError("Incompatible quantity type for addition");
                 let dim = Math.max(a.size, b.size);
@@ -670,7 +668,7 @@ class Arithmetics {
             throw new ArithmeticError("Operation not yet supported");
     }
     neg(a: Number): Number{
-        if(a instanceof Quantity){
+        if(a instanceof Q){
             let c = this.rc.getQuantity(a.type, a.size);
             for(let i = 0; i < a.size; i++){
                 c.data[i] = this.neg(a.data[i]);
@@ -688,7 +686,7 @@ class Arithmetics {
      * @private
      */
     private extensionRank(a: Number): number{
-        if(a instanceof Quantity){
+        if(a instanceof Q){
             if(a.type == 3)
                 return 4;
             if(a.type == 4)
@@ -698,20 +696,20 @@ class Arithmetics {
         return 1;
     }
     sub(a:Number, b:Number): Number {
-        if(!(a instanceof Quantity)&&!(b instanceof Quantity)){
+        if(!(a instanceof Q)&&!(b instanceof Q)){
             //@ts-ignore
             return a-b;
         }
         let ar = this.extensionRank(a);
         let br = this.extensionRank(b);
         if(br>ar){
-            a = this.extend(a, (<Quantity>b).type, (<Quantity>b).size);
+            a = this.extend(a, (<Q>b).type, (<Q>b).size);
         }
         else if(ar>br){
-            b = this.extend(b, (<Quantity>a).type, (<Quantity>a).size);
+            b = this.extend(b, (<Q>a).type, (<Q>a).size);
         }
-        if(a instanceof Quantity) {
-            if(b instanceof Quantity){
+        if(a instanceof Q) {
+            if(b instanceof Q){
                 if(a.type!=b.type||a.size != b.size)
                     throw new ArithmeticError("Incompatible quantity type for subtraction");
                 let dim = Math.max(a.size, b.size);
@@ -734,21 +732,21 @@ class Arithmetics {
         switch (Arithmetics.getType(b)) {
             case 4:
                 if(Arithmetics.getType(a) <=2) {//Field invisDot a vector or matrix
-                    let c = this.rc.getQuantity(4, (<Quantity>b).size);
-                    if(a instanceof Quantity)
+                    let c = this.rc.getQuantity(4, (<Q>b).size);
+                    if(a instanceof Q)
                         a.lock();
-                    for (let i = 0; i < (<Quantity>b).size; i++) {
-                        c.data[i] = this.invisDot(a, (<Quantity>b).data[i]);
+                    for (let i = 0; i < (<Q>b).size; i++) {
+                        c.data[i] = this.invisDot(a, (<Q>b).data[i]);
                     }
-                    if(a instanceof Quantity)
+                    if(a instanceof Q)
                         a.release();
                     Arithmetics.recycle(a);
                     Arithmetics.recycle(b);
                     return c;
                 }else if(Arithmetics.getType(a) == 3){
-                    let c = this.rc.getQuantity(3, (<Quantity>a).size);
-                    for (let i = 0; i < (<Quantity> a).size; i++){
-                        c.data[i] = this.invisDot((<Quantity> a).data[i], b);
+                    let c = this.rc.getQuantity(3, (<Q>a).size);
+                    for (let i = 0; i < (<Q> a).size; i++){
+                        c.data[i] = this.invisDot((<Q> a).data[i], b);
                     }
                     Arithmetics.recycle(a);
                     Arithmetics.recycle(b);
@@ -760,8 +758,8 @@ class Arithmetics {
                     case 4:
                         return this.invisDot(b, a);
                     case 3:
-                        if((<Quantity>a).size == (<Quantity>b).size){
-                            let size = (<Quantity>a).size;
+                        if((<Q>a).size == (<Q>b).size){
+                            let size = (<Q>a).size;
                             let c = this.rc.getQuantity(3, size);
                             for(let i = 0; i < size; i++){
                                 //@ts-ignore
@@ -774,10 +772,10 @@ class Arithmetics {
                             throw new ArithmeticError("Incompatible operand size");
                     case 2:
                     case 1:
-                        let size = (<Quantity>b).size;
+                        let size = (<Q>b).size;
                         let c = this.rc.getQuantity(3, size);
                         for(let i = 0; i < size; i++)
-                            c.data[i] = this.invisDot(a, (<Quantity>b).data[i]);
+                            c.data[i] = this.invisDot(a, (<Q>b).data[i]);
                         Arithmetics.recycle(b);
                         return c;
                 }
@@ -788,7 +786,7 @@ class Arithmetics {
                 }else
                     return this.invisDot(b, a);
             case 1:
-                if(!(a instanceof Quantity))
+                if(!(a instanceof Q))
                     //@ts-ignore here a and b must be instances of Number
                     return a*b;
                 else return this.invisDot(b, a);
@@ -797,7 +795,7 @@ class Arithmetics {
     }
 
     dot(a:Number, b:Number): Number {
-        if(a instanceof Quantity && b instanceof Quantity)
+        if(a instanceof Q && b instanceof Q)
             if(a.type==4&&b.type==4){
                 if(a.size==b.size && a.size>0){
                     let c = this.dot(a.data[0], b.data[0]);
@@ -815,21 +813,21 @@ class Arithmetics {
 
 
     private static getType(q: Number){
-        if(q instanceof Quantity)
+        if(q instanceof Q)
             return q.type;
         else
             return 1;
     }
 
     private static getSize(q: Number){
-        if(q instanceof Quantity)
+        if(q instanceof Q)
             return q.size;
         else
             return 1;
     }
 
     private static recycle(q: Number){
-        if(q instanceof Quantity)
+        if(q instanceof Q)
             q.recycle();
     }
     /**
@@ -840,14 +838,14 @@ class Arithmetics {
      */
     private multiply(a: Number, b:Number): Number{
         //Broadcast both quantities to complex numbers
-        if(!(a instanceof Quantity)){
+        if(!(a instanceof Q)){
             a = this.extend(+a, 2, 2);
         }
-        if(!(b instanceof Quantity)){
+        if(!(b instanceof Q)){
             b = this.extend(+b, 2, 2);
         }
         let c = this.rc.getQuantity(2, 2);
-        if(a instanceof Quantity && b instanceof Quantity
+        if(a instanceof Q && b instanceof Q
             && a.type == 2 && b.type == 2){
             //@ts-ignore
             c.data[0] = a.data[0]*b.data[0] -a.data[1]*b.data[1];
@@ -864,7 +862,7 @@ class Arithmetics {
      * Extends a number into a broader quantity
      * @private
      */
-    private extend(a: Number, targetType: number, targetDim: number): Quantity{
+    private extend(a: Number, targetType: number, targetDim: number): Q{
         let q = this.rc.getQuantity(targetType, targetDim);
         if(targetType ==3){
             for(let i = 0; i<targetDim; i++){
@@ -881,7 +879,7 @@ class Arithmetics {
     }
 
     clone(a: Number){
-        if(a instanceof Quantity){
+        if(a instanceof Q){
             let q = this.rc.getQuantity(a.type, a.size);
             q.data = [...a.data];
             return q;
@@ -890,15 +888,15 @@ class Arithmetics {
     }
 
     private isComplex(a: Number) {
-        return a instanceof Quantity && a.type === 2;
+        return a instanceof Q && a.type === 2;
     }
 
     private isField(a: Number){
-        return this.isComplex(a)||!(a instanceof Quantity);
+        return this.isComplex(a)||!(a instanceof Q);
     }
 
     cross(a: Number, b: Number): Number{
-        if(a instanceof Quantity && b instanceof Quantity) {
+        if(a instanceof Q && b instanceof Q) {
             if (a.type == 4 && b.type == 4) {
                 if (a.size == b.size && a.size == 3) {
                     let c = this.rc.getQuantity(4, 3);
@@ -923,11 +921,11 @@ class Arithmetics {
                             let z = this.rc.getQuantity(4,
                                 Arithmetics.getSize(x)+Arithmetics.getSize(y));
                             z.data.length = 0;
-                            if(x instanceof Quantity && x.type==4)//Concatenate
+                            if(x instanceof Q && x.type==4)//Concatenate
                                 z.data.push(...x.data);
                             else
                                 z.data.push(x);
-                            if(y instanceof Quantity && y.type==4)
+                            if(y instanceof Q && y.type==4)
                                 z.data.push(...y.data);
                             else
                                 z.data.push(y);
@@ -959,7 +957,7 @@ class Arithmetics {
      * @private
      */
     private invert (a: Number): Number{
-        if(!(a instanceof Quantity))
+        if(!(a instanceof Q))
             return 1/+a;
         else switch (a.type) {
             case 2:
@@ -990,10 +988,10 @@ class Arithmetics {
      * @param b
      */
     pow(a:Number, b:Number): Number {
-        if(!(a instanceof Quantity)&&!(b instanceof Quantity))
+        if(!(a instanceof Q)&&!(b instanceof Q))
             return (+a)**(+b);
-        if((b instanceof Quantity)&&b.type==2){
-            if(!(a instanceof Quantity)){
+        if((b instanceof Q)&&b.type==2){
+            if(!(a instanceof Q)){
                 let x = b.data[0];
                 let y = b.data[1];
                 let c = this.rc.getQuantity(2, 2);
@@ -1004,7 +1002,7 @@ class Arithmetics {
                 return c;
             }
         }
-        if(a instanceof Quantity){
+        if(a instanceof Q){
             if(a.type==2&&Arithmetics.getType(b)<=2){//Complex to complex power
                 let c = this.rc.getQuantity(2, 2);
                 //@ts-ignore
@@ -1053,7 +1051,7 @@ class Arithmetics {
                 Arithmetics.recycle(a);
                 return c;
             default:
-                return this.arrayFunc(<Quantity> a, this.log);
+                return this.arrayFunc(<Q> a, this.log);
         }
     }
 
@@ -1062,15 +1060,15 @@ class Arithmetics {
             case 1:
                 return Math.cos(+a);
             case 2:
-                let x = +(<Quantity> a).data[0];
-                let y = +(<Quantity> a).data[1];
+                let x = +(<Q> a).data[0];
+                let y = +(<Q> a).data[1];
                 let c = this.rc.getQuantity(2,2);
                 c.data[0] = (Math.exp(y)+Math.exp(-y))*Math.cos(x)/2;
                 c.data[1] = (Math.exp(-y)-Math.exp(y))*Math.sin(x)/2;
                 Arithmetics.recycle(a);
                 return c;
             default:
-                return this.arrayFunc(<Quantity> a, this.cos);
+                return this.arrayFunc(<Q> a, this.cos);
         }
     }
     sin(a: Number){
@@ -1078,28 +1076,28 @@ class Arithmetics {
             case 1:
                 return Math.sin(+a);
             case 2:
-                let x = +(<Quantity> a).data[0];
-                let y = +(<Quantity> a).data[1];
+                let x = +(<Q> a).data[0];
+                let y = +(<Q> a).data[1];
                 let c = this.rc.getQuantity(2,2);
                 c.data[0] = (Math.exp(-y)+Math.exp(y))*Math.sin(x)/2;
                 c.data[1] = (Math.exp(y)-Math.exp(-y))*Math.cos(x)/2;
                 Arithmetics.recycle(a);
                 return c;
             default:
-                return this.arrayFunc(<Quantity> a, this.cos);
+                return this.arrayFunc(<Q> a, this.cos);
         }
     }
     tan(a: Number){
-        if(a instanceof Quantity){
-            (<Quantity>a).lock();
+        if(a instanceof Q){
+            (<Q>a).lock();
             return this.div(this.sin(a),this.cos(a));
         }else{
             return Math.tan(+a);
         }
     }
     cot(a: Number){
-        if(a instanceof Quantity){
-            (<Quantity>a).lock();
+        if(a instanceof Q){
+            (<Q>a).lock();
             return this.div(this.cos(a),this.sin(a));
         }else{
             return 1/Math.tan(+a);
@@ -1112,7 +1110,7 @@ class Arithmetics {
      * @param func
      * @private
      */
-    private arrayFunc(a: Quantity, func: (a: Number)=>Number): Number{
+    private arrayFunc(a: Q, func: (a: Number)=>Number): Number{
         let c = this.rc.getQuantity(a.type, a.size);
         for(let i = 0; i < a.size; i++){
             c.data[i] = func(a.data[i]);
@@ -1131,7 +1129,7 @@ class Arithmetics {
      * @private
      */
     private arrayOperate(a: Number, b: Number, operator: (a: Number, b: Number)=>Number){
-        if(Arithmetics.getType(a)<=2 && b instanceof Quantity && b.type == 3){
+        if(Arithmetics.getType(a)<=2 && b instanceof Q && b.type == 3){
             let c = this.rc.getQuantity(3, b.size);
             for(let i = 0; i < b.size; i++){
                 c.data[i]=operator(a, b.data[i]);
@@ -1140,7 +1138,7 @@ class Arithmetics {
             Arithmetics.recycle(b);
             return c;
         }
-        if(Arithmetics.getType(b)<=2 && a instanceof Quantity && a.type == 3){
+        if(Arithmetics.getType(b)<=2 && a instanceof Q && a.type == 3){
             let c = this.rc.getQuantity(3, a.size);
             for(let i = 0; i < a.size; i++){
                 c.data[i]=operator(a.data[i], b);
@@ -1149,7 +1147,7 @@ class Arithmetics {
             Arithmetics.recycle(b);
             return c;
         }
-        if(a instanceof Quantity && b instanceof Quantity
+        if(a instanceof Q && b instanceof Q
             &&a.type == 3 && b.type==a.type){
             let c = this.rc.getQuantity(3, a.type);
             for(let i = 0; i < a.size; i++){
@@ -1190,20 +1188,20 @@ class Arithmetics {
      * @param b
      */
     collapsingAdd(a:Number, b:Number): Number {
-        if(!(a instanceof Quantity)&&!(b instanceof Quantity)){
+        if(!(a instanceof Q)&&!(b instanceof Q)){
             //@ts-ignore
             return a+b;
         }
         let ar = this.extensionRank(a);
         let br = this.extensionRank(b);
         if(br>ar){
-            a = this.extend(a, (<Quantity>b).type, (<Quantity>b).size);
+            a = this.extend(a, (<Q>b).type, (<Q>b).size);
         }
         else if(ar>br){
-            b = this.extend(b, (<Quantity>a).type, (<Quantity>a).size);
+            b = this.extend(b, (<Q>a).type, (<Q>a).size);
         }
-        if(a instanceof Quantity) {
-            if(b instanceof Quantity){
+        if(a instanceof Q) {
+            if(b instanceof Q){
                 if(a.type!=b.type)
                     throw new ArithmeticError("Incompatible quantity type for addition");
                 let dim = Math.max(a.size, b.size);
@@ -1279,7 +1277,7 @@ abstract class L {
      */
     abstract u(t: number, ...param: Number[]): Number|Promise<Number>;
     //populateContext
-    p(t: number, param: number[], vecR: Quantity) {
+    p(t: number, param: number[], vecR: Q) {
         //Supply positional arguments into x & y by default,
         //Parameters clause will then override x & y values
         //if they occupy the same name space. eg. f(y,x)
@@ -1498,7 +1496,7 @@ class B {
      * Configures the type of visualizations that should be applied to this,
      * based on the name of the dependent variable, the type of this, and so on
      */
-    i(pendulum: Pendulum){
+    i(pendulum: Pi){
         return pendulum.ug(this.n,this.e);
     }
     /**
@@ -1520,7 +1518,7 @@ class B {
                 break;
             case 2: //Parameterized functions are capable of
                 //autonomously overriding the context
-                let vecR = new Quantity(4, 3, undefined, [NaN, NaN, NaN]);
+                let vecR = new Q(4, 3, undefined, [NaN, NaN, NaN]);
                 vecR.lock();
                 if(this.p)
                     Anonymous = class extends L{
@@ -1556,7 +1554,7 @@ class B {
         evalHandle.s.length=0;
         if(this.b('t')&&this.environment.v['t'].t==3)
             evalHandle.n = true;
-        if(!(q instanceof Quantity)) {
+        if(!(q instanceof Q)) {
             evalHandle.v = 'cartesian';
             if(this.h)
                 evalHandle.v='cartesianAsync';
@@ -1606,10 +1604,10 @@ class B {
                             let q = evalHandle.u(t, ...param);
                             if(q instanceof Promise){
                                 return new Promise((resolve)=>{
-                                    (<Promise<Number>> q).then((val)=>resolve((<Quantity> val).data[i]));
+                                    (<Promise<Number>> q).then((val)=>resolve((<Q> val).data[i]));
                                 });
                             }else
-                                return (<Quantity> evalHandle.u(t, ...param)).data[i];
+                                return (<Q> evalHandle.u(t, ...param)).data[i];
                         }
                     }
                     let subHandle = new Anonymous(this, this.e);
@@ -1673,7 +1671,7 @@ class B {
     rp(){
         for(let key in this.d){
             let object = this.d[key];
-            delete object.d[this.n];
+            delete object.q[this.n];
             delete this.fa[key];
             delete this.d[key];
         }
@@ -1708,6 +1706,8 @@ class B {
     k(varName: string){
         let reference = this.l[this.m[varName]];
         let depVar = this.d[varName];
+        if(depVar==undefined)
+            return;
         let accessStyle = this.fa[varName];
         //Information access style, style 1 and style 2 are equivalent for local Algebraics,
         //except style 2 is slower but permits parameter as multiplicative clause
@@ -1715,19 +1715,19 @@ class B {
         switch (reference[0]) {
             case 1:
                 let quantity = depVar.v(this.r,undefined,[]);
-                if(quantity instanceof Quantity)
+                if(quantity instanceof Q)
                    quantity.lock();
-                reference[1] = <Quantity> quantity;
+                reference[1] = <Q> quantity;
                 if(accessStyle){
                     reference[2] = (a:Arithmetics,c:Number[][],p: Number[])=>{
                         if(p.length===0)
                             return quantity;
                         let b = (p.length === 1)? p[0]: a.rc.getQuantity(4, p.length);
                         if(p.length>1)
-                            for(let i = 0; i<(<Quantity>b).size; i++){
-                                (<Quantity>b).data[i] = p[i];
+                            for(let i = 0; i<(<Q>b).size; i++){
+                                (<Q>b).data[i] = p[i];
                             }
-                        return a.invisDot(<Quantity> quantity, b);
+                        return a.invisDot(<Q> quantity, b);
                     }
                 }
                 break;
@@ -1736,7 +1736,7 @@ class B {
                     reference[1] = depVar.v;
                 else
                     reference[1] = (a:Arithmetics,c:Number[][],p: Number[])=>{//Special dealing with func$ type
-                        return a.invisDot(<Quantity> depVar.v(a,c,[]), (p.length!=0)?p[0]:1);
+                        return a.invisDot(<Q> depVar.v(a,c,[]), (p.length!=0)?p[0]:1);
                     }
                 break;
             case 3:
@@ -1749,8 +1749,8 @@ class B {
                             return r;
                         let b = (p.length === 1)? p[0]: a.rc.getQuantity(4, p.length);
                         if(p.length > 1)
-                            for(let i = 0; i<(<Quantity>b).size; i++){
-                                (<Quantity>b).data[i] = p[i];
+                            for(let i = 0; i<(<Q>b).size; i++){
+                                (<Q>b).data[i] = p[i];
                             }
                         return a.invisDot(r, b);
                     }
@@ -1760,4 +1760,4 @@ class B {
     }
 }
 
-export {B, S, ResolutionError, L, Quantity};
+export {B, S, ResolutionError, L, Q};

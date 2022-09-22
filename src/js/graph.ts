@@ -6,7 +6,7 @@ import {
     Vector3
 } from "three";
 import {Vec} from "./diffEqn";
-import {L, Quantity} from "./core";
+import {L, Q} from "./core";
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import {Line2} from "three/examples/jsm/lines/Line2.js";
@@ -500,8 +500,8 @@ class CC extends CG {
                 let k = 3 * (i * (vCount + 1) + j);
                 this.v[k] = x;
                 let val = this.d(x, y);
-                this.v[k + 1] = y+((val instanceof Quantity)?+val.data[1]:0);
-                this.v[k + 2] = (val instanceof Quantity)?+val.data[0]:+val;
+                this.v[k + 1] = y+((val instanceof Q)?+val.data[1]:0);
+                this.v[k + 2] = (val instanceof Q)?+val.data[0]:+val;
             }
         }
         this.g.attributes.position.needsUpdate = true;
@@ -1342,7 +1342,7 @@ class VG extends GG {
             let subGraph = this.subGraphs[i];
             let baseVec = subGraph.baseVec();
             subGraph.bv.fromArray(baseVec);
-            let vector = (<Quantity>g[i]).data;
+            let vector = (<Q>g[i]).data;
             while (vector.length < 3)
                 vector.push(0);
             subGraph.rv.fromArray(<number[]>vector);
@@ -1425,7 +1425,7 @@ class PG extends GG {
                 let g = this.d(u, v);
                 for (let q = 0; q < this.sg.length; q++) {
                     let graph = this.sg[q];
-                    let vertex = (<Quantity>g[q]).data;
+                    let vertex = (<Q>g[q]).data;
                     while(vertex.length<3)
                         vertex.push(0);
                     graph.v[k] = +vertex[0];
