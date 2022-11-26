@@ -284,9 +284,9 @@ class Pi {
     //updateDefinition
     ud(uid: string, oldLabel: SN, label: SN, definition: SN){
 
-        console.log("updateDefinition Called ");
-        console.log(oldLabel);
-        console.log(label);
+        //console.log("updateDefinition Called ");
+        //console.log(oldLabel);
+        //console.log(label);
         try{
             if(label == undefined) {
                 if (oldLabel != undefined)
@@ -294,7 +294,7 @@ class Pi {
                 return;
             }
             if(oldLabel!=undefined &&oldLabel.c!=label.c){
-                console.log("deleting old label");
+                //console.log("deleting old label");
                 this.dd(oldLabel);
             }
             this.wg(label.c);
@@ -302,7 +302,7 @@ class Pi {
             let variable = this.e.e.v[label.c];
             this.ug(variable.n,variable.e);
         }catch (e) {
-            console.log(e);
+            //console.log(e);
         }
     }
     //deleteDefinition

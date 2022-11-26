@@ -550,17 +550,17 @@ class S{
 class R {
     //toStatementTree
     ts(latex:string){
-        console.log(latex);
+        //console.log(latex);
         try {
             this.l(latex+'$');
         } catch (e) {
-            console.log(e);
+            //console.log(e);
         }
-        console.log(this.tl);
+        //console.log(this.tl);
         let statementTree = this.s(this.tl);
         this.e(statementTree);
-        console.log('Statement Tree: ')
-        console.log(statementTree);
+        //console.log('Statement Tree: ')
+        //console.log(statementTree);
         return statementTree;
     }
 
@@ -599,7 +599,7 @@ class R {
             }
             switch(parseConstant){
                 case 1:
-                    console.log(previousToken);
+                    //console.log(previousToken);
                     throw new SyntaxError('Unrecognized syntax at '+token.s+' on character '+tex[token.e]);
                 default:
                     break;
@@ -721,7 +721,7 @@ class R {
                 shuntingYard.push(operator);
             }
         }
-        console.log(tray);
+        //console.log(tray);
         return tray[0];
     }
 

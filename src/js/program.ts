@@ -171,12 +171,12 @@ class CylindricalContainment {
         this.Bphi = params[3 * this.n];//Makes a total of 3n+1 parameters
         for (let i = 1; i < this.n; i++)//ommit d[0]
             this.d[i] = params[i - 1 + 2 * this.n];
-        console.log(this);
+        //console.log(this);
     }
 }
 
 function cylindricalSteppedPressure(canvas: C) {
-    console.log("method called");
+    //console.log("method called");
     let vs = [];
     let vectors = [];
     let cm = new CylindricalContainment();
@@ -226,8 +226,8 @@ function graphCylindrical(canvas: C){
     graph.gi();
     graph.pu();
     canvas.ag(graph);
-    // link.get([1,1],(value)=>{console.log(value)});
-    console.log(link);
+    // link.get([1,1],(value)=>{//console.log(value)});
+    //console.log(link);
 }
 
 function graphTorus(canvas: C){

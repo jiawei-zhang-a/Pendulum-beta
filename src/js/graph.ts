@@ -347,7 +347,7 @@ class CG extends G {
             orientation = 2;
         if (xAngle <= Math.PI / 4)
             orientation = 3;
-        console.log(orientation);
+        //console.log(orientation);
         if (orientation != this.orientation) {
             let mapping;
             this.orientation = orientation;
@@ -430,7 +430,7 @@ class CAG extends CG{
                    setTimeout(wait, 1);
                }else{
                    this.timeLeft = this.threshold;
-                   console.log("populating, time out in: "+this.timeLeft);
+                   //console.log("populating, time out in: "+this.timeLeft);
                    this.proxyPopulate(mapping, uCount, vCount);
                    this.pending = false;
                }
@@ -642,13 +642,13 @@ class VF extends G {
             }
         }
         this.s = new THREE.Group();
-        // for (let v of vs) {
-        //     let vec3d = new Vector3D(v.toString(), this.vecFunc,
-        //         () => v);
-        //     vectors.push(vec3d);
-        //     vec3d.constructGeometry(param);
-        //     this.mesh.add(vec3d.mesh);
-        // }
+        for (let v of vs) {
+            let vec3d = new VD(v.toString(), this.vecFunc,
+                () => v);
+            vectors.push(vec3d);
+            vec3d.cg(param);
+            this.s.add(vec3d.s);
+        }
         for(let trace of this.traces){
             trace.cg(param);
             trace.gi();
@@ -661,7 +661,7 @@ class VF extends G {
 
     pu(): void {
         for (let vector3D of this.vector3Ds) {
-            // vector3D.populate();
+            vector3D.pu();
         }
 
         for (let trace of this.traces) {
@@ -1046,11 +1046,11 @@ class P extends G {
             this.sp.push(+vec[0], +vec[1], (vec.length>2)?+vec[2]:0);
         }
         this.g.setPositions(this.sp);
-        // console.log(this.positions);
+        // //console.log(this.positions);
     }
 
     u(): void {
-        console.log("line distances computed");
+        //console.log("line distances computed");
         this.s.computeLineDistances();
         this.s.scale.set( 1, 1, 1 );
     }
@@ -1282,10 +1282,10 @@ class CR extends GG {
     }
 
     ug(evalHandle: L): void {
-        console.log(evalHandle);
-        console.log("sub graph counts: " + this.subGraphs.length);
-        console.log("sub evaluable counts: " + evalHandle.s.length);
-        console.log(this.subGraphs);
+        //console.log(evalHandle);
+        //console.log("sub graph counts: " + this.subGraphs.length);
+        //console.log("sub evaluable counts: " + evalHandle.s.length);
+        //console.log(this.subGraphs);
         while (evalHandle.s.length < this.subGraphs.length) {
             let graph = this.subGraphs.pop();
             this.s.remove(graph.s);
@@ -1361,10 +1361,10 @@ class VG extends GG {
     }
 
     ug(evalHandle: L): void {
-        console.log(evalHandle);
-        console.log("sub graph counts: " + this.subGraphs.length);
-        console.log("sub evaluable counts: " + evalHandle.s.length);
-        console.log(this.subGraphs);
+        ////console.log(evalHandle);
+        //console.log("sub graph counts: " + this.subGraphs.length);
+        //console.log("sub evaluable counts: " + evalHandle.s.length);
+        //console.log(this.subGraphs);
         while (evalHandle.s.length < this.subGraphs.length) {
             let graph = this.subGraphs.pop();
             this.s.remove(graph.s);
@@ -1448,10 +1448,10 @@ class PG extends GG {
     }
 
     ug(evalHandle: L): void {
-        console.log(evalHandle);
-        console.log("sub graph counts: " + this.sg.length);
-        console.log("sub evaluable counts: " + evalHandle.s.length);
-        console.log(this.sg);
+        //console.log(evalHandle);
+        //console.log("sub graph counts: " + this.sg.length);
+        //console.log("sub evaluable counts: " + evalHandle.s.length);
+        //console.log(this.sg);
         while (evalHandle.s.length < this.sg.length) {
             let graph = this.sg.pop();
             this.s.remove(graph.s);

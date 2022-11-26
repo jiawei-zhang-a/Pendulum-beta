@@ -109,13 +109,13 @@ class S {
             }else
                 throw e;
         }
-        console.log(label);
+        //console.log(label);
         if(this.ie(statement)&&label.t=='$'||label.t=='func$'
             &&!this.cl(label.c, leaves))
             throw new RE("Invalid label override");
         let variable = this.de(label, statement);
         variable.x = uid;
-        console.log(variable);
+        //console.log(variable);
         this.e.v[label.c] = variable;
         this.e.u[uid] = variable;
         variable.ps();
@@ -297,7 +297,7 @@ class S {
         newVar.s = (definition.t == "#" && definition.ch.length == 0)||
             (definition.t == "operator"&&definition.c=='neg'&&definition.ch[0].t=='#');
         let piScript = this.gp(definition, newVar);
-        console.log("piScript: \n"+piScript);
+        //console.log("piScript: \n"+piScript);
         newVar.ss(piScript);
         return newVar;
     }
@@ -1018,7 +1018,7 @@ class Arithmetics {
                 c.data[0] = Math.log(r);
                 c.data[1] = (a.data[1]<0)?(this.branchNumber*2*Math.PI-theta)
                     :this.branchNumber*2*Math.PI+theta;
-                // console.log(c.data[1]);
+                // //console.log(c.data[1]);
                 Arithmetics.recycle(a);
                 return this.pow(Math.E, this.multiply(c, b));
             }
@@ -1612,7 +1612,7 @@ class B {
                     }
                     let subHandle = new Anonymous(this, this.e);
                     evalHandle.s.push(subHandle);
-                    console.log(evalHandle);
+                    //console.log(evalHandle);
                     this.o(subHandle);
                 }
                 if(evalHandle.s.length!=0

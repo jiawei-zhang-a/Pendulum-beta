@@ -330,7 +330,7 @@ class L {
     //initiate
     it() {
         this.type = (<HTMLElement>this.lc.lastElementChild).innerText;
-        // console.log(MQ.MathField);
+        // //console.log(MQ.MathField);
         this.mq = MQ.MathField(this.fl, {
             spaceBehavesLikeTab: true,
             autoSubscriptNumerals: true,
@@ -342,7 +342,7 @@ class L {
         this.fl.addEventListener('focusin', this.fo.bind(this));
         this.fl.addEventListener('focusout', this.oe.bind(this));
         this.oe();
-        console.log("updating identifier " + this.mq.latex() + ": " + this.label);
+        //console.log("updating identifier " + this.mq.latex() + ": " + this.label);
     }
     //setHint
     ht(hint: string){
