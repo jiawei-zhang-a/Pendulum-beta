@@ -37,22 +37,30 @@ gulp.task(
             .pipe(source("index.js"))
             .pipe(buffer())
             .pipe(sourcemaps.init({ loadMaps: true }))
-            // .pipe(obfuscator(
-            //     {
-            //         identifierNamesGenerator: 'mangled',
-            //         // log: false,
-            //         ignoreImports: true,
-            //         numbersToExpressions: false,
-            //         renameGlobals: true,
-            //         renameProperties: true,
-            //         exclude:['mathquill.js','mathquill.min.js'],
-            //         // forceTransformStrings: ['constant','closestruct','openstruct'],
-            //         renamePropertiesMode: 'safe',
-            //         reservedNames: [
-            //             'prototype',
-            //         ]
-            //     }
-            // ))
+            .pipe(obfuscator(
+                {
+                    compact: true,
+
+                    identifierNamesGenerator: 'mangled',
+                    // log: false,
+                    ignoreImports: true,
+                    // numbersToExpressions: false,
+                    numbersToExpressions: true,
+                    simplify: true,
+                    stringArrayShuffle: true,
+                    // stringArrayEncoding: ['rc4'],
+                    renameGlobals: true,
+                    disableConsoleOutput: true,
+                    selfDefending: true,
+                    domainLock: ['http://www.cloudnest.org/pendulum/beta/','cloudnest.org/pendulum/beta/'],
+                    // domainLockRedirectUrl: 'http://www.cloudnest.org',
+                    // renameProperties: true,Ζ
+                    exclude:['mathquill.js','mathquill.min.js'],
+                    // forceTransformStrings: ['constant','closestruct','openstruct'],
+                    renamePropertiesMode: 'safe',
+                }
+            ))
+            // .pipe(minify())
             // .pipe(uglify())
             .pipe(sourcemaps.write("./"))
             .pipe(gulp.dest("dist/js"));

@@ -28,6 +28,8 @@
     "@babel/core": "^7.18.10",
     "bessel": "^1.0.2",
     "function-link": "^0.1.5",
+    "gulp-javascript-obfuscator": "^1.1.6",
+    "gulp-uglify": "^3.0.2",
     "mathquill": "^0.10.1-a",
     "three": "^0.129.0",
     "three-orbitcontrols-ts": "^0.1.2",

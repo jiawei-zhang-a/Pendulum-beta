@@ -25,6 +25,14 @@
 <div id="root">
     <div id="navbar" align="center">
         Pendulum
+
+        <div class="topDropdown">
+            <button  id="sampleButton" class="btn glyphicon  glyphicon-plus"></button>
+            <div id="sampleList" class="dropdown-content">
+                <h4>Examples:
+                </h4>
+            </div>
+        </div>
     </div>
     <div id="defpanel">
         <div id="sidebar">
@@ -37,15 +45,8 @@
                         :
                     </div>
                 </div>
-                <div class="name-container" defID="2" id="2-label">
-                    <div class="name">
 
-                    </div>
-                    <div class="type">
-                        :
-                    </div>
-                </div>
-                <div class="name-container" defID="3" id="3-label">
+                <div class="name-container" defID="2" id="2-label">
                     <div class="name">
 
                     </div>
@@ -55,26 +56,27 @@
                 </div>
             </div>
             <div id="settingsWrapper">
-                <button id="addButton" class="btn glyphicon  glyphicon-plus"></button>
+<!--                <button id="addButton" class="btn glyphicon  glyphicon-plus"></button>-->
+                <div class="dropdown">
+                    <button  id="addButton" class="btn glyphicon  glyphicon-plus"></button>
+                    <div id="exampleList" class="dropdown-content">
+                        <h4>Examples:
+                        </h4>
+                    </div>
+                </div>
                 <button id="defSettings" class="btn glyphicon  glyphicon-th-list"></button>
             </div>
         </div>
         <div id="mathpanel">
             <div class="expression-container" defID="1" id="1-statement">
                 <span class="expression">
-<!--                    z=x+y-->
+\left(\cos \left(2\pi u\right)\left(1+\cos \left(10v-5+\ln \left(t\right)\right)\right),\sin \left(2\pi u\right)\left(1+\cos \left(10v-5+\ln \left(t\right)\right)\right),10v-5\right)
                 </span>
                 <div class="color-box"></div>
             </div>
             <div class="expression-container" defID="2" id="2-statement">
                 <span class="expression">
-<!--                    z=xy-->
-                </span>
-                <div class="color-box"></div>
-            </div>
-            <div class="expression-container" defID="3" id="3-statement">
-                <span class="expression">
-<!--                    z=-\frac{x^2+y^2}{2}-->
+                    e^{x+iy}
                 </span>
                 <div class="color-box"></div>
             </div>

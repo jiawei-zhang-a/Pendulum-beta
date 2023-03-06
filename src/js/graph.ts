@@ -21,7 +21,8 @@ const colors: { [key: string]: number } = {
     blue: 0x0065fb,
     green: 0x378b59,
     purple: 0x8300de,
-    mint: 0x2effc7,
+    mint: 0x8300de,
+    // mint: 0x2effc7,
     red: 0xd82c5d,
     lightgray: 0xf3f3f3,
     air: 0xf0f8ff,
@@ -59,7 +60,8 @@ function createMaterial(type: string, color: string, clipOverflow = true, clipDi
             //@ts-ignore
             material = new THREE.LineBasicMaterial({
                 color: colors[color],
-                opacity: 1,
+                transparent: true,
+                opacity: 0.5,
                 linewidth: 1
             });
             break;
@@ -69,11 +71,11 @@ function createMaterial(type: string, color: string, clipOverflow = true, clipDi
             material = new LineMaterial( {
 
                 color: colors[color],
-                linewidth: 7, // in world units with size attenuation, pixels otherwise
+                linewidth: 2, // in world units with size attenuation, pixels otherwise
                 vertexColors: false,
                 resolution: resolution,
                 //resolution:  // to be set by renderer, eventually
-                dashed: true,
+                dashed: false,
                 gapSize: 0.2,
                 dashSize:0.4,
                 alphaToCoverage: false,
@@ -560,11 +562,12 @@ class CartesianGraph2D extends Graph {
 }
 
 class VecField3D extends Graph {
+    trace = true;
     vecFunc: (...baseVec: number[]) => number[];
     style: { [p: string]: (length: number) => number } = {};
     vector3Ds: Vector3D[] = [];
     traces: LineTrace[] = [];
-
+    traceMesh: Group;
     /**
      *
      * @param name
@@ -581,6 +584,8 @@ class VecField3D extends Graph {
         this.timeDependent = true;
     }
 
+    fieldMesh: Group;
+
     constructGeometry(param: { [p: string]: string }): void {
         this.color = param['color'];
         let vs = [];
@@ -588,6 +593,15 @@ class VecField3D extends Graph {
         let func = (t: number) => {
             return -5 + 10 * t;
         };
+
+        for(let x0 = -5; x0<=5; x0+=1.25){
+            for(let y0 = -5; y0<=5; y0+=1.25) {
+                for (let z0 = -5; z0 <= 5; z0 +=1.25) {
+                    let v0 = [x0, y0, z0];
+                    this.traces.push(new LineTrace(v0.toString(), this.vecFunc, v0));
+                }
+            }
+        }
         for (let i = 0; i < 1; i += 0.1) {
             for (let j = 0; j < 1; j += 0.1) {
                 for (let k = 0; k < 1; k += 0.1) {
@@ -596,39 +610,46 @@ class VecField3D extends Graph {
             }
         }
 
-        for(let x0 = -5; x0<=5; x0+=1.25){
-            for(let z0 = -5; z0<=5; z0+=1.25){
-                let v0 = [x0, 0, z0];
-                this.traces.push(new LineTrace(v0.toString(), this.vecFunc, v0));
-                let v01 = [0, x0, z0];
-                this.traces.push(new LineTrace(v01.toString(), this.vecFunc, v01));
-            }
-        }
         this.mesh = new THREE.Group();
-        // for (let v of vs) {
-        //     let vec3d = new Vector3D(v.toString(), this.vecFunc,
-        //         () => v);
-        //     vectors.push(vec3d);
-        //     vec3d.constructGeometry(param);
-        //     this.mesh.add(vec3d.mesh);
-        // }
+        this.fieldMesh = new THREE.Group();
+        this.traceMesh = new THREE.Group();
         for(let trace of this.traces){
             trace.constructGeometry(param);
             trace.generateIndices();
-            this.mesh.add(trace.mesh);
+            this.traceMesh.add(trace.mesh);
         }
+        for (let v of vs) {
+            let vec3d = new Vector3D(v.toString(), this.vecFunc,
+                () => v);
+            vectors.push(vec3d);
+            vec3d.constructGeometry(param);
+            this.fieldMesh.add(vec3d.mesh);
+        }
+        this.traceMesh.visible = this.trace;
+        this.fieldMesh.visible = !this.trace;
+        this.mesh.add(this.traceMesh);
+        this.mesh.add(this.fieldMesh);
     }
 
     dispose(): void {
     }
 
-    populate(): void {
-        for (let vector3D of this.vector3Ds) {
-            // vector3D.populate();
-        }
+    toggleTrace(){
+        this.trace = !this.trace;
+        this.traceMesh.visible = this.trace;
+        this.fieldMesh.visible = !this.trace;
+        this.populate();
+    }
 
-        for (let trace of this.traces) {
-            trace.populate();
+    populate(): void {
+        if(this.trace){
+            for (let trace of this.traces) {
+                trace.populate();
+            }
+        }else{
+            for (let vector3D of this.vector3Ds) {
+                vector3D.populate();
+            }
         }
     }
 
@@ -756,7 +777,7 @@ class Vector3D extends Graph {
     }
 
     transform() {
-        let length = Math.sqrt(this.rv.length());
+        let length = Math.log(1+Math.abs(this.rv.length()));
         this.cylinderMesh.scale.set(length, length, length);
         this.coneMesh.scale.set(length, length, length);
         //@ts-ignore

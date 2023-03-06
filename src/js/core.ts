@@ -124,7 +124,7 @@ class Core {
         if(variable.singleNumber){
             plugins.push("slider");
         }
-        this.pendulum.setFieldPlugins(uid, plugins)
+        this.pendulum.sfp(uid, plugins)
         return 0;
     }
 
@@ -1397,7 +1397,7 @@ class Variable {
      * based on the name of the dependent variable, the type of this, and so on
      */
     loadVisualization(pendulum: Pendulum){
-        return pendulum.updateGraph(this.name,this.evalHandle);
+        return pendulum.ug(this.name,this.evalHandle);
     }
     /**
      * Instantiates a new evaluation handle for the variable. The type
@@ -1456,12 +1456,16 @@ class Variable {
             evalHandle.visType = 'cartesian';
             if(this.asynchronous)
                 evalHandle.visType='cartesianAsync';
+            if(this.singleNumber)
+                evalHandle.visible = false;
         }
         else switch (q.type) {
             case 2:
                 evalHandle.visType = 'cartesian';
                 if(this.asynchronous)
                     evalHandle.visType='cartesianAsync';
+                if(this.singleNumber)
+                    evalHandle.visible = false;
                 break;
             case 4:
                 if(this.containsVariables('u')

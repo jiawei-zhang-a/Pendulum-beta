@@ -69,11 +69,18 @@ body {
     align-self: stretch;
     align-items: center;
     justify-content: center;
+    clear: both;
     background: var(--mainHighlight);
     color: white;
     font: 500 22px/50px "Kodchasan",
     Arial,
     sans-serif;
+}
+
+#sampleButton{
+    transition: 200ms;
+    color: white;
+    background: var(--mainHighlight);
 }
 
 #defpanel {
@@ -129,7 +136,7 @@ body {
     margin-bottom: 10pt;
 }
 
-#defSettings:hover, #addButton:hover {
+#defSettings:hover, #addButton:hover, #sampleButton:hover {
     color: var(--mainHighlight);
     background: white;
 }
@@ -261,7 +268,7 @@ body {
     border-style: solid;
     border-color: var(--grayShadow);
     display: grid;
-    grid-template-columns: 1fr 50px;
+    grid-template-columns: 1fr 50px 50px;
 }
 
 .expression-container:focus-within {
@@ -277,12 +284,12 @@ body {
     border: none;
     box-shadow: none;
     align-self: center;
-    grid-column: 1 / span 1;
+    grid-column: 1 / span 2;
 }
 
 .expression-container .color-box{
     box-sizing: content-box;
-    grid-column: 2 / span 1;
+    grid-column: 3 / span 1;
     align-self: center;
     margin-right: 15px;
     margin-left: 15px;
@@ -368,3 +375,66 @@ body {
     cursor: pointer;
     border-radius:1pt;
 }
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    bottom: 0pt;
+    left: 42px;
+    background-color: #f1f1f1;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    font-size: small;
+    text-align: left;
+}
+
+.dropdown-content a {
+    color: black;
+    padding: 8px 16px;
+    text-decoration: none;
+    display: block;
+    line-height: 12pt;
+}
+
+.dropdown-content h4 {
+    padding: 0px 12px;
+}
+.dropdown-content a:hover {background-color: #ddd;}
+
+.dropdown:hover .dropdown-content {
+    animation-delay: 1s;
+    display: block;
+}
+
+.dropdown:hover .dropbtn {background-color: #3e8e41;}
+
+.topDropdown {
+    float:right;
+    padding: 5pt;
+    position: relative;
+    display: flex;
+    font-family: Arial, serif;
+    color: black;
+}
+
+.topDropdown:hover .dropdown-content {display: block;}
+
+
+.topDropdown .dropdown-content {
+    display: none;
+    position: absolute;
+    top: 0pt;
+    left: 50px;
+    height: fit-content;
+    background-color: #f1f1f1;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
