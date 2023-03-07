@@ -194,10 +194,12 @@ class DC{
     setColor(colorName: string){
         this.colorName = colorName;
         pendulum.qq(this.lc.label, colorName);
+        this.sc.i(pendulum.qc(this.lc.label));
     }
     setVisible(visible: boolean){
         this.visible = visible;
         pendulum.sv(this.lc.label, visible);
+        this.sc.i(pendulum.qc(this.lc.label));
     }
     //InitializeControls
     fin(){
