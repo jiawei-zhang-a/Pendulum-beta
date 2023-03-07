@@ -1006,8 +1006,9 @@ class P extends G {
     cg(param: { [key: string]: string } =
                           {'material': "standard", 'color': "blue"}): void {
         this.g = new LineGeometry();
+        this.c = (param['color']) ? param['color'] : 'blue';
         this.m = cm('line2',
-            (param['color']) ? param['color'] : 'blue');
+            this.c);
         this.s = new Line2(this.g, <LineMaterial> this.m);
         this.s.name = this.n;
     }
