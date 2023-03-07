@@ -1,10 +1,77 @@
 # Pendulum Beta
 
+## API Usage
+Pendulum API can be used for automating or customizing visualizations.
+```typescript
+let p = new Pendulum(canvas);
+```
+### Field Injection
+#### Single Equation:
+```typescript
+/**
+ * Injects a field into the UI, returns the label of that corresponding field
+ * @param tex the content of the field injections
+ * @return definitionControl the control handle the injected field
+ */
+injectField(tex: string):DC
+```
+Usage:
+```typescript
+p.injectField("\\sin (x)+y");
+```
+
+#### Import Equation sheet:
+```typescript
+/**
+ * Load an entire session of statements
+ * @param texSheet json string representing the equation sets
+ */
+loadTexSheet(texSheet: string)
+```
+JSON Format:
+```typescript
+//Inside loadTexSheet:
+let eqns:EqnExport[] = JSON.parse(texSheet);
+//Where
+class EqnExport{
+    tex: string;
+    color: string;
+    visible: boolean;
+}
+```
+Usage:
+```typescript
+p.loadTexSheet(`[{"tex":"a=\\\\left(\\\\cos\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"b=\\\\left(\\\\cos\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"c=\\\\left(\\\\cos\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"d=\\\\left(\\\\cos\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"f=\\\\left(\\\\cos\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"a+\\\\left(b-a\\\\right)u","color":"blue","visible":true},{"tex":"b+\\\\left(c-b\\\\right)u","color":"blue","visible":true},{"tex":"c+\\\\left(d-c\\\\right)u","color":"blue","visible":true},{"tex":"d+\\\\left(f-d\\\\right)u","color":"blue","visible":true},{"tex":"f+\\\\left(a-f\\\\right)u","color":"blue","visible":true},{"tex":"\\\\left(a+\\\\left(b-a\\\\right)u\\\\right)v","color":"purple","visible":true},{"tex":"\\\\left(b+\\\\left(c-b\\\\right)u\\\\right)v","color":"orange","visible":true},{"tex":"\\\\left(c+\\\\left(d-c\\\\right)u\\\\right)v","color":"green","visible":true},{"tex":"\\\\left(d+\\\\left(f-d\\\\right)u\\\\right)v","color":"red","visible":true},{"tex":"\\\\left(f+\\\\left(a-f\\\\right)u\\\\right)v","color":"blue","visible":true}]`);
+```
+Result:
+
+![img.png](./doc/img_39.png)
+
+#### Export Equation Sheet:
+```typescript
+/**
+ * @return texSheet the TeX sheet representing the currently populated 
+ * statements, along with the graph color and visibility attributes
+ */
+exportFields():string
+```
+Example Usage:
+```typescript
+window.share = ()=>{
+    let texSheet = p.exportFields();
+    download("savedtex.txt", texSheet);
+}
+```
+Result: *downloads a txt file containing the equation sheet string:
+```json
+[{"tex":"a=\\\\left(\\\\cos\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"b=\\\\left(\\\\cos\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"c=\\\\left(\\\\cos\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"d=\\\\left(\\\\cos\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"f=\\\\left(\\\\cos\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"a+\\\\left(b-a\\\\right)u","color":"blue","visible":true},{"tex":"b+\\\\left(c-b\\\\right)u","color":"blue","visible":true},{"tex":"c+\\\\left(d-c\\\\right)u","color":"blue","visible":true},{"tex":"d+\\\\left(f-d\\\\right)u","color":"blue","visible":true},{"tex":"f+\\\\left(a-f\\\\right)u","color":"blue","visible":true},{"tex":"\\\\left(a+\\\\left(b-a\\\\right)u\\\\right)v","color":"purple","visible":true},{"tex":"\\\\left(b+\\\\left(c-b\\\\right)u\\\\right)v","color":"orange","visible":true},{"tex":"\\\\left(c+\\\\left(d-c\\\\right)u\\\\right)v","color":"green","visible":true},{"tex":"\\\\left(d+\\\\left(f-d\\\\right)u\\\\right)v","color":"red","visible":true},{"tex":"\\\\left(f+\\\\left(a-f\\\\right)u\\\\right)v","color":"blue","visible":true}]
+```
+### UI Presets
 
 ## Resources
 [Development log](https://github.com/YuelongLi/Pendulum-beta/blob/main/Devlog.md) is available but not up to date. For implementation details, please see [documentation](https://github.com/YuelongLi/Pendulum-beta/blob/main/doc/DOCUMENTATION.md).
 
-# Documentation
+## Documentation
 A brief log of the important design decisions and implementations made along the way.
 ## Project setup
 

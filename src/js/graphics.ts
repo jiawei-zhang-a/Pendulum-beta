@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 // @ts-ignore
 window.THREE = THREE;
-import {WebGLRenderer} from "three";
+import {AxesHelper, GridHelper, WebGLRenderer} from "three";
 
 import "three/examples/js/controls/OrbitControls";
 import {B} from './core';
@@ -25,6 +25,8 @@ class C {
     public time: number = 0;
     public config: {perspective: boolean,
                     dpp: number};
+    public gridHelper: GridHelper[] = [];
+    public axesHelper: AxesHelper;
 
     constructor(camera: THREE.Camera, scene: THREE.Scene,
                 renderer: THREE.WebGLRenderer, config: {perspective: boolean, dpp:number}, htmlElement: HTMLElement) {
@@ -34,9 +36,43 @@ class C {
         this.renderer = renderer;
         this.config = config;
         htmlElement.appendChild( renderer.domElement );
-        window.addEventListener("resize", this.or.bind(this));
+        window.addEventListener("resize", this.onResize.bind(this));
         this.al();
-        this.or();
+
+        // @ts-ignore
+        let control = new THREE.OrbitControls(camera, renderer.domElement);
+        control.addEventListener('change', this.ocu.bind(this));
+
+        // new OrbitalControlUpdater(tr, canvas);
+        let light1 = new THREE.DirectionalLight(0xffffff, 0.5);
+        light1.position.set(0, 0, 5);
+        scene.add(light1);
+        let light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        light2.position.set(0, 0, -5);
+        scene.add(light2);
+        let light3 = new THREE.AmbientLight(0xffffff, 0.5);
+        light3.position.set(0, -5, 0);
+        scene.add(light3);
+
+        let gridHelper = new THREE.GridHelper(12, 12);
+        gridHelper.rotateX(Math.PI/2);
+        this.scene.add(gridHelper);
+        this.gridHelper.push(gridHelper);
+
+        let gridHelper2 = new THREE.GridHelper(12, 12);
+        gridHelper2.rotateZ(Math.PI/2);
+        this.scene.add(gridHelper2);
+        this.gridHelper.push(gridHelper2);
+
+        let gridHelper3 = new THREE.GridHelper(12, 12);
+        this.scene.add(gridHelper3);
+        this.gridHelper.push(gridHelper3);
+
+        let axesHelper = new THREE.AxesHelper(7);
+        this.scene.add(axesHelper);
+        this.axesHelper = axesHelper;
+
+        this.onResize();
     }
 
     //animate
@@ -73,21 +109,21 @@ class C {
 
     //onCameraUpdate
     ocu(e: Event){
-        this.uco();
+        this.updateCameraOrientation();
     }
 
     /**
      * updateCameraOrientation
      * Called when orbit control changes the camera orientation;
      */
-    uco(){
+    updateCameraOrientation(){
         for(let key in this.graphs){
             this.graphs[key].uo();
         }
     }
 
     //onResize
-    or() {
+    onResize() {
         this.width = this.htmlElement.offsetWidth;
         this.height = this.htmlElement.offsetHeight;
         // $(this.htmlElement).outerWidth(this.width);
@@ -160,35 +196,6 @@ function i() {
 
     let canvas = new C(camera, scene, renderer, {perspective: true, dpp: dpp},
         document.getElementById("graphpanel"));
-
-    // @ts-ignore
-    let control = new THREE.OrbitControls(camera, renderer.domElement);
-    control.addEventListener('change', canvas.ocu.bind(canvas));
-
-    // new OrbitalControlUpdater(tr, canvas);
-    let light1 = new THREE.DirectionalLight(0xffffff, 0.5);
-    light1.position.set(0, 0, 5);
-    scene.add(light1);
-    let light2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    light2.position.set(0, 0, -5);
-    scene.add(light2);
-    let light3 = new THREE.AmbientLight(0xffffff, 0.5);
-    light3.position.set(0, -5, 0);
-    scene.add(light3);
-
-    let gridHelper = new THREE.GridHelper(12, 12);
-    gridHelper.rotateX(Math.PI/2);
-    canvas.scene.add(gridHelper);
-
-    let gridHelper2 = new THREE.GridHelper(12, 12);
-    gridHelper2.rotateZ(Math.PI/2);
-    canvas.scene.add(gridHelper2);
-
-    let gridHelper3 = new THREE.GridHelper(12, 12);
-    canvas.scene.add(gridHelper3);
-
-    let axesHelper = new THREE.AxesHelper(7);
-    canvas.scene.add(axesHelper);
 
     canvas.a();
     return canvas;

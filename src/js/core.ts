@@ -1,5 +1,5 @@
 import {SN} from "./parser";
-import {Pi} from "./pendulum";
+import {Pendulum} from "./pendulum";
 import {stat} from "fs";
 
 const aAscii = 'a'.charCodeAt(0);
@@ -26,8 +26,8 @@ const vecRID = contextID('>r');
 class S {
 
     e: E = new E();
-    p: Pi;
-    constructor(pendulum: Pi){
+    p: Pendulum;
+    constructor(pendulum: Pendulum){
         this.p = pendulum;
     }
     /**
@@ -1248,7 +1248,7 @@ abstract class L {
     c: Number[][];
     //visType
     v = 'none';
-    //l
+    //visible
     l = true;
     //subEvaluables
     //This list is populated when visType is group
@@ -1496,7 +1496,7 @@ class B {
      * Configures the type of visualizations that should be applied to this,
      * based on the name of the dependent variable, the type of this, and so on
      */
-    i(pendulum: Pi){
+    i(pendulum: Pendulum){
         return pendulum.ug(this.n,this.e);
     }
     /**
