@@ -1,5 +1,8 @@
 # Pendulum Beta
 
+## Resources
+[Development log](https://github.com/YuelongLi/Pendulum-beta/blob/main/Devlog.md) is available but not up to date. For implementation details, please see [documentation](https://github.com/YuelongLi/Pendulum-beta/blob/main/doc/DOCUMENTATION.md).
+
 ## API Usage
 Pendulum API can be used for automating or customizing visualizations.
 ```typescript
@@ -68,10 +71,7 @@ Result: *downloads a txt file containing the equation sheet string:
 ```
 ### UI Presets
 
-## Resources
-[Development log](https://github.com/YuelongLi/Pendulum-beta/blob/main/Devlog.md) is available but not up to date. For implementation details, please see [documentation](https://github.com/YuelongLi/Pendulum-beta/blob/main/doc/DOCUMENTATION.md).
-
-## Documentation
+# Documentation
 A brief log of the important design decisions and implementations made along the way.
 ## Project setup
 
