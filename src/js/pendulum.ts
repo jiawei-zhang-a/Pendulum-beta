@@ -361,7 +361,7 @@ class Pendulum {
         let evalHandle = variable.e;
         let graph = this.s.graphs[label.c];
         if(evalHandle!=undefined)
-            evalHandle.l = !evalHandle.l;
+            evalHandle.l = visible;
         if(graph!=undefined){
             if(visible) {
                 graph.ss();
