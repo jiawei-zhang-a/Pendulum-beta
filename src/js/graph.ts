@@ -21,11 +21,12 @@ const colors: { [key: string]: number } = {
     blue: 0x0065fb,
     green: 0x378b59,
     purple: 0x8300de,
-    mint: 0x2effc7,
     red: 0xd82c5d,
+    mint: 0x2effc7,
     lightgray: 0xf3f3f3,
     air: 0xf0f8ff,
     steelBlue: 0x4377bf,
+    yellow: 0xeeee22,
 };
 
 function cm(type: string, color: string, clipOverflow = true, clipDistance = 6) {

@@ -14,24 +14,37 @@ import {
 import {S, L, Q, RE} from "./core";
 import {SN} from "./parser";
 import {cylindricalSteppedPressure, graphCylindrical, ode} from "./program";
+import {DC, UIHandle} from "./ui";
 // import {Portal} from "function-link";
 
+class EqnExport{
+    tex: string;
+    color: string;
+    visible: boolean;
+}
+
 // Coordinator of all actions of sub-modules
-class Pi {
+class Pendulum {
     //core
     e: S;
     //canvas
     s: C;
-    //color names
+    //Color names
     m: string[];
+    //UI Handle
+    u: UIHandle;
     constructor(s: C){
         this.s = s;
         this.e = new S(this);
         this.m = Object.keys(colors);
+        //Load UI
+        this.u = UI.load(this);
+        //Resize contents to ensure correct placing of graphs
+        this.s.onResize();
     }
     ci = 0;
     rc(){
-        let modulo = 6;
+        let modulo = 5;
         let colorName = this.m[this.ci%modulo];
         this.ci++;
         return colorName;
@@ -228,6 +241,7 @@ class Pi {
             graph.pu();
             graph.u();
         });
+        return color;
     }
 
     //groupGraph
@@ -281,8 +295,16 @@ class Pi {
     gh(statement: SN) {
         return this.e.gl(statement);
     }
-    //updateDefinition
-    ud(uid: string, oldLabel: SN, label: SN, definition: SN){
+    //
+    /**
+     * updateDefinition
+     * @param uid
+     * @param oldLabel
+     * @param label
+     * @param definition
+     * @return color of the graph
+     */
+    ud(uid: string, oldLabel: SN, label: SN, definition: SN):string{
 
         //console.log("updateDefinition Called ");
         //console.log(oldLabel);
@@ -300,7 +322,7 @@ class Pi {
             this.wg(label.c);
             this.e.re(label, uid, definition);
             let variable = this.e.e.v[label.c];
-            this.ug(variable.n,variable.e);
+            return this.ug(variable.n,variable.e);
         }catch (e) {
             //console.log(e);
         }
@@ -321,12 +343,35 @@ class Pi {
         if(evalHandle!=undefined)
             evalHandle.l = !evalHandle.l;
         if(graph!=undefined){
-            if(evalHandle.l)
+            if(evalHandle.l) {
                 graph.ss();
-            else
+                return true;
+            }
+            else {
                 graph.hm();
+                return false;
+            }
         }
     }
+    //setVisibility
+    sv(label: SN, visible: boolean){
+        let variable = this.e.e.v[label.c];
+        if(variable==undefined)
+            return;
+        let evalHandle = variable.e;
+        let graph = this.s.graphs[label.c];
+        if(evalHandle!=undefined)
+            evalHandle.l = !evalHandle.l;
+        if(graph!=undefined){
+            if(visible) {
+                graph.ss();
+            }
+            else {
+                graph.hm();
+            }
+        }
+    }
+
     /**
      * queryColor
      * Queries for the color of a particular graph with
@@ -340,23 +385,114 @@ class Pi {
             return -1;
     }
     /**
+     * updateColor
+     * Update the particular graph to the specifie dcolor
+     */
+    qq(label: SN, colorName: string){
+        if(this.s.graphs[label.c]!=undefined){
+            let graph =  this.s.graphs[label.c];
+            graph.c = colorName;
+            // @ts-ignore, set color
+            graph.m.color.setHex(graph.qc());
+        }
+    }
+    /**
      * canvasResized
      *
      * Makes an active call to resize the canvas, especially useful
      * for UI drag bar updates
      */
-    cr(){
-        this.s.or();
+    cr() {
+        this.s.onResize();
+    }
+
+    clearFields(){
+        let dc = this.u.defRoot;
+        do{
+            dc.sc.ov("");
+            dc.delete();
+        }while((dc = dc.next)!=null);
+        this.s.onResize();
+    }
+
+    toggleGrids(){
+        this.s.axesHelper.visible = !this.s.axesHelper.visible;
+        for(let gridHelper of this.s.gridHelper){
+            gridHelper.visible = !gridHelper.visible;
+        }
+    }
+
+    /**
+     * @return texSheet the TeX sheet representing the currently populated
+     * statements, along with the graph color and visibility attributes
+     */
+    exportFields():string{
+        let texSheet:EqnExport[] = [];
+        let dc = this.u.defRoot;
+        do{
+            let eqnExport = new EqnExport();
+            eqnExport.tex = dc.sc.getTex();
+            eqnExport.color = dc.colorName;
+            eqnExport.visible = dc.visible;
+            texSheet.push(eqnExport);
+        }while((dc = dc.next)!=null);
+        console.log(texSheet);
+        return JSON.stringify(texSheet,undefined);
+    }
+
+    /**
+     * Injects a field into the UI, returns the label of that corresponding field
+     * @param tex the content of the field injections
+     * @return definitionControl the control handle the injected field
+     */
+    injectField(tex: string):DC{
+        let field = this.u.defRoot.lg().dod();
+        field.sc.ov(tex);
+        // field.sc.a();
+        return field;
+    }
+
+    /**
+     * Load an entire session of statements
+     * @param texSheet json string representing the equation sets
+     */
+    loadTexSheet(texSheet: string){
+        this.clearFields();
+        let eqns:EqnExport[] = JSON.parse(texSheet);
+        for(let i = 0; i<eqns.length; i++){
+            let eqn = eqns[i];
+            let dc: DC;
+            if(i==0){
+                dc = this.u.defRoot;
+                dc.sc.ov(eqn.tex);
+            }else{
+                dc = this.injectField(eqn.tex);
+            }
+            dc.setColor(eqn.color);
+            dc.setVisible(eqn.visible);
+        }
     }
 }
-let p: Pi;
+let p: Pendulum;
+
+function download(filename: string, text: string) {
+    let element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
+    element.click();
+
+    document.body.removeChild(element);
+}
 
 $(()=>{
     let canvas:C = i();
 
-
     // let vector = new Vector3D("example", [1,0,0], [1,1,2]);
-    // vector.constructGeometry({'color': 'lightgray'});
+    // vector.constructGeometry({'color': 'blue'});
     // vector.generateIndices();
     // vector.populate();
     // canvas.addGraph(vector);
@@ -367,8 +503,17 @@ $(()=>{
     // vector1.populate();
     // canvas.addGraph(vector1);
 
-    p = new Pi(canvas);
-    UI.load(p);
+    p = new Pendulum(canvas);
+    // @ts-ignore
+    window.Pendulum = p;
+    // @ts-ignore
+    window.share = ()=>{
+        let texSheet = p.exportFields();
+        download("savedtex.txt", texSheet);
+    }
+    // p.injectField("\\sin (x)+y");
+    p.loadTexSheet(`[{"tex":"a=\\\\left(\\\\cos\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"b=\\\\left(\\\\cos\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"c=\\\\left(\\\\cos\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"d=\\\\left(\\\\cos\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"f=\\\\left(\\\\cos\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"a+\\\\left(b-a\\\\right)u","color":"blue","visible":true},{"tex":"b+\\\\left(c-b\\\\right)u","color":"blue","visible":true},{"tex":"c+\\\\left(d-c\\\\right)u","color":"blue","visible":true},{"tex":"d+\\\\left(f-d\\\\right)u","color":"blue","visible":true},{"tex":"f+\\\\left(a-f\\\\right)u","color":"blue","visible":true},{"tex":"\\\\left(a+\\\\left(b-a\\\\right)u\\\\right)v","color":"purple","visible":true},{"tex":"\\\\left(b+\\\\left(c-b\\\\right)u\\\\right)v","color":"orange","visible":true},{"tex":"\\\\left(c+\\\\left(d-c\\\\right)u\\\\right)v","color":"green","visible":true},{"tex":"\\\\left(d+\\\\left(f-d\\\\right)u\\\\right)v","color":"red","visible":true},{"tex":"\\\\left(f+\\\\left(a-f\\\\right)u\\\\right)v","color":"blue","visible":true}]`);
+    p.toggleGrids();
     // p.updateGraph("sinusoidal", (x,y)=>Math.cos(x*3+p.canvas.time));
 
     // let graph2 = new CartesianGraph("cosinusoidal",(x,y)=>x*y*Math.cos(y+canvas.time)/4);
@@ -388,4 +533,4 @@ $(()=>{
 
 });
 
-export {Pi};
+export {Pendulum};

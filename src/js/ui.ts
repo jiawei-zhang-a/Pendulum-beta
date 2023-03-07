@@ -1,7 +1,7 @@
 /* jshint esversion: 6 */
 import "mathquill/build/mathquill";
 import {SN, R} from "./parser";
-import {Pi} from './pendulum';
+import {Pendulum} from './pendulum';
 // @ts-ignore
 let MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
 
@@ -18,18 +18,29 @@ function getID() {
     return (idGenerator++).toString();
 }
 
-function load(pendulum:Pi){
+class UIHandle{
+    defControls:{[key:string]:DC} = {};
+    defRoot: DC;
+    constructor(defControls: {[key:string]:DC}, defRoot: DC) {
+        this.defControls = defControls;
+        this.defRoot = defRoot;
+    }
+}
+
+let defControls:{[key:string]:DC} = {};
+let uiHandle:UIHandle = new UIHandle(defControls, undefined);
+function load(pendulum:Pendulum){
     loadPendulum(pendulum);
     loadComponents();
     loadDragBar();
     loadDefinitions();
     loadAddBtn();
     loadDefSettingsBtn();
-    return defControls;
+    return uiHandle;
 }
 
-let pendulum: Pi;
-function loadPendulum(p: Pi){
+let pendulum: Pendulum;
+function loadPendulum(p: Pendulum){
     pendulum = p;
 }
 
@@ -107,7 +118,7 @@ function loadDragBar(){
 // Attach the handler
     resizer.addEventListener('mousedown', mouseDownHandler);
 }
-let defRoot: DC = undefined;
+
 function loadDefinitions(){
     let expressionContainers = $('.expression-container');
     let prev:DC = undefined;
@@ -115,8 +126,8 @@ function loadDefinitions(){
         let expression = expressionContainers[i];
         let id = expression.getAttribute('defID');
         let def = new DC(id);
-        if(defRoot == undefined)
-            defRoot = def;
+        if(uiHandle.defRoot == undefined)
+            uiHandle.defRoot = def;
         def.previous=prev;
         if(prev!=undefined)
             prev.next = def;
@@ -157,9 +168,9 @@ function loadAddBtn(){
     addButton.addEventListener("click", addFunction);
 }
 function addFunction(){
-    defRoot.lg().dod();
+    uiHandle.defRoot.lg().dod();
 }
-let defControls:{[key:string]:DC} = {};
+
 /**
  * DefControl
  * Semi-linkedList structure for definition management
@@ -172,11 +183,21 @@ class DC{
     lc: L;
     //statementControl
     sc: C;
+    colorName: string;
+    visible = true;
     constructor(id:string) {
         this.id = id;
         defControls[id] = this;
         this.fin();
         this.du();
+    }
+    setColor(colorName: string){
+        this.colorName = colorName;
+        pendulum.qq(this.lc.label, colorName);
+    }
+    setVisible(visible: boolean){
+        this.visible = visible;
+        pendulum.sv(this.lc.label, visible);
     }
     //InitializeControls
     fin(){
@@ -196,7 +217,7 @@ class DC{
         this.sc.u();
     }
     //Insert
-    pop(defControl: DC){
+    ins(defControl: DC){
         defControl.next = this.next;
         defControl.previous = this;
         if(this.next!=undefined){
@@ -210,13 +231,14 @@ class DC{
         this.lc.insertLabelHTML(newID);
         this.sc.e(newID);
         let newDefControl = new DC(newID);
-        this.pop(newDefControl);
+        this.ins(newDefControl);
+        return newDefControl;
     }
     //delete
-    add(){
-        if(defRoot == this)
+    delete(){
+        if(uiHandle.defRoot == this)
             if(this.next != undefined)
-                this.next = defRoot;
+                uiHandle.defRoot = this.next;
             else
                 return;
         if(this.previous!=undefined)
@@ -288,7 +310,7 @@ class DC{
     du(){
         let oldLabel = this.lc.label;
         this.lc.ht(pendulum.gh(this.sc.r));
-        pendulum.ud(this.id, oldLabel, this.lc.label, this.sc.r);
+        this.colorName = pendulum.ud(this.id, oldLabel, this.lc.label, this.sc.r);
         this.sc.i(pendulum.qc(this.lc.label));
     }
     //getLast
@@ -469,7 +491,7 @@ class C {
                 deleteOutOf: (direction:any) => {
                     if (direction == MQ.L) {
                         this.parent.n();
-                        this.parent.add();
+                        this.parent.delete();
                     }
                 },
                 upOutOf: () => this.parent.n(),
@@ -483,7 +505,7 @@ class C {
     }
     //toggleVisibility
     y(){
-        pendulum.tv(this.p.label);
+        this.parent.visible = pendulum.tv(this.p.label);
         this.i(pendulum.qc(this.p.label));
     }
     //loadStatement
@@ -505,6 +527,12 @@ class C {
     c(){
         if(this.parent.previous!=undefined)
             this.parent.previous.sc.sc.style.removeProperty('border-bottom-width');
+    }
+    getTex(){
+        return this.q.latex();
+    }
+    isEmpty(){
+        return this.q.latex()=="";
     }
     //removeHTML
     d(){
@@ -546,6 +574,10 @@ class C {
         tex+=Math.round(1000*(newValue*0.02-10))/1000;
         MQ.MathField(this.sf).latex(tex);
     }
+    //Override TeX
+    ov(tex: string){
+        this.q.latex(tex);
+    }
     //deleteSliderHTML
     h(){
         if(!this.sn)
@@ -568,5 +600,7 @@ class C {
 
 export  {
     defControls,
-    load
+    DC,
+    load,
+    UIHandle
 };

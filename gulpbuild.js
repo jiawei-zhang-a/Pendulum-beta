@@ -4,9 +4,9 @@ var source = require("vinyl-source-stream");
 var tsify = require("tsify");
 var sourcemaps = require("gulp-sourcemaps");
 var buffer = require("vinyl-buffer");
-var babelify = require("babelify");
-let obfuscator = require("gulp-javascript-obfuscator");
-const minify = require('gulp-minify');
+// var babelify = require("babelify");
+// let obfuscator = require("gulp-javascript-obfuscator");
+// const minify = require('gulp-minify');
 
 var paths = {
     pages: ["src/*.html"],
@@ -31,12 +31,12 @@ gulp.task(
             entries: ["src/js/pendulum.ts"],
             cache: {},
             packageCache: {},
-        }).plugin(tsify, {target: 'es6'})
-            .transform(babelify.configure({extensions: [".ts",".js"]}))
+        }).plugin(tsify, {extensions:['js','ts']})
+            // .transform(babelify.configure({extensions: [".ts",".js"]}))
             .bundle()
             .pipe(source("index.js"))
             .pipe(buffer())
-            // .pipe(sourcemaps.init({ loadMaps: true }))
+            .pipe(sourcemaps.init({ loadMaps: true }))
             // .pipe(obfuscator(
             //     {
             //         compact: true,
@@ -60,8 +60,8 @@ gulp.task(
             //         renamePropertiesMode: 'safe',
             //     }
             // ))
-            .pipe(minify())
-            // .pipe(sourcemaps.write("./"))
+            // .pipe(minify())
+            .pipe(sourcemaps.write("./"))
             .pipe(gulp.dest("dist/js"));
     })
 );

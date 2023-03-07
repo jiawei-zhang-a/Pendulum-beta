@@ -48,7 +48,7 @@ let macros:MStruct = {
     '{': ['{', 'openstruct', 0],
     '}': ['}', 'closestruct', 0],
     '(': ['(', 'openstruct', 0],
-    ')': ['(', 'closestruct', 0],
+    ')': [')', 'closestruct', 0],
     ',': [',', 'optstruct', 0],
     '$': ['$', 'closestruct', 0],
     '+': ['add', 'operator', 0],
@@ -556,11 +556,11 @@ class R {
         } catch (e) {
             //console.log(e);
         }
-        //console.log(this.tl);
+        console.log(this.tl);
         let statementTree = this.s(this.tl);
         this.e(statementTree);
-        //console.log('Statement Tree: ')
-        //console.log(statementTree);
+        console.log('Statement Tree: ')
+        console.log(statementTree);
         return statementTree;
     }
 
