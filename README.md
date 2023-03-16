@@ -3,6 +3,35 @@
 ## Resources
 [Development log](https://github.com/YuelongLi/Pendulum-beta/blob/main/Devlog.md) is available but not up to date. For implementation details, please see [documentation](https://github.com/YuelongLi/Pendulum-beta/blob/main/doc/DOCUMENTATION.md).
 
+## Basic Usage
+Default variable bindings:
+* `x` - x coordinate
+    * In scalar expressions: cartesian independent variable, activates z-cartesian surface
+    * In vector expressions: cartesian coordinate of the vector, activates vector field
+* `y` - y coordinate
+    * In scalar expressions: cartesian independent variable, activates a z-cartesian surface, 
+    * In vector expressions: cartesian y-coordinate of the vector, activates vector field
+* `z` - z coordinate, cartesian dependent variable
+    * In scalar expressions: cartesian dependent variable
+    * In vector expressions: cartesian z-coordinate of the vector, activates vector field
+* `u` - first parametric variable, activated in vector expressiones, populated by Pendulum in [0,1]
+    * Vector expressions with only `u` and not `v` are treated as 1 dimensional parametric functions
+    * `x, y, z` takes precedence in specifying fields
+* `v` - second parametric variable, activated in vector expressions, populated by Pendulum in [0,1]
+       * Vector expressions with `v` are treated as 2 dimensional parametric functions
+ * `x, y, z` takes precedence in specifying fields, `u` and `v` then treated as algebraic variables
+* `i` - the imaginary unit, activated in all expressions, visualizations casts $f\in\mathbb{C}$ to $\mathbb{R}$ by taking its real part
+* `e` - the Euler's constant
+* Any other alphabet letters are treated as algebraic variables, and can be specified in separate expressions, or left unspecified in the left hand side for explicit definition (or left unspecified in anywhere in the expression for implicit definition, in the future).
+
+Supported Operations (all extend to complex fields)
+* $+$, $-$, $\times$, $\frac{...}{...}$, `^` (scalar)
+* `+`, `-`, `\times`, `\cdot` (vectors) (cross product, dot product if operands are both vectors)
+* $\sum...$, $\prod ...$ (any with explicit lower and upper bounds)
+* `\cos`, `\sin`, `\tan`, `\cot` (real scalar)
+* `\log` (scalar)
+* $\nabla$, $\nabla \times$ (vector fields)
+
 ## API Usage
 Pendulum API can be used for automating or customizing visualizations.
 ```typescript
