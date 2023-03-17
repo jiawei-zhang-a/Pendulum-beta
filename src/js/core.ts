@@ -795,22 +795,21 @@ class Arithmetics {
     }
 
     dot(a:Number, b:Number): Number {
-        if(a instanceof Q && b instanceof Q)
-            if(a.type==4&&b.type==4){
-                if(a.size==b.size && a.size>0){
+        if (a instanceof Q && b instanceof Q)
+            if (a.type == 4 && b.type == 4) {
+                if (a.size == b.size && a.size > 0) {
                     let c = this.dot(a.data[0], b.data[0]);
-                    for(let i = 1; i < a.size ;i++){
+                    for (let i = 1; i < a.size; i++) {
                         c = this.add(c, this.dot(a.data[0], b.data[0]));
                     }
                     Arithmetics.recycle(a);
                     Arithmetics.recycle(b);
                     return c;
-                }else
+                } else
                     throw new AE("Cannot dot product vectors of different dimensions");
             }
         return this.invisDot(a, b);
     }
-
 
     private static getType(q: Number){
         if(q instanceof Q)

@@ -168,6 +168,17 @@ body {
     user-select: none;
 }
 
+#githubLink {
+    display: block;
+    background: #555555;
+    color: lightgrey;
+    user-select: none;
+    vertical-align: middle;
+    line-height: 1;
+    margin: auto;
+    margin-bottom: 5pt;
+}
+
 #basic {
     padding: 20px;
     border: none;
