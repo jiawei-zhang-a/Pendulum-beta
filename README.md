@@ -100,31 +100,43 @@ Result: *downloads a txt file containing the equation sheet string:
 ```
 ### UI Presets
 
-# Documentation
-A brief log of the important design decisions and implementations made along the way.
 ## Project setup
 
 ### Node
-``npm init``r
-Prompts the project setup procedures, and creates package.json.
+To get started with this project, you will need to have Node.js installed on
+your system. You can download and install it from the official website:
+https://nodejs.org/en/.
 
-Reference: https://docs.npmjs.com/cli/v7/commands/npm-init
+Once Node.js is installed, you can follow these steps to build and run the
+project:
 
-### Typescript
-Standard language of the project for modular development
+To install the project dependencies, open a terminal or command prompt and
+navigate to the project directory. Then run the following command:
+```
+npm install
+```
 
-Reference: https://robertcooper.me/post/get-started-with-typescript-in-2019
+To build the project, run the following command:
+```
+gulp
+```
+This will run the `gulpfile.js` file, which contains the Gulp tasks to build the
+project.
 
-`npm install --save-dev typescript` local installation
+To compile the project use
+```
+tsc
+``` 
+for one-time transpiling, or
+```
+tsc -p
+```
+for automated transpiling.
 
-### Compilation
-To ensure simplicity of the development environment, I will experiment with using only the typescript transpiler in the development phase
-and do away with Grunt. Create a tsconfig.json file with `tsc --init`. 
+The the project can be viewed at the `src/index.html` file. 
 
-`tsc` for one-time transpiling
-
-`tsc -p` for automated transpiling
-
+## Documentation
+A brief log of the important design decisions and implementations made along the way.
 
 ### Source Mapping
 Typescript provides the functionality for source mapping as an option in ts-config.json. A thorough introduction to the options for 
