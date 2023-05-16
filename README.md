@@ -114,24 +114,15 @@ To install the project dependencies, open a terminal or command prompt and
 navigate to the project directory. Then run the following command:
 ```
 npm install
+npm install --global gulp-cli
 ```
 
 To build the project, run the following command:
 ```
-gulp
+gulp --buildfile gulpbuild.js
 ```
 This will run the `gulpfile.js` file, which contains the Gulp tasks to build the
 project.
-
-To compile the project use
-```
-tsc
-``` 
-for one-time transpiling, or
-```
-tsc -p
-```
-for automated transpiling.
 
 The the project can be viewed at the `src/index.html` file. 
 
