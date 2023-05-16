@@ -124,7 +124,7 @@ gulp --buildfile gulpbuild.js
 This will run the `gulpfile.js` file, which contains the Gulp tasks to build the
 project.
 
-The the project can be viewed at the `src/index.html` file. 
+The the project can be viewed at the `dist/index.html` file. 
 
 ## Documentation
 A brief log of the important design decisions and implementations made along the way.
