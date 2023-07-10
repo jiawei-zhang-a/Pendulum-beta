@@ -11,7 +11,8 @@ You can try the following expressions in the calculator's expression field by co
 * A wavy plane: `\sin(x)+\cos(y)`
 * A morphism between a cone and a wavy plane: `\cos(t/4)^2\sqrt{x^2+y^2}+\sin(t/4)^2\sin(x)+\cos(y)`.
 
-Clear all the equations with back spacing, and paste the following parametric:
+Clear all the equations with back spacing, and paste the following parametric functions:
+* A trefoil knot `(\cos(2\piu)(1+0.5\cos(6\piu)), \sin(2\piu)(1+0.5\cos(6\piu)), 0.5\sin(6\piu))`
 * A donut: `a=(\cos(2\piu)(1+0.5\cos(2\piv)), \sin(2\piu)(1+0.5\cos(2\piv)), 0.5\sin(2\piv))`
 * A sphere: `b=(\cos(2\piu)\sin(\piv), \sin(2\piu)\sin(\piv), \cos(\piv))`
 * A morphism between a donut and a sphere: `\cos(t/4)^2a+\sin(t/4)^2b`.
@@ -26,6 +27,8 @@ Clear again, and try vector fields:
 * A vector field with curl: `(y,z,x)`
 * Their cross product: `(x,y,z)\times(y,z,x)`.
 
+To test your knowledge, you can try making a trefoil knot that spins around the z-axis at a 1 revolution per
+second rate.
 
 ## Basic Usage
 ### Key Concepts
@@ -139,3 +142,13 @@ Result: *downloads a txt file containing the equation sheet string:
 ```json
 [{"tex":"a=\\\\left(\\\\cos\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"b=\\\\left(\\\\cos\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"c=\\\\left(\\\\cos\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"d=\\\\left(\\\\cos\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"f=\\\\left(\\\\cos\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"a+\\\\left(b-a\\\\right)u","color":"blue","visible":true},{"tex":"b+\\\\left(c-b\\\\right)u","color":"blue","visible":true},{"tex":"c+\\\\left(d-c\\\\right)u","color":"blue","visible":true},{"tex":"d+\\\\left(f-d\\\\right)u","color":"blue","visible":true},{"tex":"f+\\\\left(a-f\\\\right)u","color":"blue","visible":true},{"tex":"\\\\left(a+\\\\left(b-a\\\\right)u\\\\right)v","color":"purple","visible":true},{"tex":"\\\\left(b+\\\\left(c-b\\\\right)u\\\\right)v","color":"orange","visible":true},{"tex":"\\\\left(c+\\\\left(d-c\\\\right)u\\\\right)v","color":"green","visible":true},{"tex":"\\\\left(d+\\\\left(f-d\\\\right)u\\\\right)v","color":"red","visible":true},{"tex":"\\\\left(f+\\\\left(a-f\\\\right)u\\\\right)v","color":"blue","visible":true}]
 ```
+
+## //TODOs
+1. Fix parenthesis parsing.
+2. Add complex support for basic trig functions `\sin`, `\cos`.
+3. Add support for anti-trig functions `\arctan`, `\arcsin` etc.
+4. Add proper examples.
+5. Publish stable build.
+6. Pull from embeddable.
+7. Create tests.
+8. Field line tracing with GLSL?
