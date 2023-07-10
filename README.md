@@ -151,4 +151,8 @@ Result: *downloads a txt file containing the equation sheet string:
 5. Publish stable build.
 6. Pull from embeddable.
 7. Create tests.
-8. Field line tracing with GLSL?
+8. Add parametric type forcing.
+9. Write instructions for Geodesics calculator usage
+10. Field line tracing with GLSL?
+
+Distant future: integration of core with CUDA?
