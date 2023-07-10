@@ -1,5 +1,5 @@
 # Pendulum (Beta)
-
+![img.png](images/homepage.png)
 ## Getting started
 The current stable build of this software is available at https://cloudnest.org/pendulum/beta/. There is also a demo calculator
 for calculating geodesics on revolutionary surfaces built on top of Pendulum available at https://cloudnest.org/pendulum/geodesics/.
