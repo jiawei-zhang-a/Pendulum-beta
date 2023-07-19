@@ -12,9 +12,9 @@ You can try the following expressions in the calculator's expression field by co
 * A morphism between a cone and a wavy plane: `\cos(t/4)^2\sqrt{x^2+y^2}+\sin(t/4)^2\sin(x)+\cos(y)`.
 
 Clear all the equations with back spacing, and paste the following parametric functions:
-* A trefoil knot `(\cos(2\piu)(1+0.5\cos(6\piu)), \sin(2\piu)(1+0.5\cos(6\piu)), 0.5\sin(6\piu))`
-* A donut: `a=(\cos(2\piu)(1+0.5\cos(2\piv)), \sin(2\piu)(1+0.5\cos(2\piv)), 0.5\sin(2\piv))`
-* A sphere: `b=(\cos(2\piu)\sin(\piv), \sin(2\piu)\sin(\piv), \cos(\piv))`
+* A trefoil knot `(\cos (4\pi u)(1+0.5\cos (6\pi u)),\sin (4\pi u)(1+0.5\cos (6\pi u)),0.5\sin (6\pi u))`
+* A donut: `a=(\cos(2\pi u)(1+0.5\cos(2\pi v)), \sin(2\pi u)(1+0.5\cos(2\pi v)), 0.5\sin(2\pi v))`
+* A sphere: `b=(\cos(2\pi u)\sin(\pi v), \sin(2\pi u)\sin(\pi v), \cos(\pi v))`
 * A morphism between a donut and a sphere: `\cos(t/4)^2a+\sin(t/4)^2b`.
 
 Clear again, and try the following complex expressions:
