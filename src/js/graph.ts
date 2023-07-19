@@ -647,13 +647,13 @@ class VF extends G {
             }
         }
         this.s = new THREE.Group();
-        // for (let v of vs) {
-        //     let vec3d = new VD(v.toString(), this.vecFunc,
-        //         () => v);
-        //     vectors.push(vec3d);
-        //     vec3d.cg(param);
-        //     this.s.add(vec3d.s);
-        // }
+        for (let v of vs) {
+            let vec3d = new VD(v.toString(), this.vecFunc,
+                () => v);
+            vectors.push(vec3d);
+            vec3d.cg(param);
+            this.s.add(vec3d.s);
+        }
         for(let trace of this.traces){
             trace.cg(param);
             trace.gi();
@@ -665,9 +665,9 @@ class VF extends G {
     }
 
     pu(): void {
-        // for (let vector3D of this.vector3Ds) {
-        //     vector3D.pu();
-        // }
+        for (let vector3D of this.vector3Ds) {
+            vector3D.pu();
+        }
 
         for (let trace of this.traces) {
             trace.pu();
@@ -683,9 +683,9 @@ class VF extends G {
     //updateVecFunc
     uv(vecFunc: (...baseVec: number[]) => number[]) {
         this.vecFunc = vecFunc;
-        // for (let vector3d of this.vector3Ds) {
-        //     vector3d.vector = this.vecFunc;
-        // }
+        for (let vector3d of this.vector3Ds) {
+            vector3d.vector = this.vecFunc;
+        }
         for(let trace of this.traces){
             trace.updateVecFunc(this.vecFunc);
         }

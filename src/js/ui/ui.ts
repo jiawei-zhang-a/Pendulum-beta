@@ -1,7 +1,8 @@
 /* jshint esversion: 6 */
 import "mathquill/build/mathquill";
-import {SN, R} from "./parser";
-import {Pendulum} from './pendulum';
+import {SN, R} from "../parser";
+import {Pendulum} from '../pendulum';
+// import SettingsCard from "./SettingsCard";
 // @ts-ignore
 let MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
 
@@ -598,6 +599,28 @@ class C {
         }else
             this.cb.style.background = invisibleBackground;
     }
+
+    // addSettingsCard() {
+    //     const settingsCard = new SettingsCard(this.id);
+    //
+    //     this.cb.addEventListener('contextmenu', (e: MouseEvent) => {
+    //         e.preventDefault();
+    //         settingsCard.fetchSettings();
+    //     });
+    //
+    //     let hoverTimer: number | null = null;
+    //     this.cb.addEventListener('mouseover', () => {
+    //         hoverTimer = window.setTimeout(() => {
+    //             settingsCard.fetchSettings();
+    //         }, 2000); // 2 seconds of hovering
+    //     });
+    //
+    //     this.cb.addEventListener('mouseout', () => {
+    //         if (hoverTimer) {
+    //             clearTimeout(hoverTimer);
+    //         }
+    //     });
+    // }
 }
 
 export  {

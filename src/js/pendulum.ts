@@ -1,4 +1,4 @@
-import * as UI from './ui';
+import * as UI from './ui/ui';
 import {i, C, G, CG} from './graphics';
 import {
     CGT,
@@ -14,7 +14,7 @@ import {
 import {S, L, Q, RE} from "./core";
 import {SN} from "./parser";
 import {cylindricalSteppedPressure, graphCylindrical, ode} from "./program";
-import {DC, UIHandle} from "./ui";
+import {DC, UIHandle} from "./ui/ui";
 // import {Portal} from "function-link";
 
 class EqnExport{
