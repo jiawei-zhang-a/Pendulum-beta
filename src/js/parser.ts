@@ -490,7 +490,7 @@ class SN {
     //subClauses
     sc: SN[] = [];
     //token
-    s: T;
+    token: T;
     //type '#' for number, '$' for variable, 'func$' for functional variable, 'operator' for operator.
     t: string;
 
@@ -556,7 +556,7 @@ class R {
         } catch (e) {
             //console.log(e);
         }
-        // console.log(this.tl);
+        console.log(this.tl);
         let statementTree = this.s(this.tl);
         this.e(statementTree);
         // console.log('Statement Tree: ');
@@ -657,7 +657,7 @@ class R {
                 let node = new SN();
                 node.t = token.t;
                 node.c = token.c;
-                node.s = token;
+                node.token = token;
                 tray.push(node);
             }else if(token.t == 'function' ||token.t == 'operator'){
                 while(shuntingYard.length!=0&&shuntingYard[shuntingYard.length-1].t!='openstruct'
@@ -673,7 +673,9 @@ class R {
                 //This clause also needs to take care of the unmatched close struct in the token list or subclauses
                 let operator;
                 while(shuntingYard.length!= 0 && f[(operator=shuntingYard.pop()).c]!=token.c){
-                    this.c(operator, tray);
+                    if(operator.t!='openstruct')
+                        this.c(operator, tray);
+                    else throw new SyntaxError("Unmatched parenthesis");
                 }
                 //After parenthesis, check one element down the parse stack for function invocation
                 if(operator!=undefined&&operator.t=='openstruct'&&
@@ -685,7 +687,7 @@ class R {
                     operator.sn.push(tray.pop());
                     let node = new SN();
                     node.ch = operator.sn;
-                    node.s = operator;
+                    node.token = operator;
                     node.c = '$Q';
                     switch (token.c){
                         case ')':
@@ -703,7 +705,7 @@ class R {
                     let node  = new SN();
                     node.t = '$';
                     node.c = token.sc[0][0].c;
-                    node.s = token.sc[0][0];
+                    node.token = token.sc[0][0];
                     if(tray.length==0)
                         tray.push(node);
                 }
@@ -736,7 +738,7 @@ class R {
         let node = new SN();
         node.t = operator.t;
         node.c = operator.c;
-        node.s = operator;
+        node.token = operator;
         let operandCount = this.o[operator.c][2];
         for(let i = 0; i<operandCount; i++){
             node.ch[operandCount-i-1]=tray.pop();
@@ -751,11 +753,11 @@ class R {
     e(node: SN) {
         if (node==undefined)
             return;
-        if (node.s.sc != undefined && node.s.sc.length != 0) {
-            node.sc = new Array<SN>(node.s.sc.length);
+        if (node.token.sc != undefined && node.token.sc.length != 0) {
+            node.sc = new Array<SN>(node.token.sc.length);
             // Parse subclauses of this node recursively.
-            for (let i = 0; i < node.s.sc.length; i++) {
-                let tokens = node.s.sc[i];
+            for (let i = 0; i < node.token.sc.length; i++) {
+                let tokens = node.token.sc[i];
                 let subnode = this.s(tokens);
                 node.sc[i] = subnode;
                 this.e(subnode);
