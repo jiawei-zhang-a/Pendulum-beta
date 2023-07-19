@@ -414,9 +414,10 @@ class Pendulum {
         }while((dc = dc.next)!=null);
         this.s.onResize();
     }
-
-    toggleGrids(){
+    toggleAxes(){
         this.s.axesHelper.visible = !this.s.axesHelper.visible;
+    }
+    toggleGrids(){
         for(let gridHelper of this.s.gridHelper){
             gridHelper.visible = !gridHelper.visible;
         }
@@ -480,6 +481,8 @@ class Pendulum {
         this.s.camera.up.set(0, 0, 1);
         //@ts-ignore
         this.s.camera.zoom = 1;
+        //@ts-ignore
+        this.s.camera.clearViewOffset();
         //@ts-ignore
         this.s.camera.updateProjectionMatrix();
         this.s.updateScale(this.s.getScale());

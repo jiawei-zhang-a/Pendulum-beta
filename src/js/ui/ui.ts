@@ -2,6 +2,8 @@
 import "mathquill/build/mathquill";
 import {SN, R} from "../parser";
 import {Pendulum} from '../pendulum';
+import {Cache} from "three";
+import clear = Cache.clear;
 // import SettingsCard from "./SettingsCard";
 // @ts-ignore
 let MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
@@ -13,10 +15,15 @@ let MQ = MathQuill.getInterface(MathQuill.getInterface.MAX);
 //     "{": "Object"
 // };
 
+//Immutable, strictly incremental
 let idGenerator = 1;
-
 function getID() {
     return (idGenerator++).toString();
+}
+//Mutable
+let indexCounter = 1;
+function getIndex(){
+    return (indexCounter++).toString();
 }
 
 class UIHandle{
@@ -33,6 +40,7 @@ let uiHandle:UIHandle = new UIHandle(defControls, undefined);
 function load(pendulum:Pendulum){
     loadPendulum(pendulum);
     loadComponents();
+    loadClearButton();
     loadDragBar();
     loadDefinitions();
     loadAddBtn();
@@ -53,7 +61,8 @@ let resizer: HTMLElement,
     addButton: HTMLElement,
     navBar: HTMLElement,
     mathPanel: HTMLElement,
-    defBar: HTMLElement;
+    defBar: HTMLElement,
+    clearButton: HTMLElement;
 
 function loadComponents(){
     resizer = document.getElementById('dragBar');
@@ -65,6 +74,20 @@ function loadComponents(){
     navBar = document.getElementById("navbar");
     mathPanel = document.getElementById("mathpanel");
     defBar = document.getElementById('object-bar');
+    clearButton = document.getElementById('clearButton');
+}
+function loadClearButton(){
+    let clearReady = false;
+    clearButton.onclick= ()=>{
+        if(!clearReady){
+            clearButton.style.backgroundColor='red';
+            clearReady = true;
+        }else{
+            clearReady = false;
+            clearButton.style.backgroundColor="";
+            pendulum.clearFields();
+        }
+    };
 }
 
 function loadDragBar(){
@@ -242,8 +265,13 @@ class DC{
         if(uiHandle.defRoot == this)
             if(this.next != undefined)
                 uiHandle.defRoot = this.next;
-            else
+            else{//Reset the field labeling upon final delete
+                this.sc.ov("");
+                this.lc.defaultLabelIndex = '1';
+                this.lc.ht(undefined);
+                indexCounter = 2;
                 return;
+            }
         if(this.previous!=undefined)
             this.previous.next = this.next;
         if(this.next!=undefined)
@@ -333,6 +361,7 @@ class L {
     //labelField
     public fl:HTMLElement;
     public type = ':';
+    public defaultLabelIndex = getIndex();
     //statementControl
     public b:C;
     public label: SN;
@@ -372,7 +401,7 @@ class L {
     //setHint
     ht(hint: string){
         if(hint==undefined)
-            this.ot=this.id;
+            this.ot=this.defaultLabelIndex;
         else
             this.ot=`\\left(${hint}\\right)`;
         if(this.o){
@@ -415,6 +444,11 @@ class L {
     insertLabelHTML(newID: string) {
         let html = $.parseHTML(`<div class="name-container" id="${newID}-label" defID="${newID}"> <div class="name"></div> <div class="type">:</div></div>`);
         this.lc.parentNode.insertBefore(html[0], this.lc.nextSibling);
+    }
+
+    //Override TeX
+    ov(tex: string){
+        this.mq.latex(tex);
     }
 }
 const invisibleBackground = `repeating-linear-gradient(
