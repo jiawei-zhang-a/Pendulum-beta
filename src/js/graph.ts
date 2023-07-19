@@ -27,9 +27,10 @@ const colors: { [key: string]: number } = {
     air: 0xf0f8ff,
     steelBlue: 0x4377bf,
     yellow: 0xeeee22,
+    aliceblue: 0xa0a8ff
 };
 
-function cm(type: string, color: string, clipOverflow = true, clipDistance = 6) {
+function cm(type: string, color: string, fog=false, clipOverflow = true, clipDistance = 6) {
     let material: THREE.Material;
     switch (type) {
         case "standard":
@@ -60,8 +61,8 @@ function cm(type: string, color: string, clipOverflow = true, clipDistance = 6) 
             //@ts-ignore
             material = new THREE.LineBasicMaterial({
                 color: colors[color],
-                opacity: 1,
-                linewidth: 1
+                opacity: 0.8,
+                linewidth: 0.9
             });
             break;
         case "line2":
@@ -108,6 +109,7 @@ function cm(type: string, color: string, clipOverflow = true, clipDistance = 6) 
             new THREE.Plane(new THREE.Vector3(0, 0, -1), clipDistance),
         ];
     }
+    material.fog = fog;
     return material;
 }
 
@@ -265,7 +267,7 @@ class CG extends G {
     }
 
     cg(param: { [key: string]: string } =
-                          {'material': "standard", 'color': "blue"}): void {
+           {'material': "standard", 'color': "blue"}): void {
         this.g = new THREE.BufferGeometry();
         this.c = (param['color']) ? param['color'] : 'blue';
         this.g.setAttribute('position', new THREE.BufferAttribute(this.v, 3));
@@ -423,23 +425,23 @@ class CAG extends CG{
      * @param vCount # of vertices + 1 in the v direction
      */
     async pu(mapping = this.mp, uCount = this.uc, vCount = this.vc) {
-       if(!this.pending){
-           this.pending = true;
-           let wait = ()=>{
-               if(this.timeLeft>0){
-                   this.timeLeft--;
-                   setTimeout(wait, 1);
-               }else{
-                   this.timeLeft = this.threshold;
-                   //console.log("populating, time out in: "+this.timeLeft);
-                   this.proxyPopulate(mapping, uCount, vCount);
-                   this.pending = false;
-               }
-           }
-           wait();
-       }else{
-           this.timeLeft = this.threshold;
-       }
+        if(!this.pending){
+            this.pending = true;
+            let wait = ()=>{
+                if(this.timeLeft>0){
+                    this.timeLeft--;
+                    setTimeout(wait, 1);
+                }else{
+                    this.timeLeft = this.threshold;
+                    //console.log("populating, time out in: "+this.timeLeft);
+                    this.proxyPopulate(mapping, uCount, vCount);
+                    this.pending = false;
+                }
+            }
+            wait();
+        }else{
+            this.timeLeft = this.threshold;
+        }
     }
     proxyPopulate(mapping = this.mp, uCount = this.uc, vCount = this.vc){
         for (let i = 0; i <= uCount; i++) {
@@ -537,7 +539,7 @@ class CGT extends G {
     }
 
     cg(param: { [key: string]: string } =
-                          {'material': "standard", 'color': "blue"}): void {
+           {'material': "standard", 'color': "blue"}): void {
         this.g = new THREE.BufferGeometry();
         this.m = cm('line',
             (param['color']) ? param['color'] : 'blue');
@@ -634,12 +636,14 @@ class VF extends G {
             }
         }
 
-        for(let x0 = -5; x0<=5; x0+=1.25){
-            for(let z0 = -5; z0<=5; z0+=1.25){
-                let v0 = [x0, 0, z0];
-                this.traces.push(new LineTrace(v0.toString(), this.vecFunc, v0));
-                let v01 = [0, x0, z0];
-                this.traces.push(new LineTrace(v01.toString(), this.vecFunc, v01));
+        for(let x0 = -5; x0<=5; x0+=2){
+            for(let y0 = -5; y0<=5; y0+=2){
+                for(let z0 = -5; z0<=5; z0+=2){
+                    let v0 = [x0, y0, z0];
+                    this.traces.push(new LineTrace(v0.toString(), this.vecFunc, v0));
+                    // let v01 = [0, x0, z0];
+                    // this.traces.push(new LineTrace(v01.toString(), this.vecFunc, v01));
+                }
             }
         }
         this.s = new THREE.Group();
@@ -683,7 +687,7 @@ class VF extends G {
         //     vector3d.vector = this.vecFunc;
         // }
         for(let trace of this.traces){
-            trace.d = this.vecFunc;
+            trace.updateVecFunc(this.vecFunc);
         }
     }
 }
@@ -795,7 +799,8 @@ class VD extends G {
     }
 
     transform() {
-        let length = Math.sqrt(this.rv.length());
+        // let length = Math.sqrt(this.rv.length());
+        let length = 1.2;
         this.cylinderMesh.scale.set(length, length, length);
         this.coneMesh.scale.set(length, length, length);
         //@ts-ignore
@@ -904,7 +909,7 @@ class PS extends G {
     }
 
     cg(param: { [key: string]: string } =
-                          {'material': "standard", 'color': "blue"}): void {
+           {'material': "standard", 'color': "blue"}): void {
         this.g = new THREE.BufferGeometry();
         this.c = (param['color']) ? param['color'] : 'blue';
         this.g.setAttribute('position', new THREE.BufferAttribute(this.v, 3));
@@ -1004,7 +1009,7 @@ class P extends G {
     }
 
     cg(param: { [key: string]: string } =
-                          {'material': "standard", 'color': "blue"}): void {
+           {'material': "standard", 'color': "blue"}): void {
         this.g = new LineGeometry();
         this.c = (param['color']) ? param['color'] : 'blue';
         this.m = cm('line2',
@@ -1092,8 +1097,7 @@ class LineTrace extends G {
     //Create index overheads >3721*6
     indices: number[] = [];
     d: (...baseVec: number[]) => number[];
-    vecDataInterface: (t:number, n:Vec[])=>Vec;
-    uCount = 250;
+    uCount = 100;
     vCount = 1000;
     v0: number[];
 
@@ -1103,24 +1107,31 @@ class LineTrace extends G {
      * @param v0
      * @param uCount
      */
-    constructor(name: string, dataInterface: (...baseVec: number[]) => number[], v0: number[], uCount = 100) {
+    constructor(name: string, dataInterface: (...baseVec: number[]) => number[], v0: number[], uCount = 50) {
         super(name);
         this.geometry = new THREE.BufferGeometry();
-        this.d = dataInterface;
         const holder = new Vec();
-        this.vecDataInterface = (t,n)=>{
-            holder.components = this.d(...n[0].components);
-            return holder;
+        this.d = (x,y,z)=>{
+            let vec =holder.set(...dataInterface(x,y,z));
+            return [...vec.normalize(vec).multiply(2,vec).components];
         };
         this.uCount = uCount;
         this.v0 = v0;
     }
 
+    updateVecFunc(vecFunc: (...baseVec: number[])=>number[]){
+        const holder = new Vec();
+        this.d = (x,y,z)=>{
+            let vec =holder.set(...vecFunc(x,y,z));
+            return [...vec.normalize(vec).multiply(2,vec).components];
+        };
+    }
+
     cg(param: { [key: string]: string } =
-                          {'material': "opaque", 'color': "blue"}): void {
+           {'material': "opaque", 'color': "blue"}): void {
         this.geometry = new THREE.BufferGeometry();
         this.m = cm('line',
-            (param['color']) ? param['color'] : 'blue');
+            (param['color']) ? param['color'] : 'blue',true);
         this.s = new THREE.Line(this.geometry, this.m);
         this.s.name = this.n;
     }
@@ -1150,7 +1161,7 @@ class LineTrace extends G {
      * @param uCount # of vertices + 1 in the u direction
      * @param dt
      */
-    pu(uCount = this.uCount, dt = 0.01): void {
+    pu(uCount = this.uCount, dt = 0.02): void {
         this.vertices.length=0
         let trace = [...this.v0];
         for (let i = 0; i <= uCount; i++) {
