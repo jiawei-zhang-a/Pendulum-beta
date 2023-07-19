@@ -108,7 +108,7 @@ class C {
     }
 
     //onCameraUpdate
-    ocu(e: Event){
+    ocu(){
         this.updateCameraOrientation();
     }
 
@@ -153,16 +153,25 @@ class C {
             let scale = new THREE.Vector3(1,1,1).applyMatrix4(this.camera.projectionMatrixInverse);
             scale.z = scale.y;
             scale.x = scale.y;
-            for(let key in this.graphs){
-                let graph = this.graphs[key];
-                graph.sb(
-                    [[-scale.x/2, scale.x/2],
-                        [-scale.y/2, scale.y/2],
-                        [-scale.z/2, scale.z/2]]);
-                graph.pu();
-                graph.u();
-            }
+            this.updateScale(scale)
         });
+    }
+    getScale(){
+        let scale = new THREE.Vector3(1,1,1).applyMatrix4(this.camera.projectionMatrixInverse);
+        scale.z = scale.y;
+        scale.x = scale.y;
+        return scale;
+    }
+    updateScale(scale: THREE.Vector3){
+        for(let key in this.graphs){
+            let graph = this.graphs[key];
+            graph.sb(
+                [[-scale.x/2, scale.x/2],
+                    [-scale.y/2, scale.y/2],
+                    [-scale.z/2, scale.z/2]]);
+            graph.pu();
+            graph.u();
+        }
     }
 }
 

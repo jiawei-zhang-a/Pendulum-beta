@@ -61,8 +61,8 @@ function cm(type: string, color: string, fog=false, clipOverflow = true, clipDis
             //@ts-ignore
             material = new THREE.LineBasicMaterial({
                 color: colors[color],
-                opacity: 0.8,
-                linewidth: 0.9
+                opacity: 0.9,
+                linewidth: 1.1
             });
             break;
         case "line2":
@@ -628,9 +628,9 @@ class VF extends G {
         let func = (t: number) => {
             return -5 + 10 * t;
         };
-        for (let i = 0; i < 1; i += 0.1) {
-            for (let j = 0; j < 1; j += 0.1) {
-                for (let k = 0; k < 1; k += 0.1) {
+        for (let i = 0; i <= 1.01; i += 0.2) {
+            for (let j = 0; j <= 1.01; j += 0.2) {
+                for (let k = 0; k <= 1.01; k += 0.2) {
                     vs.push([func(i), func(j), func(k)]);
                 }
             }

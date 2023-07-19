@@ -472,6 +472,33 @@ class Pendulum {
             dc.setVisible(eqn.visible);
         }
     }
+    resetScene(){
+        this.s.camera.position.y = -12;
+        this.s.camera.position.x = 0;
+        this.s.camera.position.z = 0;
+        this.s.camera.lookAt(0, 0, 0);
+        this.s.camera.up.set(0, 0, 1);
+        //@ts-ignore
+        this.s.camera.zoom = 1;
+        //@ts-ignore
+        this.s.camera.updateProjectionMatrix();
+        this.s.updateScale(this.s.getScale());
+        this.s.ocu();
+    }
+    zoomIn(){
+        //@ts-ignore
+        this.s.camera.zoom*=1.2;
+        //@ts-ignore
+        this.s.camera.updateProjectionMatrix();
+        this.s.updateScale(this.s.getScale());
+    }
+    zoomOut(){
+        //@ts-ignore
+        this.s.camera.zoom*=0.8;
+        //@ts-ignore
+        this.s.camera.updateProjectionMatrix();
+        this.s.updateScale(this.s.getScale());
+    }
 }
 let p: Pendulum;
 
@@ -510,6 +537,18 @@ $(()=>{
     window.share = ()=>{
         let texSheet = p.exportFields();
         download("savedtex.txt", texSheet);
+    }
+    // @ts-ignore
+    window.resetScene = ()=>{
+        p.resetScene();
+    }
+    // @ts-ignore
+    window.zoomIn = ()=>{
+        p.zoomIn();
+    }
+    // @ts-ignore
+    window.zoomOut = ()=>{
+        p.zoomOut();
     }
     // p.injectField("\\sin (x)+y");
     // p.loadTexSheet(`[{"tex":"a=\\\\left(\\\\cos\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"b=\\\\left(\\\\cos\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"c=\\\\left(\\\\cos\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"d=\\\\left(\\\\cos\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"f=\\\\left(\\\\cos\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"a+\\\\left(b-a\\\\right)u","color":"blue","visible":true},{"tex":"b+\\\\left(c-b\\\\right)u","color":"blue","visible":true},{"tex":"c+\\\\left(d-c\\\\right)u","color":"blue","visible":true},{"tex":"d+\\\\left(f-d\\\\right)u","color":"blue","visible":true},{"tex":"f+\\\\left(a-f\\\\right)u","color":"blue","visible":true},{"tex":"\\\\left(a+\\\\left(b-a\\\\right)u\\\\right)v","color":"purple","visible":true},{"tex":"\\\\left(b+\\\\left(c-b\\\\right)u\\\\right)v","color":"orange","visible":true},{"tex":"\\\\left(c+\\\\left(d-c\\\\right)u\\\\right)v","color":"green","visible":true},{"tex":"\\\\left(d+\\\\left(f-d\\\\right)u\\\\right)v","color":"red","visible":true},{"tex":"\\\\left(f+\\\\left(a-f\\\\right)u\\\\right)v","color":"blue","visible":true}]`);
