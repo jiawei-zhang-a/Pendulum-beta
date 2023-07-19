@@ -26,6 +26,7 @@ Clear again, and try vector fields:
 * A simple vector field: `(x,y,z)`
 * A vector field with curl: `(y,z,x)`
 * Their cross product: `(x,y,z)\times(y,z,x)`.
+* A complicated vector field: `\left(x,y,z\right)\times \left(y,z,x\right)\times \left(x^2,y^2,z^2\right)`
 
 To test your knowledge, you can try making a trefoil knot that spins around the z-axis at a 1 revolution per
 second rate.

@@ -1107,13 +1107,13 @@ class LineTrace extends G {
      * @param v0
      * @param uCount
      */
-    constructor(name: string, dataInterface: (...baseVec: number[]) => number[], v0: number[], uCount = 50) {
+    constructor(name: string, dataInterface: (...baseVec: number[]) => number[], v0: number[], uCount = 10) {
         super(name);
         this.geometry = new THREE.BufferGeometry();
         const holder = new Vec();
         this.d = (x,y,z)=>{
             let vec =holder.set(...dataInterface(x,y,z));
-            return [...vec.normalize(vec).multiply(2,vec).components];
+            return [...vec.normalize(vec).multiply(1.5,vec).components];
         };
         this.uCount = uCount;
         this.v0 = v0;
@@ -1123,7 +1123,7 @@ class LineTrace extends G {
         const holder = new Vec();
         this.d = (x,y,z)=>{
             let vec =holder.set(...vecFunc(x,y,z));
-            return [...vec.normalize(vec).multiply(2,vec).components];
+            return [...vec.normalize(vec).multiply(1.5,vec).components];
         };
     }
 
@@ -1161,7 +1161,7 @@ class LineTrace extends G {
      * @param uCount # of vertices + 1 in the u direction
      * @param dt
      */
-    pu(uCount = this.uCount, dt = 0.02): void {
+    pu(uCount = this.uCount, dt = 1.0/uCount): void {
         this.vertices.length=0
         let trace = [...this.v0];
         for (let i = 0; i <= uCount; i++) {
