@@ -185,6 +185,11 @@ function i() {
 
     scene = new THREE.Scene();
 
+    const near = 7;
+    const far = 25;
+    const color = 'lightgray';
+    scene.fog = new THREE.Fog(color, near, far);
+
     renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true
