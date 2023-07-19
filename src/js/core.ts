@@ -441,6 +441,8 @@ for(let index = 0; index<pm.length; index++){
             return 'a.'+operator;
         if(operator == 'sqrt')
             return 'Math.'+operator;
+        if (operator == 'atan' || operator == 'acos' || operator == 'asin')
+            return 'Math.'+operator;
         return 'a.'+operator;
     }
 

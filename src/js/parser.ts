@@ -60,6 +60,10 @@ let macros:MStruct = {
     '!': ['factorial', 'operator', 0],
     '\\': {
         ' ': ['space', 'structure', 0],
+        'a': {'r': {'c': {
+            'c': {'o': {'s': ['acos', 'function', 1]}},
+            's': {'i': {'n': ['asin', 'function', 1]}},
+            't': {'a': {'n': ['atan', 'function', 1]}},}}},
         'c': {'d': {'o': {'t': ['dot', 'operator', 0],
                 }
             },
@@ -168,7 +172,7 @@ let macros:MStruct = {
     }
 };
 
-//T
+//Token
 class T{
     //type
     //Possible types include: function, operator, openstruct, closestruct, #, $
@@ -398,6 +402,9 @@ class T{
             case 'sin':
             case 'cot':
             case 'tan':
+            case 'acos':
+            case 'asin':
+            case 'atan':
                 if(tex.charAt(i)=='^') i = this.ps(tex, i+1, 0);
                 else {
                     this.sc.length = 0;
@@ -795,6 +802,9 @@ class R {
         'cot': [2.5, 6, 1],
         'sin': [2.5, 6, 1],
         'cos': [2.5, 6, 1],
+        'atan': [2.5, 6, 1],
+        'acos': [2.5, 6, 1],
+        'asin': [2.5, 6, 1],
         'sum': [2.5, 6, 1],
         'prod': [2.5, 6, 1],
         'factorial': [6, 5, 1],
