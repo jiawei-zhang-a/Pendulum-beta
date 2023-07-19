@@ -571,7 +571,7 @@ class C {
     g(newValue: number){
         let tex = "";
         if(this.r.c=="equal"){
-            tex=this.r.ch[0].s.X+"=";
+            tex=this.r.ch[0].token.X+"=";
         }
         tex+=Math.round(1000*(newValue*0.02-10))/1000;
         MQ.MathField(this.sf).latex(tex);
