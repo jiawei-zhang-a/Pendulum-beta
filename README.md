@@ -147,15 +147,14 @@ Result: *downloads a txt file containing the equation sheet string:
 ```
 
 ## //TODOs
-1. Fix parenthesis parsing.
-2. Add complex support for basic trig functions `\sin`, `\cos`.
-3. Add support for anti-trig functions `\arctan`, `\arcsin` etc.
-4. Add proper examples.
-5. Publish stable build.
-6. Pull from embeddable.
-7. Create tests.
-8. Add parametric type forcing.
-9. Write instructions for Geodesics calculator usage
-10. Field line tracing with GLSL?
+
+1. Pull from embeddable.
+2. Make main branch UI modular.
+3. Write instructions for Geodesics calculator usage
+4. Create tests.
+5. Migrate UI & state management to react.
+6. Add parametric type forcing.
+7. Tune array cartesian product behavior.
+8. Field line tracing with GLSL?
 
 Distant future: integration of core with CUDA?
