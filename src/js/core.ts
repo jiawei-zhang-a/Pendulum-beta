@@ -123,8 +123,9 @@ class S {
         let plugins: string[] = [];
         if(variable.s){
             plugins.push("slider");
+            variable.e.v='none';
         }
-        this.p.sfp(uid, plugins)
+        this.p.sfp(uid, plugins);
         return 0;
     }
 

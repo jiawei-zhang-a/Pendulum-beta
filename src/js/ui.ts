@@ -278,11 +278,11 @@ class DC{
     sp(plugins: string[]){
         for(let currentPlugin of this.pg){
             if(plugins.indexOf(currentPlugin)==-1)
-                this.ap(currentPlugin);
+                this.dp(currentPlugin);
         }
         for(let plugin of plugins){
             if(this.pg.indexOf(plugin)==-1)
-                this.dp(plugin);
+                this.ap(plugin);
         }
         this.pg = plugins;
     }
@@ -290,15 +290,15 @@ class DC{
      * addFieldPlugin
      * Inserts a field plugin of the corresponding type into the visual box
      */
-    private dp(plugin: string){
+    private ap(plugin: string){
         switch (plugin){
             case "slider":
                 this.sc.f();
                 break;
         }
     }
-    //addFieldPlugin
-    private ap(plugin: string){
+    //deleteFieldPlugin
+    private dp(plugin: string){
         switch (plugin){
             case "slider":
                 this.sc.h();
@@ -472,7 +472,7 @@ class C {
     //getInnerHeight
     v(){
         return $(this.sf).outerHeight()+
-            ((this.sn!=undefined)?$(this.sn).outerHeight():0);
+            ((this.sn!=undefined)?this.sn.offsetHeight:0);
     }
     //getOffsetHeight
     w(){
@@ -553,10 +553,10 @@ class C {
     //insertSliderHTML
     f(){
         let html = $.parseHTML(
-          `<span  class="slider" > -10
+          `<div  class="slider" > -10
 <input class="sliderComponent" type="range" min="0" max="1000" value="500" id = "${this.id}-slider">
 10
-</span>`
+</div>`
         )[0];
         this.sn = <HTMLElement> html;
         this.sc.appendChild(html);
