@@ -1,5 +1,5 @@
 # Pendulum (beta version)
-![img.png](./doc/img_42.png)
+![img_1.png](images/2023-09-01.png)
 ## Getting started
 The current stable build of this software is available at https://cloudnest.org/pendulum/beta/. There is also a demo calculator
 for calculating geodesics on revolutionary surfaces built on top of Pendulum available at https://cloudnest.org/pendulum/geodesics/.
@@ -9,7 +9,9 @@ For implementation details, please see [documentation](https://github.com/Yuelon
 You can try the following expressions in the calculator's expression field by copying and pasting them in one at a time:
 * A cone:`\sqrt{x^2+y^2}`
 * A wavy plane: `\sin(x)+\cos(y)`
-* A morphism between a cone and a wavy plane: `\cos(t/4)^2\sqrt{x^2+y^2}+\sin(t/4)^2\sin(x)+\cos(y)`.
+* A morphism between a cone and a wavy plane: `\cos(t/4)^2\sqrt{x^2+y^2}+\sin(t/4)^2\left(\sin(x)+\cos(y)\right)`.
+  
+![img_1.png](images/2023-09-01-2.png)
 
 Clear all the equations with back spacing, and paste the following parametric functions:
 * A trefoil knot `(\cos (4\pi u)(1+0.5\cos (6\pi u)),\sin (4\pi u)(1+0.5\cos (6\pi u)),0.5\sin (6\pi u))`
