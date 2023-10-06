@@ -12,7 +12,6 @@ You can try the following expressions in the calculator's expression field by co
 * A morphism between a cone and a wavy plane: `\cos(t/4)^2\sqrt{x^2+y^2}+\sin(t/4)^2\left(\sin(x)+\cos(y)\right)`.
   
 ![img_1.png](images/2023-09-01-2.png)
-
 Clear all the equations with back spacing, and paste the following parametric functions:
 * A trefoil knot `(\cos (4\pi u)(1+0.5\cos (6\pi u)),\sin (4\pi u)(1+0.5\cos (6\pi u)),0.5\sin (6\pi u))`
 * A donut: `a=(\cos(2\pi u)(1+0.5\cos(2\pi v)), \sin(2\pi u)(1+0.5\cos(2\pi v)), 0.5\sin(2\pi v))`
