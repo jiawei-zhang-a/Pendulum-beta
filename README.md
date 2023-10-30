@@ -1,5 +1,8 @@
 # Pendulum (beta version)
 ![img_1.png](images/2023-09-01.png)
+## Introduction
+Pendulum is an innovative visualization software that offers an intuitive approach to representing mathematical expressions in 3D. Pendulum leverages the power of LaTeX and TypeScript to enable dynamic and interactive visualizations directly from plain LaTeX mathematical expressions. Whether you're a student trying to visualize complex functions or a professional working on groundbreaking mathematical research, Pendulum is here to bring your equations to life.
+
 ## Getting started
 The current stable build of this software is available at https://cloudnest.org/pendulum/beta/. There is also a demo calculator
 for calculating geodesics on revolutionary surfaces built on top of Pendulum available at https://cloudnest.org/pendulum/geodesics/.
@@ -147,7 +150,14 @@ Result: *downloads a txt file containing the equation sheet string:
 [{"tex":"a=\\\\left(\\\\cos\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{2\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"b=\\\\left(\\\\cos\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{4\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"c=\\\\left(\\\\cos\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{6\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"d=\\\\left(\\\\cos\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{8\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"f=\\\\left(\\\\cos\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),\\\\sin\\\\left(\\\\frac{10\\\\pi}{5}\\\\right),1\\\\right)","color":"blue","visible":false},{"tex":"a+\\\\left(b-a\\\\right)u","color":"blue","visible":true},{"tex":"b+\\\\left(c-b\\\\right)u","color":"blue","visible":true},{"tex":"c+\\\\left(d-c\\\\right)u","color":"blue","visible":true},{"tex":"d+\\\\left(f-d\\\\right)u","color":"blue","visible":true},{"tex":"f+\\\\left(a-f\\\\right)u","color":"blue","visible":true},{"tex":"\\\\left(a+\\\\left(b-a\\\\right)u\\\\right)v","color":"purple","visible":true},{"tex":"\\\\left(b+\\\\left(c-b\\\\right)u\\\\right)v","color":"orange","visible":true},{"tex":"\\\\left(c+\\\\left(d-c\\\\right)u\\\\right)v","color":"green","visible":true},{"tex":"\\\\left(d+\\\\left(f-d\\\\right)u\\\\right)v","color":"red","visible":true},{"tex":"\\\\left(f+\\\\left(a-f\\\\right)u\\\\right)v","color":"blue","visible":true}]
 ```
 
-## //TODOs
+## Code of Conduct
+At Pendulum, we are committed to fostering a welcoming and inclusive community. All contributors and users are expected to abide by our Code of Conduct which ensures a safe and positive experience for everyone. Key principles include:
+### Respect: Treat all members of the community with respect. Avoid using offensive or derogatory language.
+### Collaboration: Embrace different perspectives and work collaboratively towards common goals.
+### No Harassment: Harassment in any form, be it verbal, physical, or online, is strictly prohibited and may lead to a ban from the community.
+### Open Source Spirit: Share knowledge freely and help others whenever possible.
+
+## TODOs
 
 1. Pull from embeddable.
 2. Make main branch UI modular.
